@@ -13,3 +13,7 @@ Saved/
 .vs/
 .DS_Store
 Thumbs.db
+
+# UE5 World Partition auto-generated files
+Content/__ExternalActors__/
+Content/__ExternalObjects__/
