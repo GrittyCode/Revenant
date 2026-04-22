@@ -1,13 +1,16 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+// Source/Revenant/Component/RVComboComponent.cpp
 #include "Component/RVComboComponent.h"
-
-#include "RVAttributeComponent.h"
+#include "Component/RVAttributeComponent.h"
+#include "Component/RVEquipmentComponent.h"
 #include "Data/RVWeaponDataAsset.h"
 #include "GameFramework/Character.h"
+#include "Animation/AnimInstance.h"
 
-DEFINE_LOG_CATEGORY(RVComboComponentLog)
+DEFINE_LOG_CATEGORY(LogRVCombo);
 
 URVComboComponent::URVComboComponent()
+	: bComboActive(0)
+	, bComboInputPending(0)
 {
 	PrimaryComponentTick.bCanEverTick = false;
 }
@@ -16,6 +19,14 @@ void URVComboComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// Cache sibling EquipmentComponent — created in the same InitializeComponents() call
+	EquipmentComponent = GetOwner()->FindComponentByClass<URVEquipmentComponent>();
+	if (!IsValid(EquipmentComponent))
+	{
+		UE_LOG(LogRVCombo, Warning, TEXT("[%s] BeginPlay: URVEquipmentComponent not found on owner."),
+			*GetOwner()->GetName());
+	}
+
 	UAnimInstance* AnimInstance = GetOwnerAnimInstance();
 	if (IsValid(AnimInstance))
 	{
@@ -23,17 +34,18 @@ void URVComboComponent::BeginPlay()
 	}
 	else
 	{
-		UE_LOG(RVComboComponentLog, Warning, TEXT("[%s] BeginPlay: AnimInstance not found — combo reset will not fire"),
-		       *GetOwner()->GetName());
+		UE_LOG(LogRVCombo, Warning, TEXT("[%s] BeginPlay: AnimInstance not found — combo reset will not fire."),
+			*GetOwner()->GetName());
 	}
 }
 
+// ---------------------------------------------------------------------------
+// Public interface
+// ---------------------------------------------------------------------------
+
 void URVComboComponent::TryStartCombo()
 {
-	if (!IsValid(WeaponData))
-	{
-		return;
-	}
+	if (!IsValid(GetWeaponData())) { return; }
 
 	if (!bComboActive)
 	{
@@ -41,106 +53,112 @@ void URVComboComponent::TryStartCombo()
 		return;
 	}
 
-	// Buffer one Input - ignored if already at the last hit
-	if (CurrentComboCount < WeaponData->MaxComboCount)
+	// Buffer one input — ignored if already at the last hit
+	if (CurrentComboCount < GetWeaponData()->MaxComboCount)
 	{
 		bComboInputPending = true;
 	}
 }
 
-void URVComboComponent::TryAdvancedCombo()
+void URVComboComponent::TryAdvanceCombo()
 {
-	if (!bComboActive || !IsValid(WeaponData))
-	{
-		return;
-	}
+	if (!bComboActive || !IsValid(GetWeaponData())) { return; }
 
-	if (bComboInputPending && CurrentComboCount < WeaponData->MaxComboCount)
+	if (bComboInputPending && CurrentComboCount < GetWeaponData()->MaxComboCount)
 	{
 		AdvanceToNextCombo();
 	}
+	// No pending input → section plays to natural end → OnAttackMontageEnded → ResetCombo
 }
 
-void URVComboComponent::SetWeaponData(URVWeaponDataAsset* InWeaponDataAsset)
-{
-	if (bComboActive)
-	{
-		// blocked while combo action 
-		return;
-	}
-
-	WeaponData = InWeaponDataAsset;
-}
-
+// ---------------------------------------------------------------------------
+// Private helpers
+// ---------------------------------------------------------------------------
 
 void URVComboComponent::StartFirstCombo()
 {
-	CurrentComboCount = 1;
+	URVWeaponDataAsset* CurrentWeaponData = GetWeaponData();
+	if (!IsValid(CurrentWeaponData)) { return; }
+
+	ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
+	if (!IsValid(OwnerCharacter)) { return; }
+
+	URVAttributeComponent* AttrComp = OwnerCharacter->FindComponentByClass<URVAttributeComponent>();
+	if (!IsValid(AttrComp)) { return; }
+
+	// Consume stamina before play — prevents spam during recovery frames
+	if (!AttrComp->ApplyStaminaCost(CurrentWeaponData->AttackStaminaCost))
+	{
+		UE_LOG(LogRVCombo, Log, TEXT("[%s] StartFirstCombo: not enough stamina."), *GetOwner()->GetName());
+		return;
+	}
+
+	UAnimInstance* AnimInstance = GetOwnerAnimInstance();
+	if (!IsValid(AnimInstance)) { return; }
+
+	bComboActive       = true;
+	bComboInputPending = false;
+	CurrentComboCount  = 1;
+
+	AnimInstance->Montage_Play(CurrentWeaponData->AttackMontage);
+	// Montage starts at section index 0 ("Attack1") by default
 }
 
 void URVComboComponent::AdvanceToNextCombo()
 {
+	URVWeaponDataAsset* CurrentWeaponData = GetWeaponData();
+	if (!IsValid(CurrentWeaponData)) { return; }
+
 	ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
-	if (!IsValid(OwnerCharacter))
-	{
-		return;
-	}
+	if (!IsValid(OwnerCharacter)) { return; }
 
-	URVAttributeComponent* AttributeComponent = OwnerCharacter->FindComponentByClass<URVAttributeComponent>();
-	if (!IsValid(AttributeComponent))
-	{
-		return;
-	}
+	URVAttributeComponent* AttrComp = OwnerCharacter->FindComponentByClass<URVAttributeComponent>();
+	if (!IsValid(AttrComp)) { return; }
 
-	if (!AttributeComponent->ApplyStaminaCost(WeaponData->AttackStaminaCost))
+	if (!AttrComp->ApplyStaminaCost(CurrentWeaponData->AttackStaminaCost))
 	{
 		ResetCombo();
 		return;
 	}
 
-
 	UAnimInstance* AnimInstance = GetOwnerAnimInstance();
-	if (!IsValid(AnimInstance))
-	{
-		return;
-	}
+	if (!IsValid(AnimInstance)) { return; }
 
 	bComboInputPending = false;
 
+	// CurrentComboCount is 1-based after StartFirstCombo, so index [CurrentComboCount] = next section
 	AnimInstance->Montage_JumpToSection(
-		WeaponData->ComboSectionNames[CurrentComboCount],
-		WeaponData->AttackMontage);
+		CurrentWeaponData->ComboSectionNames[CurrentComboCount],
+		CurrentWeaponData->AttackMontage);
 
 	++CurrentComboCount;
 }
 
 void URVComboComponent::ResetCombo()
 {
-	bComboActive = false;
+	bComboActive       = false;
 	bComboInputPending = false;
-	CurrentComboCount = 0;
+	CurrentComboCount  = 0;
 }
 
 void URVComboComponent::OnAttackMontageEnded(UAnimMontage* InMontage, bool bInInterrupted)
 {
-	if (!IsValid(WeaponData) || InMontage != WeaponData->AttackMontage)
-	{
-		return;
-	}
-	
+	const URVWeaponDataAsset* CurrentWeaponData = GetWeaponData();
+	if (!IsValid(CurrentWeaponData) || InMontage != CurrentWeaponData->AttackMontage) { return; }
+
 	ResetCombo();
+}
+
+
+URVWeaponDataAsset* URVComboComponent::GetWeaponData() const
+{
+	if (!IsValid(EquipmentComponent)) { return nullptr; }
+	return EquipmentComponent->GetWeaponData();
 }
 
 UAnimInstance* URVComboComponent::GetOwnerAnimInstance() const
 {
 	const ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
-	
-	if (!IsValid(OwnerCharacter))
-	{
-		return nullptr;
-	}
-	
+	if (!IsValid(OwnerCharacter)) { return nullptr; }
 	return OwnerCharacter->GetMesh()->GetAnimInstance();
-	
-	
 }

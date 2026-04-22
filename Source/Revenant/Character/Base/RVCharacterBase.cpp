@@ -1,14 +1,12 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
-
+// Source/Revenant/Character/Base/RVCharacterBase.cpp
 #include "Character/Base/RVCharacterBase.h"
 #include "Component/RVAttributeComponent.h"
 #include "Component/RVComboComponent.h"
+#include "Component/RVEquipmentComponent.h"
 #include "Data/RVCharacterDataAsset.h"
 
 DEFINE_LOG_CATEGORY(LogRVCharacterBase);
 
-// Sets default values
 ARVCharacterBase::ARVCharacterBase()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -16,25 +14,28 @@ ARVCharacterBase::ARVCharacterBase()
 	InitializeComponents();
 }
 
-// Called when the game starts or when spawned
 void ARVCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (!IsValid(CharacterData) && IsValid(CharacterData->DefaultWeaponData))
+	if (!IsValid(CharacterData))
 	{
 		UE_LOG(LogRVCharacterBase, Warning,
-			TEXT("[RVCharacterBase: CharacterData not assigned in Blueprint defaults."));
+			TEXT("[%s] BeginPlay: CharacterData not assigned in Blueprint defaults."), *GetName());
 		return;
 	}
 
 	AttributeComponent->InitializeFromData(CharacterData);
+
+	if (IsValid(CharacterData->DefaultWeaponData))
+	{
+		EquipmentComponent->EquipWeapon(CharacterData->DefaultWeaponData);
+	}
 }
 
 void ARVCharacterBase::InitializeComponents()
 {
-	AttributeComponent = CreateDefaultSubobject<URVAttributeComponent>(TEXT("AttributeComponent"));
-	ComboComponent = CreateDefaultSubobject<URVComboComponent>(TEXT("ComboComponent"));
+	AttributeComponent  = CreateDefaultSubobject<URVAttributeComponent>(TEXT("AttributeComponent"));
+	ComboComponent      = CreateDefaultSubobject<URVComboComponent>(TEXT("ComboComponent"));
+	EquipmentComponent  = CreateDefaultSubobject<URVEquipmentComponent>(TEXT("EquipmentComponent"));
 }
-
-

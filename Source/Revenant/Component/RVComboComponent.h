@@ -1,41 +1,42 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
+// Source/Revenant/Component/RVComboComponent.h
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "RVComboComponent.generated.h"
 
+class URVEquipmentComponent;
 class URVWeaponDataAsset;
 
-DECLARE_LOG_CATEGORY_EXTERN(RVComboComponentLog, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogRVCombo, Log, All);
 
-UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
+/**
+ * Manages combo state, input buffering, and montage section sequencing.
+ *
+ * Single responsibility: combo logic only.
+ * Weapon data is read from URVEquipmentComponent — this component does not own it.
+ */
+UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
 class REVENANT_API URVComboComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
-	// Sets default values for this component's properties
 	URVComboComponent();
 
 	/**
-    * Combo entry point.
-    * - Not active  → StartFirstCombo()
-    * - Active      → buffer input (bComboInputPending)
-    * Callers: ARVCharacterPlayer (Enhanced Input), BTTask_MeleeAttack (enemy/boss)
-    */
+	 * Combo entry point.
+	 * - Not active  → StartFirstCombo()
+	 * - Active      → buffer input (bComboInputPending)
+	 * Callers: ARVCharacterPlayer (Enhanced Input), BTTask_MeleeAttack (enemy/boss)
+	 */
 	void TryStartCombo();
-	
+
 	/**
-	* Called by AnimNotify_ComboWindow at the branch point of each montage section.
-	* Advances to the next section if input is buffered; otherwise lets montage end.
-	*/
-	void TryAdvancedCombo();
-	
-	
-	UFUNCTION(BlueprintCallable, Category = "RV|Combo")
-	void SetWeaponData(URVWeaponDataAsset* InWeaponDataAsset);
+	 * Called by AnimNotify_ComboWindow at the branch point of each montage section.
+	 * Advances to the next section if input is buffered; otherwise lets montage end naturally.
+	 */
+	void TryAdvanceCombo();
 
 	UFUNCTION(BlueprintCallable, Category = "RV|Combo")
 	bool IsComboActive() const { return bComboActive; }
@@ -47,20 +48,25 @@ protected:
 	virtual void BeginPlay() override;
 
 private:
+	/** Convenience accessor — queries EquipmentComponent. Returns nullptr if not equipped. */
+	URVWeaponDataAsset* GetWeaponData() const;
+
 	void StartFirstCombo();
 	void AdvanceToNextCombo();
 	void ResetCombo();
 
+	// Bound once in BeginPlay — filtered by montage pointer inside the callback
 	UFUNCTION()
 	void OnAttackMontageEnded(UAnimMontage* InMontage, bool bInInterrupted);
 
 	UAnimInstance* GetOwnerAnimInstance() const;
-
+	
+	// Cached in BeginPlay — sibling component on the same owner
 	UPROPERTY()
-	TObjectPtr<URVWeaponDataAsset> WeaponData;
+	TObjectPtr<URVEquipmentComponent> EquipmentComponent;
 
-	bool bComboActive = false;
+	bool bComboActive       = false;
 	bool bComboInputPending = false;
-
+	
 	int32 CurrentComboCount = 0;
 };

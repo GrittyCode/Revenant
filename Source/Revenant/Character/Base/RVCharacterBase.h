@@ -5,14 +5,10 @@
 #include "GameFramework/Character.h"
 #include "RVCharacterBase.generated.h"
 
-// Data
 class URVCharacterDataAsset;
-
-
-// Component
 class URVAttributeComponent;
 class URVComboComponent;
-
+class URVEquipmentComponent;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogRVCharacterBase, Log, All);
 
@@ -24,24 +20,21 @@ class REVENANT_API ARVCharacterBase : public ACharacter
 public:
 	ARVCharacterBase();
 
-	// IRVDamageable — to be added in W2 when the interface is introduced
-	// virtual bool ApplyDamage(float InDamageAmount, AActor* InInstigator);
-
 protected:
 	virtual void BeginPlay() override;
-	
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
 	TObjectPtr<URVAttributeComponent> AttributeComponent;
-	
+
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
 	TObjectPtr<URVComboComponent> ComboComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+	TObjectPtr<URVEquipmentComponent> EquipmentComponent;
 
 	// Assign the matching DataAsset in each character's Blueprint defaults
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Data")
 	TObjectPtr<URVCharacterDataAsset> CharacterData;
-	
-	
 
 private:
 	void InitializeComponents();
