@@ -5,8 +5,14 @@
 #include "GameFramework/Character.h"
 #include "RVCharacterBase.generated.h"
 
-class URVAttributeComponent;
+// Data
 class URVCharacterDataAsset;
+
+
+// Component
+class URVAttributeComponent;
+class URVComboComponent;
+
 
 DECLARE_LOG_CATEGORY_EXTERN(LogRVCharacterBase, Log, All);
 
@@ -27,10 +33,15 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
 	TObjectPtr<URVAttributeComponent> AttributeComponent;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+	TObjectPtr<URVComboComponent> ComboComponent;
 
 	// Assign the matching DataAsset in each character's Blueprint defaults
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Data")
 	TObjectPtr<URVCharacterDataAsset> CharacterData;
+	
+	
 
 private:
 	void InitializeComponents();

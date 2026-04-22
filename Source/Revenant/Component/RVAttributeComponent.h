@@ -37,7 +37,7 @@ public:
 	bool ApplyHealing(float InHealAmount);
 
 	// Returns false if stamina is insufficient - caller decides whether to block the action
-	bool ConsumeStamina(float InAmount);
+	bool ApplyStaminaCost(float InAmount);
 
 
 	// =================== Outward delegates (mirrors GAS AttributeChangedDelegate pattern) =============================
@@ -91,5 +91,5 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "RV|Attribute")
 	float StaminaRegenRate = 20.f;
 
-	uint8 bIsDead : 1;
+	bool bIsDead = false;
 };

@@ -3,6 +3,7 @@
 
 #include "Character/Base/RVCharacterBase.h"
 #include "Component/RVAttributeComponent.h"
+#include "Component/RVComboComponent.h"
 #include "Data/RVCharacterDataAsset.h"
 
 DEFINE_LOG_CATEGORY(LogRVCharacterBase);
@@ -20,7 +21,7 @@ void ARVCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (!IsValid(CharacterData))
+	if (!IsValid(CharacterData) && IsValid(CharacterData->DefaultWeaponData))
 	{
 		UE_LOG(LogRVCharacterBase, Warning,
 			TEXT("[RVCharacterBase: CharacterData not assigned in Blueprint defaults."));
@@ -33,6 +34,7 @@ void ARVCharacterBase::BeginPlay()
 void ARVCharacterBase::InitializeComponents()
 {
 	AttributeComponent = CreateDefaultSubobject<URVAttributeComponent>(TEXT("AttributeComponent"));
+	ComboComponent = CreateDefaultSubobject<URVComboComponent>(TEXT("ComboComponent"));
 }
 
 

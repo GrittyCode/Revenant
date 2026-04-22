@@ -4,6 +4,7 @@
 #include "Character/Player/RVCharacterPlayer.h"
 #include "Camera/CameraComponent.h"
 #include "EnhancedInputComponent.h"
+#include "Component/RVComboComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Input/RVInputConfig.h"
@@ -56,12 +57,13 @@ void ARVCharacterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	EnhancedInput->BindAction(InputConfig->LookAction, ETriggerEvent::Triggered, this, &ARVCharacterPlayer::Look);
 	EnhancedInput->BindAction(InputConfig->JumpAction, ETriggerEvent::Started, this, &ACharacter::Jump);
 	EnhancedInput->BindAction(InputConfig->JumpAction, ETriggerEvent::Completed, this, &ACharacter::StopJumping);
+	EnhancedInput->BindAction(InputConfig->AttackAction, ETriggerEvent::Started, this, &ARVCharacterPlayer::HandleAttackInput);
 }
 
-void ARVCharacterPlayer::Move(const FInputActionValue& Value)
+void ARVCharacterPlayer::Move(const FInputActionValue& InValue)
 {
 	// Unreal X : 좌우 Y : 앞뒤 Z : 위아래
-	const FVector2D MovementVector = Value.Get<FVector2D>();
+	const FVector2D MovementVector = InValue.Get<FVector2D>();
 
 	if (!IsValid(Controller))
 	{
@@ -79,10 +81,18 @@ void ARVCharacterPlayer::Move(const FInputActionValue& Value)
 	AddMovementInput(RightDirection, MovementVector.Y);
 }
 
-void ARVCharacterPlayer::Look(const FInputActionValue& Value)
+void ARVCharacterPlayer::Look(const FInputActionValue& InValue)
 {
-	const FVector2D LookVector = Value.Get<FVector2D>();
+	const FVector2D LookVector = InValue.Get<FVector2D>();
 
 	AddControllerYawInput(LookVector.X);
 	AddControllerPitchInput(LookVector.Y);
+}
+
+void ARVCharacterPlayer::HandleAttackInput(const FInputActionValue& InValue)
+{
+	if (IsValid(ComboComponent))
+	{
+		ComboComponent->TryStartCombo();
+	}
 }

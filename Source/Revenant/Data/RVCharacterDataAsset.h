@@ -4,7 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "Data/RVWeaponDataAsset.h"
 #include "RVCharacterDataAsset.generated.h"
+
 
 /**
  * 
@@ -26,4 +28,7 @@ public:
 	
 	UPROPERTY(EditDefaultsOnly, BluePrintReadOnly, Category = "RV|Attribute")
 	float AttackDamage = 20.f;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Combo")
+	TObjectPtr<URVWeaponDataAsset> DefaultWeaponData;
 };

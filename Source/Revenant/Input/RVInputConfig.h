@@ -18,16 +18,20 @@ class REVENANT_API URVInputConfig : public UDataAsset
 
 public:
 	// Move (2D Axis - WASD)
-	UPROPERTY(EditAnywhere, Category = "RV|Input")
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
 	TObjectPtr<UInputAction> MoveAction;
     
     
 	//  Look (2D Axis - Mouse(X Y)
-	UPROPERTY(EditAnywhere, Category = "RV|Input")
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
 	TObjectPtr<UInputAction> LookAction;
     
 	// Jump (Button)
-	UPROPERTY(EditAnywhere, Category = "RV|Input")
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
 	TObjectPtr<UInputAction> JumpAction;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
+	TObjectPtr<UInputAction> AttackAction;
+	
 };
 

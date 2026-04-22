@@ -36,6 +36,7 @@ private:
 	TObjectPtr<URVInputConfig> InputConfig;
 
 	// Input handlers
-	void Move(const FInputActionValue& Value);
-	void Look(const FInputActionValue& Value);
+	void Move(const FInputActionValue& InValue);
+	void Look(const FInputActionValue& InValue);
+	void HandleAttackInput(const FInputActionValue& InValue);
 };

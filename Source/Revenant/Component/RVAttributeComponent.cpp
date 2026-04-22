@@ -34,7 +34,10 @@ void URVAttributeComponent::InitializeFromData(const URVCharacterDataAsset* InDa
 
 bool URVAttributeComponent::ApplyDamage(float InDamageAmount, AActor* InInstigator)
 {
-	if (bIsDead || InDamageAmount <= 0.f) { return false; }
+	if (bIsDead || InDamageAmount <= 0.f)
+	{
+		return false;
+	}
 
 	const float PreviousHealth = CurrentHealth;
 	CurrentHealth = FMath::Clamp(CurrentHealth - InDamageAmount, 0.f, MaxHealth);
@@ -64,10 +67,10 @@ bool URVAttributeComponent::ApplyHealing(float InHealAmount)
 	return true;
 }
 
-bool URVAttributeComponent::ConsumeStamina(float InAmount)
+bool URVAttributeComponent::ApplyStaminaCost(float InAmount)
 {
-	if (InAmount <= 0.f) { return true; } 
-	if (CurrentStamina < InAmount) { return false; } 
+	if (InAmount <= 0.f) { return true; }
+	if (CurrentStamina < InAmount) { return false; }
 
 	CurrentStamina -= InAmount;
 	OnStaminaChanged.Broadcast(CurrentStamina, -InAmount);
