@@ -2,17 +2,37 @@
 
 
 #include "Character/Base/RVCharacterBase.h"
+#include "Component/RVAttributeComponent.h"
+#include "Data/RVCharacterDataAsset.h"
+
+DEFINE_LOG_CATEGORY(LogRVCharacterBase);
 
 // Sets default values
 ARVCharacterBase::ARVCharacterBase()
 {
 	PrimaryActorTick.bCanEverTick = false;
+
+	InitializeComponents();
 }
 
 // Called when the game starts or when spawned
 void ARVCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	if (!IsValid(CharacterData))
+	{
+		UE_LOG(LogRVCharacterBase, Warning,
+			TEXT("[RVCharacterBase: CharacterData not assigned in Blueprint defaults."));
+		return;
+	}
+
+	AttributeComponent->InitializeFromData(CharacterData);
+}
+
+void ARVCharacterBase::InitializeComponents()
+{
+	AttributeComponent = CreateDefaultSubobject<URVAttributeComponent>(TEXT("AttributeComponent"));
 }
 
 
