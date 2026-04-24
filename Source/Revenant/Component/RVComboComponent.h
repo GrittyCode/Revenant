@@ -37,7 +37,8 @@ public:
 	 * Advances to the next section if input is buffered; otherwise lets montage end naturally.
 	 */
 	void TryAdvanceCombo();
-
+	
+	
 	UFUNCTION(BlueprintCallable, Category = "RV|Combo")
 	bool IsComboActive() const { return bComboActive; }
 
@@ -64,7 +65,7 @@ private:
 	// Cached in BeginPlay — sibling component on the same owner
 	UPROPERTY()
 	TObjectPtr<URVEquipmentComponent> EquipmentComponent;
-
+	
 	bool bComboActive       = false;
 	bool bComboInputPending = false;
 	
