@@ -93,6 +93,6 @@ void ARVCharacterPlayer::HandleAttackInput(const FInputActionValue& InValue)
 {
 	if (IsValid(ComboComponent))
 	{
-		ComboComponent->TryStartCombo();
+		ComboComponent->HandleComboInput();
 	}
 }

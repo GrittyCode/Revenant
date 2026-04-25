@@ -26,11 +26,11 @@ public:
 
 	/**
 	 * Combo entry point.
-	 * - Not active  → StartFirstCombo()
+	 * - Not active  → StartCombo()
 	 * - Active      → buffer input (bComboInputPending)
 	 * Callers: ARVCharacterPlayer (Enhanced Input), BTTask_MeleeAttack (enemy/boss)
 	 */
-	void TryStartCombo();
+	void HandleComboInput();
 
 	/**
 	 * Called by AnimNotify_ComboWindow at the branch point of each montage section.
@@ -52,7 +52,7 @@ private:
 	/** Convenience accessor — queries EquipmentComponent. Returns nullptr if not equipped. */
 	URVWeaponDataAsset* GetWeaponData() const;
 
-	void StartFirstCombo();
+	void StartCombo();
 	void AdvanceToNextCombo();
 	void ResetCombo();
 

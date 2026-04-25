@@ -10,7 +10,7 @@ DEFINE_LOG_CATEGORY(LogRVCombo);
 
 URVComboComponent::URVComboComponent()
 	: bComboActive(0)
-	, bComboInputPending(0)
+	  , bComboInputPending(0)
 {
 	PrimaryComponentTick.bCanEverTick = false;
 }
@@ -24,7 +24,7 @@ void URVComboComponent::BeginPlay()
 	if (!IsValid(EquipmentComponent))
 	{
 		UE_LOG(LogRVCombo, Warning, TEXT("[%s] BeginPlay: URVEquipmentComponent not found on owner."),
-			*GetOwner()->GetName());
+		       *GetOwner()->GetName());
 	}
 
 	UAnimInstance* AnimInstance = GetOwnerAnimInstance();
@@ -35,7 +35,7 @@ void URVComboComponent::BeginPlay()
 	else
 	{
 		UE_LOG(LogRVCombo, Warning, TEXT("[%s] BeginPlay: AnimInstance not found — combo reset will not fire."),
-			*GetOwner()->GetName());
+		       *GetOwner()->GetName());
 	}
 }
 
@@ -43,13 +43,16 @@ void URVComboComponent::BeginPlay()
 // Public interface
 // ---------------------------------------------------------------------------
 
-void URVComboComponent::TryStartCombo()
+void URVComboComponent::HandleComboInput()
 {
-	if (!IsValid(GetWeaponData())) { return; }
+	if (!IsValid(GetWeaponData()))
+	{
+		return;
+	}
 
 	if (!bComboActive)
 	{
-		StartFirstCombo();
+		StartCombo();
 		return;
 	}
 
@@ -62,12 +65,16 @@ void URVComboComponent::TryStartCombo()
 
 void URVComboComponent::TryAdvanceCombo()
 {
-	if (!bComboActive || !IsValid(GetWeaponData())) { return; }
+	if (!bComboActive || !IsValid(GetWeaponData()))
+	{
+		return;
+	}
 
 	if (bComboInputPending && CurrentComboCount < GetWeaponData()->MaxComboCount)
 	{
 		AdvanceToNextCombo();
 	}
+
 	// No pending input → section plays to natural end → OnAttackMontageEnded → ResetCombo
 }
 
@@ -75,7 +82,7 @@ void URVComboComponent::TryAdvanceCombo()
 // Private helpers
 // ---------------------------------------------------------------------------
 
-void URVComboComponent::StartFirstCombo()
+void URVComboComponent::StartCombo()
 {
 	URVWeaponDataAsset* CurrentWeaponData = GetWeaponData();
 	if (!IsValid(CurrentWeaponData)) { return; }
@@ -89,16 +96,16 @@ void URVComboComponent::StartFirstCombo()
 	// Consume stamina before play — prevents spam during recovery frames
 	if (!AttrComp->ApplyStaminaCost(CurrentWeaponData->AttackStaminaCost))
 	{
-		UE_LOG(LogRVCombo, Log, TEXT("[%s] StartFirstCombo: not enough stamina."), *GetOwner()->GetName());
+		UE_LOG(LogRVCombo, Log, TEXT("[%s] StartCombo: not enough stamina."), *GetOwner()->GetName());
 		return;
 	}
 
 	UAnimInstance* AnimInstance = GetOwnerAnimInstance();
 	if (!IsValid(AnimInstance)) { return; }
 
-	bComboActive       = true;
+	bComboActive = true;
 	bComboInputPending = false;
-	CurrentComboCount  = 1;
+	CurrentComboCount = 1;
 
 	AnimInstance->Montage_Play(CurrentWeaponData->AttackMontage);
 	// Montage starts at section index 0 ("Attack1") by default
@@ -126,7 +133,7 @@ void URVComboComponent::AdvanceToNextCombo()
 
 	bComboInputPending = false;
 
-	// CurrentComboCount is 1-based after StartFirstCombo, so index [CurrentComboCount] = next section
+	// CurrentComboCount is 1-based after StartCombo, so index [CurrentComboCount] = next section
 	AnimInstance->Montage_JumpToSection(
 		CurrentWeaponData->ComboSectionNames[CurrentComboCount],
 		CurrentWeaponData->AttackMontage);
@@ -136,9 +143,9 @@ void URVComboComponent::AdvanceToNextCombo()
 
 void URVComboComponent::ResetCombo()
 {
-	bComboActive       = false;
+	bComboActive = false;
 	bComboInputPending = false;
-	CurrentComboCount  = 0;
+	CurrentComboCount = 0;
 }
 
 void URVComboComponent::OnAttackMontageEnded(UAnimMontage* InMontage, bool bInInterrupted)
@@ -152,13 +159,21 @@ void URVComboComponent::OnAttackMontageEnded(UAnimMontage* InMontage, bool bInIn
 
 URVWeaponDataAsset* URVComboComponent::GetWeaponData() const
 {
-	if (!IsValid(EquipmentComponent)) { return nullptr; }
+	if (!IsValid(EquipmentComponent))
+	{
+		return nullptr;
+	}
 	return EquipmentComponent->GetWeaponData();
 }
 
 UAnimInstance* URVComboComponent::GetOwnerAnimInstance() const
 {
 	const ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
-	if (!IsValid(OwnerCharacter)) { return nullptr; }
+
+	if (!IsValid(OwnerCharacter))
+	{
+		return nullptr;
+	}
+
 	return OwnerCharacter->GetMesh()->GetAnimInstance();
 }
