@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Interface/RVCombatInterface.h"
 #include "RVCharacterBase.generated.h"
 
 class URVCharacterDataAsset;
@@ -13,13 +14,16 @@ class URVEquipmentComponent;
 DECLARE_LOG_CATEGORY_EXTERN(LogRVCharacterBase, Log, All);
 
 UCLASS()
-class REVENANT_API ARVCharacterBase : public ACharacter
+class REVENANT_API ARVCharacterBase : public ACharacter, public IRVCombatInterface
 {
 	GENERATED_BODY()
 
 public:
 	ARVCharacterBase();
 
+	// Combat Section
+public:
+	virtual void ActivateHitCheck_Implementation() override;
 protected:
 	virtual void BeginPlay() override;
 
