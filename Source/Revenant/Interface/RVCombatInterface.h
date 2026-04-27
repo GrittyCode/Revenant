@@ -21,7 +21,6 @@ class REVENANT_API IRVCombatInterface
 	GENERATED_BODY()
 
 public:
-	// Called by AnimNotifty_AttackHitCheck at the exact frame weapon should deal damage.
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "RV|Combat")
-	void ActivateHitCheck();
+	// Called by AnimNotify_AttackHitCheck at the exact frame weapon should deal damage.
+	virtual void ActivateHitCheck() = 0;
 };

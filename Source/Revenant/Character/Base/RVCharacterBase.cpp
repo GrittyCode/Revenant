@@ -14,7 +14,7 @@ ARVCharacterBase::ARVCharacterBase()
 	InitializeComponents();
 }
 
-void ARVCharacterBase::ActivateHitCheck_Implementation()
+void ARVCharacterBase::ActivateHitCheck()
 {
 	UE_LOG(LogRVCharacterBase, Log, TEXT("[%s] ActivateHitCheck triggered"), *GetName());
 
@@ -23,7 +23,7 @@ void ARVCharacterBase::ActivateHitCheck_Implementation()
 	if (GEngine)
 	{
 		GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Orange,
-		                                 FString::Printf(TEXT("[%s] HitCheck!"), *GetName()));
+										 FString::Printf(TEXT("[%s] HitCheck!"), *GetName()));
 	}
 #endif
 }

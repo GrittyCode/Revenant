@@ -23,7 +23,7 @@ public:
 
 	// Combat Section
 public:
-	virtual void ActivateHitCheck_Implementation() override;
+	virtual void ActivateHitCheck() override;
 protected:
 	virtual void BeginPlay() override;
 

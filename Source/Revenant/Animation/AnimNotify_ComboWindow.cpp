@@ -1,20 +1,12 @@
-// Source/Revenant/Animation/AnimNotify_ComboWindow.cpp
 #include "Animation/AnimNotify_ComboWindow.h"
 #include "Component/RVComboComponent.h"
-#include "GameFramework/Character.h"
 
 void UAnimNotify_ComboWindow::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
-                                     const FAnimNotifyEventReference& EventReference)
+									 const FAnimNotifyEventReference& EventReference)
 {
 	Super::Notify(MeshComp, Animation, EventReference);
-
-	const ACharacter* OwnerCharacter = Cast<ACharacter>(MeshComp->GetOwner());
-	if (!IsValid(OwnerCharacter))
-	{
-		return;
-	}
-
-	URVComboComponent* ComboComp = OwnerCharacter->FindComponentByClass<URVComboComponent>();
+	
+	URVComboComponent* ComboComp = MeshComp->GetOwner()->FindComponentByClass<URVComboComponent>();
 	if (!IsValid(ComboComp))
 	{
 		return;

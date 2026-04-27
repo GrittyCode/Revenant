@@ -1,4 +1,3 @@
-// Source/Revenant/Component/RVComboComponent.cpp
 #include "Component/RVComboComponent.h"
 #include "Component/RVAttributeComponent.h"
 #include "Component/RVEquipmentComponent.h"
@@ -19,11 +18,18 @@ void URVComboComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	// Cache sibling EquipmentComponent — created in the same InitializeComponents() call
+	// Cache sibling components created in the same InitializeComponents() call.
 	EquipmentComponent = GetOwner()->FindComponentByClass<URVEquipmentComponent>();
 	if (!IsValid(EquipmentComponent))
 	{
 		UE_LOG(LogRVCombo, Warning, TEXT("[%s] BeginPlay: URVEquipmentComponent not found on owner."),
+		       *GetOwner()->GetName());
+	}
+
+	AttributeComponent = GetOwner()->FindComponentByClass<URVAttributeComponent>();
+	if (!IsValid(AttributeComponent))
+	{
+		UE_LOG(LogRVCombo, Warning, TEXT("[%s] BeginPlay: URVAttributeComponent not found on owner."),
 		       *GetOwner()->GetName());
 	}
 
@@ -87,14 +93,11 @@ void URVComboComponent::StartCombo()
 	URVWeaponDataAsset* CurrentWeaponData = GetWeaponData();
 	if (!IsValid(CurrentWeaponData)) { return; }
 
-	ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
-	if (!IsValid(OwnerCharacter)) { return; }
+	// AttributeComponent cached in BeginPlay — no FindComponentByClass per call.
+	if (!IsValid(AttributeComponent)) { return; }
 
-	URVAttributeComponent* AttrComp = OwnerCharacter->FindComponentByClass<URVAttributeComponent>();
-	if (!IsValid(AttrComp)) { return; }
-
-	// Consume stamina before play — prevents spam during recovery frames
-	if (!AttrComp->ApplyStaminaCost(CurrentWeaponData->AttackStaminaCost))
+	// Consume stamina before play — prevents spam during recovery frames.
+	if (!AttributeComponent->ApplyStaminaCost(CurrentWeaponData->AttackStaminaCost))
 	{
 		UE_LOG(LogRVCombo, Log, TEXT("[%s] StartCombo: not enough stamina."), *GetOwner()->GetName());
 		return;
@@ -103,9 +106,9 @@ void URVComboComponent::StartCombo()
 	UAnimInstance* AnimInstance = GetOwnerAnimInstance();
 	if (!IsValid(AnimInstance)) { return; }
 
-	bComboActive = true;
+	bComboActive       = true;
 	bComboInputPending = false;
-	CurrentComboCount = 1;
+	CurrentComboCount  = 1;
 
 	AnimInstance->Montage_Play(CurrentWeaponData->AttackMontage);
 	// Montage starts at section index 0 ("Attack1") by default
@@ -116,13 +119,10 @@ void URVComboComponent::AdvanceToNextCombo()
 	URVWeaponDataAsset* CurrentWeaponData = GetWeaponData();
 	if (!IsValid(CurrentWeaponData)) { return; }
 
-	ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
-	if (!IsValid(OwnerCharacter)) { return; }
+	// AttributeComponent cached in BeginPlay — no FindComponentByClass per call.
+	if (!IsValid(AttributeComponent)) { return; }
 
-	URVAttributeComponent* AttrComp = OwnerCharacter->FindComponentByClass<URVAttributeComponent>();
-	if (!IsValid(AttrComp)) { return; }
-
-	if (!AttrComp->ApplyStaminaCost(CurrentWeaponData->AttackStaminaCost))
+	if (!AttributeComponent->ApplyStaminaCost(CurrentWeaponData->AttackStaminaCost))
 	{
 		ResetCombo();
 		return;
@@ -143,9 +143,9 @@ void URVComboComponent::AdvanceToNextCombo()
 
 void URVComboComponent::ResetCombo()
 {
-	bComboActive = false;
+	bComboActive       = false;
 	bComboInputPending = false;
-	CurrentComboCount = 0;
+	CurrentComboCount  = 0;
 }
 
 void URVComboComponent::OnAttackMontageEnded(UAnimMontage* InMontage, bool bInInterrupted)
@@ -155,7 +155,6 @@ void URVComboComponent::OnAttackMontageEnded(UAnimMontage* InMontage, bool bInIn
 
 	ResetCombo();
 }
-
 
 URVWeaponDataAsset* URVComboComponent::GetWeaponData() const
 {
@@ -169,11 +168,9 @@ URVWeaponDataAsset* URVComboComponent::GetWeaponData() const
 UAnimInstance* URVComboComponent::GetOwnerAnimInstance() const
 {
 	const ACharacter* OwnerCharacter = Cast<ACharacter>(GetOwner());
-
 	if (!IsValid(OwnerCharacter))
 	{
 		return nullptr;
 	}
-
 	return OwnerCharacter->GetMesh()->GetAnimInstance();
 }
