@@ -3,53 +3,61 @@
 #include "Component/RVAttributeComponent.h"
 #include "Component/RVComboComponent.h"
 #include "Component/RVEquipmentComponent.h"
+#include "Component/RVCombatComponent.h"
 #include "Data/RVCharacterDataAsset.h"
-
-DEFINE_LOG_CATEGORY(LogRVCharacterBase);
 
 ARVCharacterBase::ARVCharacterBase()
 {
-	PrimaryActorTick.bCanEverTick = false;
+    PrimaryActorTick.bCanEverTick = false;
 
-	InitializeComponents();
-}
-
-void ARVCharacterBase::ActivateHitCheck()
-{
-	UE_LOG(LogRVCharacterBase, Log, TEXT("[%s] ActivateHitCheck triggered"), *GetName());
-
-
-#if !UE_BUILD_SHIPPING
-	if (GEngine)
-	{
-		GEngine->AddOnScreenDebugMessage(-1, 1.f, FColor::Orange,
-										 FString::Printf(TEXT("[%s] HitCheck!"), *GetName()));
-	}
-#endif
+    AttributeComponent  = CreateDefaultSubobject<URVAttributeComponent> (TEXT("AttributeComponent"));
+    ComboComponent      = CreateDefaultSubobject<URVComboComponent>      (TEXT("ComboComponent"));
+    EquipmentComponent  = CreateDefaultSubobject<URVEquipmentComponent>  (TEXT("EquipmentComponent"));
+    CombatComponent     = CreateDefaultSubobject<URVCombatComponent>     (TEXT("CombatComponent"));
+	
+	
 }
 
 void ARVCharacterBase::BeginPlay()
 {
-	Super::BeginPlay();
+    Super::BeginPlay();
 
-	if (!IsValid(CharacterData))
-	{
-		UE_LOG(LogRVCharacterBase, Warning,
-		       TEXT("[%s] BeginPlay: CharacterData not assigned in Blueprint defaults."), *GetName());
-		return;
-	}
-
-	AttributeComponent->InitializeFromData(CharacterData);
-
-	if (IsValid(CharacterData->DefaultWeaponData))
-	{
-		EquipmentComponent->EquipWeapon(CharacterData->DefaultWeaponData);
-	}
+    // Propagate DataAsset values to AttributeComponent before any component BeginPlay reads them
+    if (IsValid(CharacterData) && IsValid(AttributeComponent))
+    {
+        AttributeComponent->InitFromDataAsset(CharacterData);
+    }
 }
 
-void ARVCharacterBase::InitializeComponents()
+// ─── IRVCombatInterface ───────────────────────────────────────────────────────
+
+void ARVCharacterBase::ActivateHitCheck()
 {
-	AttributeComponent = CreateDefaultSubobject<URVAttributeComponent>(TEXT("AttributeComponent"));
-	ComboComponent = CreateDefaultSubobject<URVComboComponent>(TEXT("ComboComponent"));
-	EquipmentComponent = CreateDefaultSubobject<URVEquipmentComponent>(TEXT("EquipmentComponent"));
+    if (IsValid(CombatComponent))
+    {
+        CombatComponent->PerformAttackTrace();
+    }
+}
+
+// ─── IRVDamageable ────────────────────────────────────────────────────────────
+
+bool ARVCharacterBase::ApplyDamage(float InDamageAmount, AActor* InInstigator)
+{
+    if (!IsValid(AttributeComponent) || !IsValid(CombatComponent)) { return false; }
+
+    // Dodge i-frame — all damage blocked
+    if (CombatComponent->IsInvincible()) { return false; }
+
+    // Guarding — absorbed as stamina damage; may trigger guard break
+    if (CombatComponent->IsGuarding())
+    {
+        return AttributeComponent->ApplyStaminaDamage(InDamageAmount);
+    }
+
+    // Normal hit
+    return AttributeComponent->ApplyDamage(InInstigator, InDamageAmount);
+}
+
+void ARVCharacterBase::OnHitReaction(FVector InHitDirection)
+{
 }

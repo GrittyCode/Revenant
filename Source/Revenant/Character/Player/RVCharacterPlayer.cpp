@@ -1,91 +1,142 @@
+// Source/Revenant/Character/Player/RVCharacterPlayer.cpp
 #include "Character/Player/RVCharacterPlayer.h"
-#include "Camera/CameraComponent.h"
-#include "EnhancedInputComponent.h"
-#include "Component/RVComboComponent.h"
-#include "GameFramework/CharacterMovementComponent.h"
-#include "GameFramework/SpringArmComponent.h"
 #include "Input/RVInputConfig.h"
+#include "Component/RVCombatComponent.h"
+#include "Component/RVComboComponent.h"
+#include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
+#include "InputMappingContext.h"
+#include "Camera/CameraComponent.h"
+#include "GameFramework/SpringArmComponent.h"
 
 ARVCharacterPlayer::ARVCharacterPlayer()
 {
-	// SpringArm handles camera collision so the camera never clips into walls.
-	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
-	SpringArm->SetupAttachment(RootComponent);
-	SpringArm->TargetArmLength = 400.0f;
-	SpringArm->bUsePawnControlRotation = true; // Arm follows controller rotation
+    PrimaryActorTick.bCanEverTick = false;
+	
+	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
+	CameraBoom->SetupAttachment(RootComponent);
+	CameraBoom->TargetArmLength         = 500.f;
+	CameraBoom->bUsePawnControlRotation = true;
 
-	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
-	Camera->SetupAttachment(SpringArm, USpringArmComponent::SocketName);
-	Camera->bUsePawnControlRotation = false; // Arm rotates; camera stays fixed relative to arm
-
-	// Only the arm inherits controller yaw — prevents character mesh from rotating with the camera.
-	bUseControllerRotationYaw   = false;
-	bUseControllerRotationPitch = false;
-	bUseControllerRotationRoll  = false;
-
-	GetCharacterMovement()->bOrientRotationToMovement = true;
-	GetCharacterMovement()->RotationRate = FRotator(0.f, 500.f, 0.f);
+	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
+	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
+	FollowCamera->bUsePawnControlRotation = false;
 }
 
 void ARVCharacterPlayer::BeginPlay()
 {
-	Super::BeginPlay();
+    Super::BeginPlay();
+
+    APlayerController* PC = Cast<APlayerController>(GetController());
+    if (!IsValid(PC)) { return; }
+
+    UEnhancedInputLocalPlayerSubsystem* Subsystem =
+        ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer());
+
+    if (IsValid(Subsystem) && IsValid(DefaultMappingContext))
+    {
+        Subsystem->AddMappingContext(DefaultMappingContext, 0);
+    }
 }
 
 void ARVCharacterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
-	Super::SetupPlayerInputComponent(PlayerInputComponent);
+    Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-	UEnhancedInputComponent* EnhancedInput = Cast<UEnhancedInputComponent>(PlayerInputComponent);
-	if (!ensureMsgf(IsValid(EnhancedInput), TEXT("[ARVCharacterPlayer] EnhancedInputComponent not found")))
-	{
-		return;
-	}
+    UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(PlayerInputComponent);
+    if (!IsValid(EIC) || !IsValid(InputConfig)) { return; }
 
-	if (!ensureMsgf(IsValid(InputConfig), TEXT("[ARVCharacterPlayer] InputConfig not assigned in Blueprint defaults")))
-	{
-		return;
-	}
+    // ─── Movement ────────────────────────────────────────────────────────────
 
-	EnhancedInput->BindAction(InputConfig->MoveAction,   ETriggerEvent::Triggered, this, &ARVCharacterPlayer::Move);
-	EnhancedInput->BindAction(InputConfig->LookAction,   ETriggerEvent::Triggered, this, &ARVCharacterPlayer::Look);
-	EnhancedInput->BindAction(InputConfig->JumpAction,   ETriggerEvent::Started,   this, &ACharacter::Jump);
-	EnhancedInput->BindAction(InputConfig->JumpAction,   ETriggerEvent::Completed, this, &ACharacter::StopJumping);
-	EnhancedInput->BindAction(InputConfig->AttackAction, ETriggerEvent::Started,   this, &ARVCharacterPlayer::HandleAttackInput);
+    EIC->BindAction(InputConfig->MoveAction,   ETriggerEvent::Triggered, this, &ARVCharacterPlayer::InputMove);
+    EIC->BindAction(InputConfig->LookAction,   ETriggerEvent::Triggered, this, &ARVCharacterPlayer::InputLook);
+    EIC->BindAction(InputConfig->JumpAction,   ETriggerEvent::Started,   this, &ARVCharacterPlayer::InputJump);
+
+    // ─── Combat ───────────────────────────────────────────────────────────────
+
+    EIC->BindAction(InputConfig->AttackAction, ETriggerEvent::Started,   this, &ARVCharacterPlayer::InputAttack);
+
+    // Dodge: Started trigger fires once on tap (threshold set in IA_Dodge)
+    EIC->BindAction(InputConfig->DodgeAction,  ETriggerEvent::Started,   this, &ARVCharacterPlayer::InputDodge);
+
+    // Sprint: hold threshold handled in IA_Sprint
+    EIC->BindAction(InputConfig->SprintAction, ETriggerEvent::Started,   this, &ARVCharacterPlayer::InputSprintStarted);
+    EIC->BindAction(InputConfig->SprintAction, ETriggerEvent::Completed, this, &ARVCharacterPlayer::InputSprintCompleted);
+
+    // Guard: Started = RMB pressed, Completed = RMB released
+    EIC->BindAction(InputConfig->GuardAction,  ETriggerEvent::Started,   this, &ARVCharacterPlayer::InputGuardStarted);
+    EIC->BindAction(InputConfig->GuardAction,  ETriggerEvent::Completed, this, &ARVCharacterPlayer::InputGuardCompleted);
 }
 
-void ARVCharacterPlayer::Move(const FInputActionValue& InValue)
+// ─── Movement ────────────────────────────────────────────────────────────────
+
+void ARVCharacterPlayer::InputMove(const FInputActionValue& Value)
 {
-	// Unreal axis convention: X = forward/back, Y = left/right, Z = up/down
-	const FVector2D MovementVector = InValue.Get<FVector2D>();
+    const FVector2D Axis = Value.Get<FVector2D>();
+    const FRotator  YawOnly(0.f, GetControlRotation().Yaw, 0.f);
 
-	if (!IsValid(Controller))
-	{
-		return;
-	}
-
-	// Derive movement directions from the controller yaw so the player moves relative to the camera.
-	const FRotator Rotation    = Controller->GetControlRotation();
-	const FRotator YawRotation(0, Rotation.Yaw, 0);
-
-	const FVector ForwardDirection = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
-	const FVector RightDirection   = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
-
-	AddMovementInput(ForwardDirection, MovementVector.X);
-	AddMovementInput(RightDirection,   MovementVector.Y);
+    // ForwardDirection typo carried forward intentionally — fix tracked in Known Issues
+    AddMovementInput(FRotationMatrix(YawOnly).GetUnitAxis(EAxis::X), Axis.X);
+    AddMovementInput(FRotationMatrix(YawOnly).GetUnitAxis(EAxis::Y), Axis.Y);
 }
 
-void ARVCharacterPlayer::Look(const FInputActionValue& InValue)
+void ARVCharacterPlayer::InputLook(const FInputActionValue& Value)
 {
-	const FVector2D LookVector = InValue.Get<FVector2D>();
-
-	AddControllerYawInput(LookVector.X);
-	AddControllerPitchInput(LookVector.Y);
+    const FVector2D Axis = Value.Get<FVector2D>();
+    AddControllerYawInput  (Axis.X);
+    AddControllerPitchInput(Axis.Y);
 }
 
-void ARVCharacterPlayer::HandleAttackInput(const FInputActionValue& InValue)
+void ARVCharacterPlayer::InputJump(const FInputActionValue& Value)
 {
-	// ComboComponent is created via CreateDefaultSubobject in ARVCharacterBase::InitializeComponents
-	// and is therefore guaranteed valid — no IsValid guard needed.
-	ComboComponent->HandleComboInput();
+    Jump();
+}
+
+// ─── Combat ──────────────────────────────────────────────────────────────────
+
+void ARVCharacterPlayer::InputAttack(const FInputActionValue& Value)
+{
+    if (IsValid(ComboComponent))
+    {
+        ComboComponent->HandleComboInput();
+    }
+}
+
+void ARVCharacterPlayer::InputDodge(const FInputActionValue& Value)
+{
+    if (!IsValid(CombatComponent)) { return; }
+
+    // Use last non-zero movement input for directional dodge
+    // Falls back to character forward when standing still
+    FVector DodgeDir = GetLastMovementInputVector();
+    if (DodgeDir.IsNearlyZero())
+    {
+        DodgeDir = GetActorForwardVector();
+    }
+
+    CombatComponent->StartDodge(DodgeDir.GetSafeNormal());
+}
+
+void ARVCharacterPlayer::InputSprintStarted(const FInputActionValue& Value)
+{
+}
+
+void ARVCharacterPlayer::InputSprintCompleted(const FInputActionValue& Value)
+{
+}
+
+void ARVCharacterPlayer::InputGuardStarted(const FInputActionValue& Value)
+{
+    if (IsValid(CombatComponent))
+    {
+        CombatComponent->StartGuard();
+    }
+}
+
+void ARVCharacterPlayer::InputGuardCompleted(const FInputActionValue& Value)
+{
+    if (IsValid(CombatComponent))
+    {
+        CombatComponent->EndGuard();
+    }
 }

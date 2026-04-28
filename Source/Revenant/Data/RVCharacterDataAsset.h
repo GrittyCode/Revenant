@@ -20,11 +20,5 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Attribute")
 	float StaminaRegenRate = 20.f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Attribute")
-	float AttackDamage = 20.f;
-
-	// Default weapon equipped at spawn. Leave unset for unarmed characters.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Equipment")
-	TObjectPtr<URVWeaponDataAsset> DefaultWeaponData;
+	
 };

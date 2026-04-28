@@ -1,5 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
+// Source/Revenant/Input/RVInputConfig.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -8,30 +7,30 @@
 
 class UInputAction;
 
-/**
- * 
- */
-UCLASS(BlueprintType)
+UCLASS()
 class REVENANT_API URVInputConfig : public UDataAsset
 {
 	GENERATED_BODY()
 
 public:
-	// Move (2D Axis - WASD)
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
 	TObjectPtr<UInputAction> MoveAction;
-    
-    
-	//  Look (2D Axis - Mouse(X Y)
+
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
 	TObjectPtr<UInputAction> LookAction;
-    
-	// Jump (Button)
+
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
 	TObjectPtr<UInputAction> JumpAction;
-	
+
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
 	TObjectPtr<UInputAction> AttackAction;
-	
-};
 
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
+	TObjectPtr<UInputAction> DodgeAction;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
+	TObjectPtr<UInputAction> SprintAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
+	TObjectPtr<UInputAction> GuardAction;
+};

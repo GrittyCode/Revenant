@@ -7,8 +7,12 @@
 
 class URVWeaponDataAsset;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogRVEquipment, Log, All);
-
+UENUM(BlueprintType)
+enum class ERVActionType : uint8
+{
+	TypeA,  // 1H-A style
+	TypeB   // 2H-A style
+};
 
 UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
 class REVENANT_API URVEquipmentComponent : public UActorComponent
@@ -18,20 +22,22 @@ class REVENANT_API URVEquipmentComponent : public UActorComponent
 public:
 	URVEquipmentComponent();
 
-	/** Returns the currently equipped weapon data. Nullptr if nothing is equipped. */
-	UFUNCTION(BlueprintCallable, Category = "RV|Equipment")
-	URVWeaponDataAsset* GetWeaponData() const { return WeaponData; }
+	/** Returns the active weapon DataAsset. May be null if not assigned. */
+	URVWeaponDataAsset* GetCurrentWeaponData() const { return CurrentWeaponData; }
 
-	/**
-	 * Swap the equipped weapon.
-	 * Caller is responsible for timing (do not call while a combo is active).
-	 */
-	UFUNCTION(BlueprintCallable, Category = "RV|Equipment")
-	void EquipWeapon(URVWeaponDataAsset* InWeaponData);
+	ERVActionType GetActionType() const { return ActionType; }
+	void SetActionType(ERVActionType InNewType);
+
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Equipment")
+	TObjectPtr<URVWeaponDataAsset> DefaultWeaponData;
+
+protected:
+	virtual void BeginPlay() override;
 
 private:
-	// Assigned via EquipWeapon() — first call is from ARVCharacterBase::BeginPlay
-	// using CharacterData->DefaultWeaponData.
-	UPROPERTY(VisibleAnywhere, Category = "RV|Equipment", meta = (AllowPrivateAccess = "true"))
-	TObjectPtr<URVWeaponDataAsset> WeaponData;
+	UPROPERTY(VisibleAnywhere, Category = "RV|Equipment")
+	TObjectPtr<URVWeaponDataAsset> CurrentWeaponData;
+
+	UPROPERTY(VisibleAnywhere, Category = "RV|Equipment")
+	ERVActionType ActionType = ERVActionType::TypeA;
 };

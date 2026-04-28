@@ -1,18 +1,19 @@
+// Source/Revenant/Character/Player/RVCharacterPlayer.h
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Character/Base/RVCharacterBase.h"
 #include "RVCharacterPlayer.generated.h"
 
+class URVInputConfig;
+class UInputMappingContext;
 class USpringArmComponent;
 class UCameraComponent;
-class UInputMappingContext;
-class UInputAction;
-class URVInputConfig;
+
 struct FInputActionValue;
 
 UCLASS()
-class REVENANT_API ARVCharacterPlayer : public ARVCharacterBase
+class REVENANT_API ARVCharacterPlayer : public ARVCharacterBase 
 {
 	GENERATED_BODY()
 
@@ -24,19 +25,35 @@ protected:
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 private:
-	// Camera
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components", meta = (AllowPrivateAccess = true))
-	TObjectPtr<USpringArmComponent> SpringArm;
+	// -- Input Handlers ---------------------------------------------------------
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components", meta = (AllowPrivateAccess = true))
-	TObjectPtr<UCameraComponent> Camera;
+	void InputMove  (const FInputActionValue& Value);
+	void InputLook  (const FInputActionValue& Value);
+	void InputJump  (const FInputActionValue& Value);
+	void InputAttack(const FInputActionValue& Value);
 
-	// Input Config DataAsset — IMC와 InputAction 레퍼런스 보관
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Input", meta = (AllowPrivateAccess = true))
+	void InputDodge(const FInputActionValue& Value);
+
+	void InputSprintStarted  (const FInputActionValue& Value);
+	void InputSprintCompleted(const FInputActionValue& Value);
+
+	void InputGuardStarted  (const FInputActionValue& Value);
+	void InputGuardCompleted(const FInputActionValue& Value);
+
+	// -- Input Config ---------------------------------------------------------
+
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
 	TObjectPtr<URVInputConfig> InputConfig;
 
-	// Input handlers
-	void Move(const FInputActionValue& InValue);
-	void Look(const FInputActionValue& InValue);
-	void HandleAttackInput(const FInputActionValue& InValue);
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
+	TObjectPtr<UInputMappingContext> DefaultMappingContext;
+	
+	// -- Camera Config ---------------------------------------------------------
+	
+	UPROPERTY(VisibleAnywhere, Category = "RV|Components")
+	TObjectPtr<USpringArmComponent> CameraBoom;
+	
+	UPROPERTY(VisibleAnywhere, Category = "RV|Components")
+	TObjectPtr<UCameraComponent> FollowCamera;
+	
 };

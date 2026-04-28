@@ -1,14 +1,18 @@
+// Source/Revenant/Animation/AnimNotify_DodgeIFrame.cpp
 #include "Animation/AnimNotify_DodgeIFrame.h"
+#include "Component/RVCombatComponent.h"
 
-void UAnimNotify_DodgeIFrame::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
+void UAnimNotify_DodgeIFrame::Notify(USkeletalMeshComponent*         MeshComp,
+									 UAnimSequenceBase*               Animation,
 									 const FAnimNotifyEventReference& EventReference)
 {
 	Super::Notify(MeshComp, Animation, EventReference);
 
-}
+	// MeshComp and its owner are guaranteed valid at this call site — no IsValid check needed
+	URVCombatComponent* CombatComp =
+		MeshComp->GetOwner()->FindComponentByClass<URVCombatComponent>();
 
-FString UAnimNotify_DodgeIFrame::GetNotifyName_Implementation() const
-{
-	// Return a meaningful name instead of forwarding to Super (which returns the class name verbatim).
-	return bActivate ? TEXT("DodgeIFrame_On") : TEXT("DodgeIFrame_Off");
+	if (!IsValid(CombatComp)) { return; }
+
+	CombatComp->SetDodgeIFrame(bActivate);
 }

@@ -1,95 +1,125 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
+// Source/Revenant/Component/RVAttributeComponent.h
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "RVAttributeComponent.generated.h"
 
-
 class URVCharacterDataAsset;
 
-// NewHealth: value after change / InDelta: positive = heal, negative = damage
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FRVOnHealthChanged, float, NewHealth, float, InDelta);
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FRVOnStaminaChanged, float, NewStamina, float, InDelta);
-
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FRVOnHealthChanged,  float, NewHealth,  float, InDelta);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnDeath);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FRVOnStaminaChanged, float, NewStamina, float, InDelta);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnGuardBreak);
 
 UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
 class REVENANT_API URVAttributeComponent : public UActorComponent
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	// Sets default values for this component's properties
-	URVAttributeComponent();
+    URVAttributeComponent();
 
-	// Called by ARVCharacterBase::BeginPlay after DatAsset is Validated
-	void InitializeFromData(const URVCharacterDataAsset* InData);
+    // ─── Delegates ───────────────────────────────────────────────────────────
+
+    UPROPERTY(BlueprintAssignable, Category = "RV|Attribute")
+    FRVOnHealthChanged OnHealthChanged;
+
+    UPROPERTY(BlueprintAssignable, Category = "RV|Attribute")
+    FRVOnDeath OnDeath;
+
+    UPROPERTY(BlueprintAssignable, Category = "RV|Attribute")
+    FRVOnStaminaChanged OnStaminaChanged;
+
+    /** Fired when stamina reaches 0 while guarding. URVCombatComponent binds this. */
+    UPROPERTY(BlueprintAssignable, Category = "RV|Attribute")
+    FRVOnGuardBreak OnGuardBreak;
+
+    // ─── Init ────────────────────────────────────────────────────────────────
+
+    /** Called by ARVCharacterBase::BeginPlay after CharacterData is assigned. */
+    void InitFromDataAsset(URVCharacterDataAsset* InData);
+
+    // ─── HP ──────────────────────────────────────────────────────────────────
+
+    /** Returns true if the character survived (HP > 0 after hit). */
+    bool ApplyDamage(AActor* InInstigator, float InDamageAmount);
+    bool ApplyHealing(float InHealAmount);
+
+    UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
+    float GetHealthPercent() const;
+
+    UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
+    bool IsAlive() const;
+
+    // ─── Stamina ─────────────────────────────────────────────────────────────
+
+    /**
+     * Reduces stamina for an action cost (attack, dodge).
+     * Does NOT fire OnGuardBreak — see ApplyStaminaDamage for guard hits.
+     * Returns true if stamina was sufficient.
+     */
+    bool ConsumeStamina(float InAmount);
+
+    /**
+     * Reduces stamina from a blocked hit.
+     * Fires OnGuardBreak if stamina reaches 0.
+     * Returns true if guard held (stamina still > 0).
+     */
+    bool ApplyStaminaDamage(float InAmount);
+
+    /** Stops regen. Called by URVCombatComponent on combat state entry. */
+    void PauseStaminaRegen();
+
+    /**
+     * Schedules regen to resume after StaminaRegenDelay.
+     * Called by URVCombatComponent on combat state exit.
+     */
+    void ResumeStaminaRegen();
+
+    UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
+    float GetStaminaPercent() const;
+
+    UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
+    float GetCurrentStamina() const { return CurrentStamina; }
 
 
-	// =================== Action Section =============================
-public:
-	// Returns true if the hit was lethal (triggers OnDeath BroadCast)
-	bool ApplyDamage(float InDamageAmount, AActor* InInstigator);
-
-	bool ApplyHealing(float InHealAmount);
-
-	// Returns false if stamina is insufficient - caller decides whether to block the action
-	bool ApplyStaminaCost(float InAmount);
-
-
-	// =================== Outward delegates (mirrors GAS AttributeChangedDelegate pattern) =============================
-	UPROPERTY(BlueprintAssignable, Category = "RV|Attribute") //Dynamic MultiCast Delegate -> BlueprintAssignable property
-	FRVOnHealthChanged OnHealthChanged;
-
-	UPROPERTY(BlueprintAssignable, Category = "RV|Attribute")
-	FRVOnStaminaChanged OnStaminaChanged;
-
-	UPROPERTY(BlueprintAssignable, Category = "RV|Attribute")
-	FRVOnDeath OnDeath;
-
-
-	// =================== Getter Section ===========================
-public:
-	UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
-	float GetHealthPercent() const;
-
-	UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
-	float GetStaminaPercent() const;
-
-	UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
-	bool IsAlive() const;
-
-	UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
-	float GetCurrentHealth() const { return CurrentHealth; }
-
-	UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
-	float GetMaxHealth() const { return MaxHealth; }
-
-	UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
-	float GetCurrentStamina() const { return CurrentStamina; }
-
-	UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
-	float GetMaxStamina() const { return MaxStamina; }
+protected:
+    virtual void BeginPlay() override;
 
 private:
-	UPROPERTY(VisibleAnywhere, Category = "RV|Attribute")
-	float CurrentHealth = 0.f;
+    // --- HP ---------------------------------------------------------
 
-	UPROPERTY(VisibleAnywhere, Category = "RV|Attribute")
-	float MaxHealth = 100.f;
+    UPROPERTY(VisibleAnywhere, Category = "RV|Attribute")
+    float MaxHealth = 100.f;
 
-	UPROPERTY(VisibleAnywhere, Category = "RV|Attribute")
-	float CurrentStamina = 0.f;
+    UPROPERTY(VisibleAnywhere, Category = "RV|Attribute")
+    float CurrentHealth = 0.f;
 
-	UPROPERTY(VisibleAnywhere, Category = "RV|Attribute")
-	float MaxStamina = 100.f;
+    // --- Stamina ---------------------------------------------------------
 
-	// Cached for W2 stamina regen timer
-	UPROPERTY(VisibleAnywhere, Category = "RV|Attribute")
-	float StaminaRegenRate = 20.f;
+    UPROPERTY(VisibleAnywhere, Category = "RV|Attribute")
+    float MaxStamina = 100.f;
 
-	bool bIsDead = false;
+    UPROPERTY(VisibleAnywhere, Category = "RV|Attribute")
+    float CurrentStamina = 0.f;
+
+    /** Stamina recovered per regen tick. */
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Attribute")
+    float StaminaRegenRate = 10.f;
+
+    /** Seconds between regen ticks. */
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Attribute")
+    float StaminaRegenInterval = 0.1f;
+
+    /** Delay before regen starts after ResumeStaminaRegen is called. */
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Attribute")
+    float StaminaRegenDelay = 1.5f;
+
+    FTimerHandle StaminaRegenDelayHandle;
+    FTimerHandle StaminaRegenHandle;
+
+    void StartStaminaRegenTick();
+    void TickStaminaRegen();
+	
 };

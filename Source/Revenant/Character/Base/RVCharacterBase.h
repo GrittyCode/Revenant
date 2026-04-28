@@ -4,42 +4,59 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Interface/RVCombatInterface.h"
+#include "Interface/RVDamageable.h"
 #include "RVCharacterBase.generated.h"
 
-class URVCharacterDataAsset;
 class URVAttributeComponent;
 class URVComboComponent;
 class URVEquipmentComponent;
-
-DECLARE_LOG_CATEGORY_EXTERN(LogRVCharacterBase, Log, All);
+class URVCombatComponent;
+class URVCharacterDataAsset;
 
 UCLASS()
-class REVENANT_API ARVCharacterBase : public ACharacter, public IRVCombatInterface
+class REVENANT_API ARVCharacterBase : public ACharacter, public IRVCombatInterface, public IRVDamageable
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	ARVCharacterBase();
+    ARVCharacterBase();
 
-	// Combat Section
-public:
-	virtual void ActivateHitCheck() override;
+    // --- IRVCombatInterface ---------------------------------------------------------
+
+    /** Delegates to URVCombatComponent::PerformAttackTrace(). */
+    virtual void ActivateHitCheck() override;
+
+    // --- IRVDamageable ---------------------------------------------------------
+
+    /**
+     * Routes incoming damage based on current combat state:
+     *   Invincible (i-frame) → blocked
+     *   Guarding             → stamina damage (may trigger guard break)
+     *   Default              → HP damage
+     */
+    virtual bool ApplyDamage(float InDamageAmount, AActor* InInstigator) override;
+
+    virtual void OnHitReaction(FVector InHitDirection) override;
+
 protected:
-	virtual void BeginPlay() override;
+    virtual void BeginPlay() override;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-	TObjectPtr<URVAttributeComponent> AttributeComponent;
+    // --- Components ---------------------------------------------------------
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-	TObjectPtr<URVComboComponent> ComboComponent;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVAttributeComponent> AttributeComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-	TObjectPtr<URVEquipmentComponent> EquipmentComponent;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVComboComponent> ComboComponent;
 
-	// Assign the matching DataAsset in each character's Blueprint defaults
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Data")
-	TObjectPtr<URVCharacterDataAsset> CharacterData;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVEquipmentComponent> EquipmentComponent;
 
-private:
-	void InitializeComponents();
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVCombatComponent> CombatComponent;
+
+    // --- Data ---------------------------------------------------------
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Data")
+    TObjectPtr<URVCharacterDataAsset> CharacterData;
 };

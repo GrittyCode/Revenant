@@ -5,19 +5,10 @@
 #include "Components/ActorComponent.h"
 #include "RVComboComponent.generated.h"
 
-class URVAttributeComponent;
 class URVEquipmentComponent;
-class URVWeaponDataAsset;
+class URVCombatComponent;
+class URVAttributeComponent;
 
-DECLARE_LOG_CATEGORY_EXTERN(LogRVCombo, Log, All);
-
-/**
- * Manages combo state, input buffering, and montage section sequencing.
- *
- * Single responsibility: combo logic only.
- * Weapon data is read from URVEquipmentComponent — this component does not own it.
- * Stamina cost is applied via URVAttributeComponent — cached in BeginPlay.
- */
 UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
 class REVENANT_API URVComboComponent : public UActorComponent
 {
@@ -27,51 +18,52 @@ public:
 	URVComboComponent();
 
 	/**
-	 * Combo entry point.
-	 * - Not active  → StartCombo()
-	 * - Active      → buffer input (bComboInputPending)
-	 * Callers: ARVCharacterPlayer (Enhanced Input), BTTask_MeleeAttack (enemy/boss)
+	 * Called by ARVCharacterPlayer on attack input.
+	 * Starts the first combo hit or buffers the next hit if already attacking.
 	 */
 	void HandleComboInput();
 
 	/**
-	 * Called by AnimNotify_ComboWindow at the branch point of each montage section.
-	 * Advances to the next section if input is buffered; otherwise lets montage end naturally.
+	 * Called by AnimNotify_ComboWindow.
+	 * Advances to the next combo section if input was buffered.
 	 */
 	void TryAdvanceCombo();
 
 	UFUNCTION(BlueprintCallable, Category = "RV|Combo")
-	bool IsComboActive() const { return bComboActive; }
+	bool IsComboActive() const { return bIsComboActive; }
 
 	UFUNCTION(BlueprintCallable, Category = "RV|Combo")
-	int32 GetCurrentComboCount() const { return CurrentComboCount; }
+	int32 GetComboCount() const { return ComboCount; }
 
 protected:
 	virtual void BeginPlay() override;
 
 private:
-	/** Convenience accessor — queries EquipmentComponent. Returns nullptr if not equipped. */
-	URVWeaponDataAsset* GetWeaponData() const;
+	// --- Cached Component References --------------------------------------------
 
-	void StartCombo();
-	void AdvanceToNextCombo();
-	void ResetCombo();
-
-	// Bound once in BeginPlay — filtered by montage pointer inside the callback
-	UFUNCTION()
-	void OnAttackMontageEnded(UAnimMontage* InMontage, bool bInInterrupted);
-
-	UAnimInstance* GetOwnerAnimInstance() const;
-
-	// Cached in BeginPlay — sibling components on the same owner
 	UPROPERTY()
 	TObjectPtr<URVEquipmentComponent> EquipmentComponent;
 
 	UPROPERTY()
+	TObjectPtr<URVCombatComponent> CombatComponent;
+
+	UPROPERTY()
 	TObjectPtr<URVAttributeComponent> AttributeComponent;
 
-	bool bComboActive       = false;
-	bool bComboInputPending = false;
+	// --- State ------------------------------------------------------------------
 
-	int32 CurrentComboCount = 0;
+	bool  bIsComboActive  = false;
+	bool  bHasComboInput  = false;
+	int32 ComboCount      = 0;
+
+	// --- Internal ---------------------------------------------------------------
+
+	void StartCombo();
+	void EndCombo();
+
+	/** Plays the montage section for the current ComboCount. */
+	void PlayComboSection();
+
+	/** Bound to montage blend-out -- cleans up when full combo ends or is interrupted. */
+	void OnComboMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
 };
