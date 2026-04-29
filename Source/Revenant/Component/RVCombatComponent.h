@@ -122,18 +122,12 @@ private:
 	// --- Internal Helpers -------------------------------------------------------
 
 	void EndDodge();
-
-	/**
-	 * Maps a world-space direction to a DodgeMontages[] index.
-	 * [0]=Forward [1]=Backward [2]=Left [3]=Right
-	 */
-	int32 GetDodgeMontageIndex(const FVector& InDodgeDirection) const;
-
+	
 	UFUNCTION()
 	void OnGuardBreakHandler();
 
 	UFUNCTION()
 	void OnGuardBreakRecoveryComplete();
-
-	void OnDodgeMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
+	
+	void OnDodgeMontageBlendingOut(UAnimMontage*, bool);
 };

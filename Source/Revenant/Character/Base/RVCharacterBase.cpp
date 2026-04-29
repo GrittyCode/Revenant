@@ -5,11 +5,16 @@
 #include "Component/RVEquipmentComponent.h"
 #include "Component/RVCombatComponent.h"
 #include "Data/RVCharacterDataAsset.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 ARVCharacterBase::ARVCharacterBase()
 {
     PrimaryActorTick.bCanEverTick = false;
 
+	bUseControllerRotationPitch = false;
+	
+	GetCharacterMovement()->bOrientRotationToMovement = true;
+	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
     AttributeComponent  = CreateDefaultSubobject<URVAttributeComponent> (TEXT("AttributeComponent"));
     ComboComponent      = CreateDefaultSubobject<URVComboComponent>      (TEXT("ComboComponent"));
     EquipmentComponent  = CreateDefaultSubobject<URVEquipmentComponent>  (TEXT("EquipmentComponent"));

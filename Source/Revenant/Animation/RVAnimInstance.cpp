@@ -1,7 +1,9 @@
+// Source/Revenant/Animation/RVAnimInstance.cpp
 #include "Animation/RVAnimInstance.h"
-
-#include "KismetAnimationLibrary.h"
 #include "Component/RVComboComponent.h"
+#include "Component/RVEquipmentComponent.h"
+#include "Data/RVWeaponDataAsset.h"
+#include "KismetAnimationLibrary.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
@@ -10,35 +12,56 @@ void URVAnimInstance::NativeInitializeAnimation()
 	Super::NativeInitializeAnimation();
 
 	OwnerCharacter = Cast<ACharacter>(GetOwningActor());
+	if (!IsValid(OwnerCharacter)) { return; }
+
+	EquipmentComponent = OwnerCharacter->FindComponentByClass<URVEquipmentComponent>();
+	ComboComponent     = OwnerCharacter->FindComponentByClass<URVComboComponent>();
+
+	if (IsValid(EquipmentComponent))
+	{
+		EquipmentComponent->OnWeaponChanged.AddDynamic(
+			this, &URVAnimInstance::OnWeaponChangedHandler);
+
+		// Read initial value in case EquipmentComponent::BeginPlay already ran
+		OnWeaponChangedHandler(EquipmentComponent->GetCurrentWeaponData());
+	}
+}
+
+void URVAnimInstance::NativeUninitializeAnimation()
+{
+	if (IsValid(EquipmentComponent))
+	{
+		EquipmentComponent->OnWeaponChanged.RemoveDynamic(
+			this, &URVAnimInstance::OnWeaponChangedHandler);
+	}
+
+	Super::NativeUninitializeAnimation();
 }
 
 void URVAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
 	Super::NativeUpdateAnimation(DeltaSeconds);
 
-	if (!IsValid(OwnerCharacter))
-	{
-		return;
-	}
+	if (!IsValid(OwnerCharacter)) { return; }
 
-	UCharacterMovementComponent* Movement = OwnerCharacter->GetCharacterMovement();
+	// --- Locomotion -----------------------------------------------------------
 
-	// XY plane speed only — vertical velocity excluded to avoid blending artifacts during jumps.
-	// Size2D() discards Z; Size() (3D) was previously used here, which was incorrect.
 	Speed = OwnerCharacter->GetVelocity().Size2D();
 
-	// Angle between actor forward and velocity vector (-180 ~ 180).
-	// UKismetAnimationLibrary::CalculateDirection handles the signed angle math.
 	Direction = UKismetAnimationLibrary::CalculateDirection(
 		OwnerCharacter->GetVelocity(),
 		OwnerCharacter->GetActorRotation());
 
-	bIsInAir = Movement->IsFalling();
+	// --- State ----------------------------------------------------------------
 
-	// Read attack state from ComboComponent.
-	// TODO(): replace with URVCombatComponent::IsAttacking() once CombatComponent is implemented
-	//              (covers heavy attack, skill attack, etc.)
-	
-	URVComboComponent* ComboComponent = OwnerCharacter->FindComponentByClass<URVComboComponent>();
+	bIsInAir     = OwnerCharacter->GetCharacterMovement()->IsFalling();
 	bIsAttacking = IsValid(ComboComponent) ? ComboComponent->IsComboActive() : false;
+
+	// TODO: Wire URVCombatComponent::IsLockedOn() in Phase 4
+	bIsLockedOn = false;
+}
+
+void URVAnimInstance::OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData)
+{
+	CachedLocomotionBS = IsValid(NewWeaponData) ? NewWeaponData->LocomotionBS : nullptr;
 }

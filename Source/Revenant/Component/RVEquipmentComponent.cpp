@@ -9,10 +9,11 @@ URVEquipmentComponent::URVEquipmentComponent()
 void URVEquipmentComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	CurrentWeaponData = DefaultWeaponData;
+	SetCurrentWeaponData(DefaultWeaponData);
 }
 
-void URVEquipmentComponent::SetActionType(ERVActionType InNewType)
+void URVEquipmentComponent::SetCurrentWeaponData(URVWeaponDataAsset* InWeaponData)
 {
-	ActionType = InNewType;
+	CurrentWeaponData = InWeaponData;
+	OnWeaponChanged.Broadcast(CurrentWeaponData);
 }

@@ -75,7 +75,6 @@ void ARVCharacterPlayer::InputMove(const FInputActionValue& Value)
     const FVector2D Axis = Value.Get<FVector2D>();
     const FRotator  YawOnly(0.f, GetControlRotation().Yaw, 0.f);
 
-    // ForwardDirection typo carried forward intentionally — fix tracked in Known Issues
     AddMovementInput(FRotationMatrix(YawOnly).GetUnitAxis(EAxis::X), Axis.X);
     AddMovementInput(FRotationMatrix(YawOnly).GetUnitAxis(EAxis::Y), Axis.Y);
 }

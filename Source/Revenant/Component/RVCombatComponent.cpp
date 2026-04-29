@@ -1,4 +1,3 @@
-// Source/Revenant/Component/RVCombatComponent.cpp
 #include "Component/RVCombatComponent.h"
 #include "Component/RVAttributeComponent.h"
 #include "Component/RVEquipmentComponent.h"
@@ -8,6 +7,7 @@
 #include "Animation/AnimInstance.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/OverlapResult.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 URVCombatComponent::URVCombatComponent()
 {
@@ -118,38 +118,43 @@ void URVCombatComponent::StartDodge(const FVector& InDodgeDirection)
 	// Guard is excluded -- dodge auto-cancels guard on entry
 	if (!CanPerformAction(ERVCombatState::Guarding)) { return; }
 	if (!IsValid(AttributeComponent) || !IsValid(EquipmentComponent)) { return; }
-
-	URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-	if (!IsValid(WeaponData)) { return; }
-
-	if (!AttributeComponent->ConsumeStamina(WeaponData->DodgeStaminaCost)) { return; }
+	
+	const URVWeaponDataAsset* WeaponDataAsset = EquipmentComponent->GetCurrentWeaponData();
+	if (!IsValid(WeaponDataAsset) || !IsValid(WeaponDataAsset->DodgeMontage)) { return; }
+	
+	if (!AttributeComponent->ConsumeStamina(WeaponDataAsset->DodgeStaminaCost)) { return; }
+	
 
 	if (bIsGuarding)
 	{
 		EndGuard();
 	}
-
-	const int32 MontageIndex = GetDodgeMontageIndex(InDodgeDirection);
-	if (!WeaponData->DodgeMontages.IsValidIndex(MontageIndex)) { return; }
-
-	UAnimMontage* DodgeMontage = WeaponData->DodgeMontages[MontageIndex];
-	if (!IsValid(DodgeMontage)) { return; }
-
+	
+	
 	ACharacter* OwnerChar = Cast<ACharacter>(GetOwner());
 	if (!IsValid(OwnerChar)) { return; }
+	
+	UAnimInstance* AnimInstance = OwnerChar->GetMesh()->GetAnimInstance();
+	if (!IsValid(AnimInstance)) { return; }
+	
+	// Rotate Character to face dodge direction before playing Root Motion Montage
+	OwnerChar->SetActorRotation(InDodgeDirection.ToOrientationRotator());
+	
+	// Prevent movement component from fighting Root motion rotation
+	OwnerChar->GetCharacterMovement()->bOrientRotationToMovement = false;
 
-	UAnimInstance* AnimInst = OwnerChar->GetMesh()->GetAnimInstance();
-	if (!IsValid(AnimInst)) { return; }
-
+	
 	bIsDodging = true;
 	AttributeComponent->PauseStaminaRegen();
-
+	
 	FOnMontageBlendingOutStarted BlendOutDelegate;
 	BlendOutDelegate.BindUObject(this, &URVCombatComponent::OnDodgeMontageBlendingOut);
-
-	AnimInst->Montage_Play(DodgeMontage);
-	AnimInst->Montage_SetBlendingOutDelegate(BlendOutDelegate, DodgeMontage);
+	
+	AnimInstance->Montage_Play(WeaponDataAsset->DodgeMontage);
+	AnimInstance->Montage_SetBlendingOutDelegate(BlendOutDelegate, WeaponDataAsset->DodgeMontage);
+	
 }
+
 
 void URVCombatComponent::SetDodgeIFrame(bool bActivate)
 {
@@ -159,8 +164,15 @@ void URVCombatComponent::SetDodgeIFrame(bool bActivate)
 
 void URVCombatComponent::EndDodge()
 {
-	bIsDodging = false;
+	bIsDodging    = false;
 	bIsInvincible = false;
+
+	ACharacter* OwnerChar = Cast<ACharacter>(GetOwner());
+	if (IsValid(OwnerChar))
+	{
+		// Restore movement-driven rotation after roll completes
+		OwnerChar->GetCharacterMovement()->bOrientRotationToMovement = true;
+	}
 
 	if (IsValid(AttributeComponent))
 	{
@@ -256,30 +268,5 @@ void URVCombatComponent::OnGuardBreakRecoveryComplete()
 	if (IsValid(AttributeComponent))
 	{
 		AttributeComponent->ResumeStaminaRegen();
-	}
-}
-
-// --- Helpers -----------------------------------------------------------------
-
-int32 URVCombatComponent::GetDodgeMontageIndex(const FVector& InDodgeDirection) const
-{
-	if (InDodgeDirection.IsNearlyZero()) { return 0; }
-
-	ACharacter* OwnerChar = Cast<ACharacter>(GetOwner());
-	if (!IsValid(OwnerChar)) { return 0; }
-
-	const FVector LocalDir = OwnerChar->GetActorTransform().InverseTransformVectorNoScale(InDodgeDirection);
-	const FVector NormDir = LocalDir.GetSafeNormal();
-
-	const float DotF = FVector::DotProduct(NormDir, FVector::ForwardVector);
-	const float DotR = FVector::DotProduct(NormDir, FVector::RightVector);
-
-	if (FMath::Abs(DotF) >= FMath::Abs(DotR))
-	{
-		return DotF >= 0.f ? 0 : 1;
-	}
-	else
-	{
-		return DotR >= 0.f ? 3 : 2;
 	}
 }

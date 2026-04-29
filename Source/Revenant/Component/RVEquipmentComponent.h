@@ -7,12 +7,7 @@
 
 class URVWeaponDataAsset;
 
-UENUM(BlueprintType)
-enum class ERVActionType : uint8
-{
-	TypeA,  // 1H-A style
-	TypeB   // 2H-A style
-};
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRVOnWeaponChanged, URVWeaponDataAsset*, NewWeaponData);
 
 UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
 class REVENANT_API URVEquipmentComponent : public UActorComponent
@@ -25,8 +20,15 @@ public:
 	/** Returns the active weapon DataAsset. May be null if not assigned. */
 	URVWeaponDataAsset* GetCurrentWeaponData() const { return CurrentWeaponData; }
 
-	ERVActionType GetActionType() const { return ActionType; }
-	void SetActionType(ERVActionType InNewType);
+	/**
+	 * Swaps the active weapon DataAsset and broadcasts OnWeaponChanged.
+	 * Called from BeginPlay (default weapon) and Phase 2 A/B toggle.
+	 */
+	void SetCurrentWeaponData(URVWeaponDataAsset* InWeaponData);
+
+	// Fired whenever CurrentWeaponData changes — subscribers update locomotion BS, montages, etc.
+	UPROPERTY(BlueprintAssignable, Category = "RV|Equipment")
+	FRVOnWeaponChanged OnWeaponChanged;
 
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Equipment")
 	TObjectPtr<URVWeaponDataAsset> DefaultWeaponData;
@@ -37,7 +39,4 @@ protected:
 private:
 	UPROPERTY(VisibleAnywhere, Category = "RV|Equipment")
 	TObjectPtr<URVWeaponDataAsset> CurrentWeaponData;
-
-	UPROPERTY(VisibleAnywhere, Category = "RV|Equipment")
-	ERVActionType ActionType = ERVActionType::TypeA;
 };
