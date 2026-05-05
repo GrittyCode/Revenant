@@ -209,6 +209,31 @@ void URVCombatComponent::EndGuard()
     // ABP Blend Alpha interpolation handles the transition back to normal locomotion
 }
 
+void URVCombatComponent::HandleGuardHit(float InDamageAmount)
+{
+    if (!IsValid(AttributeComponent)) { return; }
+
+    // Apply stamina damage first -- may fire OnGuardBreak if stamina reaches 0.
+    // If guard broke, OnGuardBreakHandler runs synchronously and plays the break montage.
+    // In that case we skip the hit reaction to avoid montage overlap.
+    const bool bGuardHeld = AttributeComponent->ApplyStaminaDamage(InDamageAmount);
+    if (!bGuardHeld) { return; }
+
+    // Guard held -- play hit reaction montage over the guard pose
+    if (!IsValid(EquipmentComponent)) { return; }
+
+    const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
+    if (!IsValid(WeaponData) || !IsValid(WeaponData->GetGuardHitMontage())) { return; }
+
+    ACharacter* OwnerChar = Cast<ACharacter>(GetOwner());
+    if (!IsValid(OwnerChar)) { return; }
+
+    UAnimInstance* AnimInstance = OwnerChar->GetMesh()->GetAnimInstance();
+    if (!IsValid(AnimInstance)) { return; }
+
+    AnimInstance->Montage_Play(WeaponData->GetGuardHitMontage());
+}
+
 // --- Guard Break -------------------------------------------------------------
 
 void URVCombatComponent::OnGuardBreakHandler()

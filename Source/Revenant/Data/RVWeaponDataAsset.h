@@ -11,8 +11,7 @@ class URVWeaponStyleDataAsset;
 /**
  * Per-instance weapon DataAsset.
  * Owns combat values directly.
- * Animation and locomotion assets fall back to WeaponStyle defaults via getter functions.
- * Combo assets can be overridden as a group using bOverrideCombo.
+ * All animation and locomotion assets are resolved from WeaponStyle.
  */
 UCLASS(BlueprintType)
 class REVENANT_API URVWeaponDataAsset : public UPrimaryDataAsset
@@ -62,54 +61,16 @@ public:
               meta = (EditCondition = "bOverrideCombo"))
     TArray<FName> OverrideComboSectionNames;
 
-    // --- Montage Override Group ----------------------------------------------
+    // --- Dodge Override ------------------------------------------------------
 
     /** Enable to override dodge montage for this instance. */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Override|Animation",
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Override|Dodge",
               meta = (InlineEditConditionToggle))
     uint8 bOverrideDodgeMontage : 1;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Override|Animation",
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Override|Dodge",
               meta = (EditCondition = "bOverrideDodgeMontage"))
     TObjectPtr<UAnimMontage> OverrideDodgeMontage;
-
-    /** Enable to override guard break montage for this instance. */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Override|Animation",
-              meta = (InlineEditConditionToggle))
-    uint8 bOverrideGuardBreakMontage : 1;
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Override|Animation",
-              meta = (EditCondition = "bOverrideGuardBreakMontage"))
-    TObjectPtr<UAnimMontage> OverrideGuardBreakMontage;
-
-    /** Enable to override guard hit montage for this instance. */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Override|Animation",
-              meta = (InlineEditConditionToggle))
-    uint8 bOverrideGuardHitMontage : 1;
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Override|Animation",
-              meta = (EditCondition = "bOverrideGuardHitMontage"))
-    TObjectPtr<UAnimMontage> OverrideGuardHitMontage;
-
-    // --- Locomotion Override Group -------------------------------------------
-
-    /** Enable to override locomotion blendspace for this instance. */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Override|Locomotion",
-              meta = (InlineEditConditionToggle))
-    uint8 bOverrideLocomotionBS : 1;
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Override|Locomotion",
-              meta = (EditCondition = "bOverrideLocomotionBS"))
-    TObjectPtr<UBlendSpace> OverrideLocomotionBS;
-
-    /** Enable to override guard locomotion blendspace for this instance. */
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Override|Locomotion",
-              meta = (InlineEditConditionToggle))
-    uint8 bOverrideGuardLocomotionBS : 1;
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Override|Locomotion",
-              meta = (EditCondition = "bOverrideGuardLocomotionBS"))
-    TObjectPtr<UBlendSpace> OverrideGuardLocomotionBS;
 
     // --- Getters (fallback logic — always use these for asset fields) ---------
 
@@ -121,21 +82,29 @@ public:
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UAnimMontage* GetDodgeMontage() const;
 
-    /** Returns override guard break montage if bOverrideGuardBreakMontage, else WeaponStyle default. */
+    /** Returns WeaponStyle->GuardBreakMontage. */
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UAnimMontage* GetGuardBreakMontage() const;
 
-    /** Returns override guard hit montage if bOverrideGuardHitMontage, else WeaponStyle default. */
+    /** Returns WeaponStyle->GuardHitMontage. */
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UAnimMontage* GetGuardHitMontage() const;
 
-    /** Returns override locomotion BS if bOverrideLocomotionBS, else WeaponStyle->LocomotionBS. */
+    /** Returns WeaponStyle->LocomotionBS. */
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UBlendSpace* GetLocomotionBS() const;
 
-    /** Returns override guard locomotion BS if bOverrideGuardLocomotionBS, else WeaponStyle default. */
+    /** Returns WeaponStyle->LockOnLocomotionBS. */
+    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
+    UBlendSpace* GetLockOnLocomotionBS() const;
+
+    /** Returns WeaponStyle->GuardLocomotionBS. */
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UBlendSpace* GetGuardLocomotionBS() const;
+
+    /** Returns WeaponStyle->GuardLocomotionBS_LockOn. */
+    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
+    UBlendSpace* GetGuardLocomotionBS_LockOn() const;
 
     /** Returns OverrideMaxComboCount if bOverrideCombo, else WeaponStyle->MaxComboCount. */
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")

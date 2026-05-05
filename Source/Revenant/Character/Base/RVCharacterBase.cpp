@@ -10,17 +10,11 @@
 ARVCharacterBase::ARVCharacterBase()
 {
     PrimaryActorTick.bCanEverTick = false;
-
-	bUseControllerRotationPitch = false;
 	
-	GetCharacterMovement()->bOrientRotationToMovement = true;
-	GetCharacterMovement()->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
     AttributeComponent  = CreateDefaultSubobject<URVAttributeComponent> (TEXT("AttributeComponent"));
     ComboComponent      = CreateDefaultSubobject<URVComboComponent>      (TEXT("ComboComponent"));
     EquipmentComponent  = CreateDefaultSubobject<URVEquipmentComponent>  (TEXT("EquipmentComponent"));
     CombatComponent     = CreateDefaultSubobject<URVCombatComponent>     (TEXT("CombatComponent"));
-	
-	
 }
 
 void ARVCharacterBase::BeginPlay()
@@ -34,7 +28,7 @@ void ARVCharacterBase::BeginPlay()
     }
 }
 
-// ─── IRVCombatInterface ───────────────────────────────────────────────────────
+// --- IRVCombatInterface -----------------------------------------------------------
 
 void ARVCharacterBase::ActivateHitCheck()
 {
@@ -44,7 +38,7 @@ void ARVCharacterBase::ActivateHitCheck()
     }
 }
 
-// ─── IRVDamageable ────────────────────────────────────────────────────────────
+// --- IRVDamageable -------------------------------------------------------------
 
 bool ARVCharacterBase::ApplyDamage(float InDamageAmount, AActor* InInstigator)
 {
@@ -56,7 +50,8 @@ bool ARVCharacterBase::ApplyDamage(float InDamageAmount, AActor* InInstigator)
     // Guarding — absorbed as stamina damage; may trigger guard break
     if (CombatComponent->IsGuarding())
     {
-        return AttributeComponent->ApplyStaminaDamage(InDamageAmount);
+        CombatComponent->HandleGuardHit(InDamageAmount);
+        return true; // character is alive regardless of whether guard held or broke
     }
 
     // Normal hit

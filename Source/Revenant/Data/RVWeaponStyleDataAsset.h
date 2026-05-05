@@ -1,5 +1,3 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
 
 #include "CoreMinimal.h"
@@ -16,6 +14,7 @@ class REVENANT_API URVWeaponStyleDataAsset : public UPrimaryDataAsset
 	
 public:
 	// -- Montages --
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
 	TObjectPtr<UAnimMontage> AttackMontage;
 
@@ -32,20 +31,37 @@ public:
 
 	// --- Locomotion ---
 
-	/** Speed-only blendspace used in default (Orient-to-Movement) mode. */
+	/** Speed-only blend space used in default (Orient-to-Movement) mode. */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Locomotion")
 	TObjectPtr<UBlendSpace> LocomotionBS;
 
-	/** Direction + Speed blendspace used while guarding. */
+	/**
+	 * Direction + Speed blend space used in lock-on (strafe) mode.
+	 * bOrientRotationToMovement is off while locked on.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Locomotion")
+	TObjectPtr<UBlendSpace> LockOnLocomotionBS;
+
+	/**
+	 * Speed-only guard blend space used while guarding without lock-on.
+	 * Uses forward loop only; character rotates via bOrientRotationToMovement.
+	 */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Locomotion")
 	TObjectPtr<UBlendSpace> GuardLocomotionBS;
 
+	/**
+	 * Direction + Speed blend space used while guarding with lock-on active.
+	 * Full 6-direction strafe; bOrientRotationToMovement is off in this mode.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Locomotion")
+	TObjectPtr<UBlendSpace> GuardLocomotionBS_LockOn;
+
 	// --- Combo ---
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Combo")
 	int32 MaxComboCount = 4;
 
 	/** Section names in play order: Section_1, Section_2 ... */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Combo")
 	TArray<FName> ComboSectionNames;
-	
 };

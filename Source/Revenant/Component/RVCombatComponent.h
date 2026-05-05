@@ -56,6 +56,13 @@ public:
 	void StartGuard();
 	void EndGuard();
 
+	/**
+	 * Called by ARVCharacterBase::ApplyDamage when a hit lands while guarding.
+	 * Applies stamina damage and plays GuardHit montage if guard holds.
+	 * If stamina reaches 0, OnGuardBreak fires — OnGuardBreakHandler takes over.
+	 */
+	void HandleGuardHit(float InDamageAmount);
+
 	// --- State Write (called by URVComboComponent) ------------------------------
 
 	/** URVComboComponent calls this on combo start / end. */

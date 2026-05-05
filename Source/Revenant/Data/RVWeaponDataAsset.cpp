@@ -1,6 +1,8 @@
 #include "Data/RVWeaponDataAsset.h"
 #include "Data/RVWeaponStyleDataAsset.h"
 
+// --- Combo & Dodge (instance-level override supported) -----------------------
+
 UAnimMontage* URVWeaponDataAsset::GetAttackMontage() const
 {
 	if (bOverrideCombo) { return OverrideAttackMontage; }
@@ -13,29 +15,39 @@ UAnimMontage* URVWeaponDataAsset::GetDodgeMontage() const
 	return IsValid(WeaponStyle) ? WeaponStyle->DodgeMontage : nullptr;
 }
 
+// --- Style-level assets (no instance override — WeaponStyle owns these) ------
+
 UAnimMontage* URVWeaponDataAsset::GetGuardBreakMontage() const
 {
-	if (bOverrideGuardBreakMontage) { return OverrideGuardBreakMontage; }
 	return IsValid(WeaponStyle) ? WeaponStyle->GuardBreakMontage : nullptr;
 }
 
 UAnimMontage* URVWeaponDataAsset::GetGuardHitMontage() const
 {
-	if (bOverrideGuardHitMontage) { return OverrideGuardHitMontage; }
 	return IsValid(WeaponStyle) ? WeaponStyle->GuardHitMontage : nullptr;
 }
 
 UBlendSpace* URVWeaponDataAsset::GetLocomotionBS() const
 {
-	if (bOverrideLocomotionBS) { return OverrideLocomotionBS; }
 	return IsValid(WeaponStyle) ? WeaponStyle->LocomotionBS : nullptr;
+}
+
+UBlendSpace* URVWeaponDataAsset::GetLockOnLocomotionBS() const
+{
+	return IsValid(WeaponStyle) ? WeaponStyle->LockOnLocomotionBS : nullptr;
 }
 
 UBlendSpace* URVWeaponDataAsset::GetGuardLocomotionBS() const
 {
-	if (bOverrideGuardLocomotionBS) { return OverrideGuardLocomotionBS; }
 	return IsValid(WeaponStyle) ? WeaponStyle->GuardLocomotionBS : nullptr;
 }
+
+UBlendSpace* URVWeaponDataAsset::GetGuardLocomotionBS_LockOn() const
+{
+	return IsValid(WeaponStyle) ? WeaponStyle->GuardLocomotionBS_LockOn : nullptr;
+}
+
+// --- Combo metadata ----------------------------------------------------------
 
 int32 URVWeaponDataAsset::GetMaxComboCount() const
 {

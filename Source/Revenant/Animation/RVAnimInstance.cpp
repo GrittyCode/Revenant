@@ -58,12 +58,13 @@ void URVAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
     bIsInAir     = OwnerCharacter->GetCharacterMovement()->IsFalling();
     bIsAttacking = IsValid(ComboComponent) ? ComboComponent->IsComboActive() : false;
     bIsGuarding  = IsValid(CombatComponent) ? CombatComponent->IsGuarding() : false;
-
-    bIsLockedOn = false;
+    bIsLockedOn = true;
 }
 
 void URVAnimInstance::OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData)
 {
-    CachedLocomotionBS      = IsValid(NewWeaponData) ? NewWeaponData->GetLocomotionBS()      : nullptr;
-    CachedGuardLocomotionBS = IsValid(NewWeaponData) ? NewWeaponData->GetGuardLocomotionBS() : nullptr;
+    CachedLocomotionBS             = IsValid(NewWeaponData) ? NewWeaponData->GetLocomotionBS()             : nullptr;
+    CachedLockOnLocomotionBS       = IsValid(NewWeaponData) ? NewWeaponData->GetLockOnLocomotionBS()       : nullptr;
+    CachedGuardLocomotionBS        = IsValid(NewWeaponData) ? NewWeaponData->GetGuardLocomotionBS()        : nullptr;
+    CachedGuardLocomotionBS_LockOn = IsValid(NewWeaponData) ? NewWeaponData->GetGuardLocomotionBS_LockOn() : nullptr;
 }

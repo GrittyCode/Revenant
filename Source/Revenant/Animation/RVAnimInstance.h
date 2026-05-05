@@ -35,9 +35,20 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UBlendSpace> CachedLocomotionBS;
 
-    // Updated via OnWeaponChanged — drives ABP guard locomotion Blendspace Player.
+    // Updated via OnWeaponChanged — drives ABP lock-on locomotion Blendspace Player.
+    // Direction + Speed; strafe mode. bOrientRotationToMovement off while locked on.
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
+    TObjectPtr<UBlendSpace> CachedLockOnLocomotionBS;
+
+    // Updated via OnWeaponChanged — drives ABP guard locomotion (no lock-on).
+    // Speed-only; character rotates via bOrientRotationToMovement.
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UBlendSpace> CachedGuardLocomotionBS;
+
+    // Updated via OnWeaponChanged — drives ABP guard locomotion (lock-on active).
+    // Direction + Speed; full 6-direction strafe. nullptr until Phase 4 asset is assigned.
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
+    TObjectPtr<UBlendSpace> CachedGuardLocomotionBS_LockOn;
 
     // --- State ----------------------------------------------------------------
 
