@@ -1,4 +1,3 @@
-// Source/Revenant/Character/Player/RVCharacterPlayer.h
 #pragma once
 
 #include "CoreMinimal.h"

@@ -1,13 +1,14 @@
 #include "Component/RVCombatComponent.h"
 #include "Component/RVAttributeComponent.h"
 #include "Component/RVEquipmentComponent.h"
+#include "Component/RVComboComponent.h"
 #include "Data/RVWeaponDataAsset.h"
 #include "Interface/RVDamageable.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Animation/AnimInstance.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/OverlapResult.h"
-#include "GameFramework/CharacterMovementComponent.h"
 
 URVCombatComponent::URVCombatComponent()
 {
@@ -21,10 +22,24 @@ void URVCombatComponent::BeginPlay()
     AActor* Owner = GetOwner();
     AttributeComponent = Owner->FindComponentByClass<URVAttributeComponent>();
     EquipmentComponent = Owner->FindComponentByClass<URVEquipmentComponent>();
+    ComboComponent     = Owner->FindComponentByClass<URVComboComponent>();
+
+    ACharacter* OwnerChar = Cast<ACharacter>(Owner);
+    if (IsValid(OwnerChar))
+    {
+        MovementComponent = OwnerChar->GetCharacterMovement();
+    }
 
     if (IsValid(AttributeComponent))
     {
         AttributeComponent->OnGuardBreak.AddDynamic(this, &URVCombatComponent::OnGuardBreakHandler);
+    }
+
+    if (IsValid(ComboComponent))
+    {
+        // Non-dynamic delegate — ComboComponent has no knowledge of CombatComponent
+        ComboComponent->OnComboStarted.AddUObject(this, &URVCombatComponent::OnComboStartedHandler);
+        ComboComponent->OnComboEnded.AddUObject(this, &URVCombatComponent::OnComboEndedHandler);
     }
 }
 
@@ -33,6 +48,21 @@ void URVCombatComponent::BeginPlay()
 void URVCombatComponent::SetAttacking(bool bInIsAttacking)
 {
     bIsAttacking = bInIsAttacking;
+}
+
+void URVCombatComponent::OnComboStartedHandler()
+{
+    SetAttacking(true);
+}
+
+void URVCombatComponent::OnComboEndedHandler()
+{
+    SetAttacking(false);
+}
+
+bool URVCombatComponent::IsGrounded() const
+{
+    return IsValid(MovementComponent) && !MovementComponent->IsFalling();
 }
 
 ERVCombatState URVCombatComponent::GetActiveStates() const
@@ -48,9 +78,9 @@ ERVCombatState URVCombatComponent::GetActiveStates() const
 bool URVCombatComponent::CanPerformAction(ERVCombatState InAllowedActiveStates) const
 {
     const ERVCombatState BlockingStates =
-        ERVCombatState::Attacking |
-        ERVCombatState::Dodging   |
-        ERVCombatState::Guarding  |
+        ERVCombatState::Attacking   |
+        ERVCombatState::Dodging     |
+        ERVCombatState::Guarding    |
         ERVCombatState::GuardBroken;
 
     const ERVCombatState Relevant = (GetActiveStates() & BlockingStates) & ~InAllowedActiveStates;
@@ -110,12 +140,35 @@ void URVCombatComponent::PerformAttackTrace()
     }
 }
 
+// --- Combo -------------------------------------------------------------------
+
+void URVCombatComponent::TryStartCombo()
+{
+    if (!IsValid(ComboComponent)) { return; }
+
+    // Gate checks apply only on combo start, not while buffering during active combo
+    if (!ComboComponent->IsComboActive())
+    {
+        if (!IsGrounded()) { return; }
+
+        // Attacking excluded — allows combo buffer input while already attacking
+        // Guarding excluded — TryStartCombo is not called while guarding (InputAttack binds separately)
+        if (!CanPerformAction(ERVCombatState::Attacking | ERVCombatState::Guarding)) { return; }
+    }
+
+    ComboComponent->HandleComboInput();
+}
+
 // --- Dodge -------------------------------------------------------------------
 
 void URVCombatComponent::StartDodge(const FVector& InDodgeDirection)
 {
-    // Guard is excluded -- dodge auto-cancels guard on entry
+    // Guard is excluded — dodge auto-cancels guard on entry
     if (!CanPerformAction(ERVCombatState::Guarding)) { return; }
+
+    // Dodge is ground-only — airborne state blocks entry
+    if (!IsGrounded()) { return; }
+
     if (!IsValid(AttributeComponent) || !IsValid(EquipmentComponent)) { return; }
 
     const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
@@ -123,10 +176,9 @@ void URVCombatComponent::StartDodge(const FVector& InDodgeDirection)
 
     if (!AttributeComponent->ConsumeStamina(WeaponData->DodgeStaminaCost)) { return; }
 
-    if (bIsGuarding)
-    {
-        EndGuard();
-    }
+    // Sprint and guard are interrupted by dodge
+    if (bIsSprinting) { EndSprint(); }
+    if (bIsGuarding)  { EndGuard(); }
 
     ACharacter* OwnerChar = Cast<ACharacter>(GetOwner());
     if (!IsValid(OwnerChar)) { return; }
@@ -138,7 +190,7 @@ void URVCombatComponent::StartDodge(const FVector& InDodgeDirection)
     OwnerChar->SetActorRotation(InDodgeDirection.ToOrientationRotator());
 
     // Prevent movement component from fighting Root Motion rotation
-    OwnerChar->GetCharacterMovement()->bOrientRotationToMovement = false;
+    MovementComponent->bOrientRotationToMovement = false;
 
     bIsDodging = true;
     AttributeComponent->PauseStaminaRegen();
@@ -163,11 +215,10 @@ void URVCombatComponent::EndDodge()
     bIsDodging    = false;
     bIsInvincible = false;
 
-    ACharacter* OwnerChar = Cast<ACharacter>(GetOwner());
-    if (IsValid(OwnerChar))
+    if (IsValid(MovementComponent))
     {
         // Restore movement-driven rotation after roll completes
-        OwnerChar->GetCharacterMovement()->bOrientRotationToMovement = true;
+        MovementComponent->bOrientRotationToMovement = true;
     }
 
     if (IsValid(AttributeComponent))
@@ -185,14 +236,19 @@ void URVCombatComponent::OnDodgeMontageBlendingOut(UAnimMontage* /*InMontage*/, 
 
 void URVCombatComponent::StartGuard()
 {
-    // All blocking states checked -- cannot enter guard mid-combo, mid-dodge, or while broken
+    // All blocking states checked — cannot enter guard mid-combo, mid-dodge, or while broken
     if (!CanPerformAction()) { return; }
+
+    // Guard is ground-only — same principle as dodge
+    if (!IsGrounded()) { return; }
+
     if (!IsValid(AttributeComponent)) { return; }
+
+    // Sprint is interrupted by guard
+    if (bIsSprinting) { EndSprint(); }
 
     bIsGuarding = true;
     AttributeComponent->PauseStaminaRegen();
-
-    // ABP will transition to BS_Guard_Locomotion branch via bIsGuarding flag
 }
 
 void URVCombatComponent::EndGuard()
@@ -205,21 +261,18 @@ void URVCombatComponent::EndGuard()
     {
         AttributeComponent->ResumeStaminaRegen();
     }
-
-    // ABP Blend Alpha interpolation handles the transition back to normal locomotion
 }
 
 void URVCombatComponent::HandleGuardHit(float InDamageAmount)
 {
     if (!IsValid(AttributeComponent)) { return; }
 
-    // Apply stamina damage first -- may fire OnGuardBreak if stamina reaches 0.
+    // Apply stamina damage first — may fire OnGuardBreak if stamina reaches 0.
     // If guard broke, OnGuardBreakHandler runs synchronously and plays the break montage.
     // In that case we skip the hit reaction to avoid montage overlap.
     const bool bGuardHeld = AttributeComponent->ApplyStaminaDamage(InDamageAmount);
     if (!bGuardHeld) { return; }
 
-    // Guard held -- play hit reaction montage over the guard pose
     if (!IsValid(EquipmentComponent)) { return; }
 
     const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
@@ -276,5 +329,35 @@ void URVCombatComponent::OnGuardBreakRecoveryComplete()
     if (IsValid(AttributeComponent))
     {
         AttributeComponent->ResumeStaminaRegen();
+    }
+}
+
+// --- Sprint ------------------------------------------------------------------
+
+void URVCombatComponent::StartSprint()
+{
+    if (bIsDodging || bIsGuarding || bIsGuardBroken) { return; }
+
+    // Sprint is ground-only — airborne sprint has no meaningful effect
+    if (!IsGrounded()) { return; }
+
+    if (!IsValid(MovementComponent)) { return; }
+
+    // Cache the BP-configured WalkSpeed so EndSprint restores the exact value
+    OriginalWalkSpeed = MovementComponent->MaxWalkSpeed;
+    MovementComponent->MaxWalkSpeed = SprintSpeed;
+
+    bIsSprinting = true;
+}
+
+void URVCombatComponent::EndSprint()
+{
+    if (!bIsSprinting) { return; }
+
+    bIsSprinting = false;
+
+    if (IsValid(MovementComponent))
+    {
+        MovementComponent->MaxWalkSpeed = OriginalWalkSpeed;
     }
 }

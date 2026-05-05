@@ -1,6 +1,5 @@
 #include "Component/RVComboComponent.h"
 #include "Component/RVEquipmentComponent.h"
-#include "Component/RVCombatComponent.h"
 #include "Component/RVAttributeComponent.h"
 #include "Data/RVWeaponDataAsset.h"
 #include "GameFramework/Character.h"
@@ -17,7 +16,6 @@ void URVComboComponent::BeginPlay()
 
     AActor* Owner = GetOwner();
     EquipmentComponent = Owner->FindComponentByClass<URVEquipmentComponent>();
-    CombatComponent    = Owner->FindComponentByClass<URVCombatComponent>();
     AttributeComponent = Owner->FindComponentByClass<URVAttributeComponent>();
 }
 
@@ -25,21 +23,14 @@ void URVComboComponent::BeginPlay()
 
 void URVComboComponent::HandleComboInput()
 {
-    if (!IsValid(CombatComponent)) { return; }
-
     if (!bIsComboActive)
     {
-        // Not attacking -- start fresh if no blocking state (Attacking and Guarding excluded)
-        if (!CombatComponent->CanPerformAction(ERVCombatState::Attacking | ERVCombatState::Guarding))
-        {
-            return;
-        }
-
+        // Gate checks are the caller's responsibility (URVCombatComponent::TryStartCombo)
         StartCombo();
     }
     else
     {
-        // Already in a combo -- buffer the next hit
+        // Already in a combo — buffer the next hit
         if (!IsValid(EquipmentComponent)) { return; }
 
         URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
@@ -64,7 +55,7 @@ void URVComboComponent::TryAdvanceCombo()
     }
     else
     {
-        // Window opened but no input -- combo ends after this section
+        // Window opened but no input — combo ends after this section
         EndCombo();
     }
 }
@@ -90,15 +81,10 @@ void URVComboComponent::StartCombo()
     ComboCount     = 1;
     bHasComboInput = false;
 
-    if (IsValid(CombatComponent))
-    {
-        CombatComponent->SetAttacking(true);
-    }
+    AttributeComponent->PauseStaminaRegen();
 
-    if (IsValid(AttributeComponent))
-    {
-        AttributeComponent->PauseStaminaRegen();
-    }
+    // CombatComponent subscribes to this to set bIsAttacking = true
+    OnComboStarted.Broadcast();
 
     UAnimMontage* AttackMontage = WeaponData->GetAttackMontage();
 
@@ -117,15 +103,13 @@ void URVComboComponent::EndCombo()
     bHasComboInput = false;
     ComboCount     = 0;
 
-    if (IsValid(CombatComponent))
-    {
-        CombatComponent->SetAttacking(false);
-    }
-
     if (IsValid(AttributeComponent))
     {
         AttributeComponent->ResumeStaminaRegen();
     }
+
+    // CombatComponent subscribes to this to set bIsAttacking = false
+    OnComboEnded.Broadcast();
 }
 
 void URVComboComponent::PlayComboSection()

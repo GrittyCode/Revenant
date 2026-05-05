@@ -1,4 +1,3 @@
-// Source/Revenant/Character/Player/RVCharacterPlayer.cpp
 #include "Character/Player/RVCharacterPlayer.h"
 #include "Input/RVInputConfig.h"
 #include "Component/RVCombatComponent.h"
@@ -57,7 +56,7 @@ void ARVCharacterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputC
     EIC->BindAction(InputConfig->AttackAction, ETriggerEvent::Started,   this, &ARVCharacterPlayer::InputAttack);
 
     // Dodge: Started trigger fires once on tap (threshold set in IA_Dodge)
-    EIC->BindAction(InputConfig->DodgeAction,  ETriggerEvent::Started,   this, &ARVCharacterPlayer::InputDodge);
+    EIC->BindAction(InputConfig->DodgeAction,  ETriggerEvent::Triggered,   this, &ARVCharacterPlayer::InputDodge);
 
     // Sprint: hold threshold handled in IA_Sprint
     EIC->BindAction(InputConfig->SprintAction, ETriggerEvent::Started,   this, &ARVCharacterPlayer::InputSprintStarted);
@@ -88,17 +87,36 @@ void ARVCharacterPlayer::InputLook(const FInputActionValue& Value)
 
 void ARVCharacterPlayer::InputJump(const FInputActionValue& Value)
 {
-    Jump();
-}
+	if (IsValid(CombatComponent) && !CombatComponent->CanPerformAction()) { return; }
+
+	Jump();
+} 
 
 // ─── Combat ──────────────────────────────────────────────────────────────────
 
 void ARVCharacterPlayer::InputAttack(const FInputActionValue& Value)
 {
-    if (IsValid(ComboComponent))
-    {
-        ComboComponent->HandleComboInput();
-    }
+	if (IsValid(CombatComponent))
+	{
+		CombatComponent->TryStartCombo();
+	}
+}
+
+
+void ARVCharacterPlayer::InputSprintStarted(const FInputActionValue& Value)
+{
+	if (IsValid(CombatComponent))
+	{
+		CombatComponent->StartSprint();
+	}
+}
+
+void ARVCharacterPlayer::InputSprintCompleted(const FInputActionValue& Value)
+{
+	if (IsValid(CombatComponent))
+	{
+		CombatComponent->EndSprint();
+	}
 }
 
 void ARVCharacterPlayer::InputDodge(const FInputActionValue& Value)
@@ -116,13 +134,6 @@ void ARVCharacterPlayer::InputDodge(const FInputActionValue& Value)
     CombatComponent->StartDodge(DodgeDir.GetSafeNormal());
 }
 
-void ARVCharacterPlayer::InputSprintStarted(const FInputActionValue& Value)
-{
-}
-
-void ARVCharacterPlayer::InputSprintCompleted(const FInputActionValue& Value)
-{
-}
 
 void ARVCharacterPlayer::InputGuardStarted(const FInputActionValue& Value)
 {
