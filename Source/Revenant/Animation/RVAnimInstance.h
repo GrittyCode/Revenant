@@ -1,4 +1,3 @@
-// Source/Revenant/Animation/RVAnimInstance.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -7,56 +6,68 @@
 
 class URVEquipmentComponent;
 class URVComboComponent;
+class URVCombatComponent;
 class URVWeaponDataAsset;
 class UBlendSpace;
 
 UCLASS()
 class REVENANT_API URVAnimInstance : public UAnimInstance
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	virtual void NativeInitializeAnimation() override;
-	virtual void NativeUninitializeAnimation() override;
-	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
+    virtual void NativeInitializeAnimation() override;
+    virtual void NativeUninitializeAnimation() override;
+    virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 
 protected:
-	// --- Locomotion -----------------------------------------------------------
+    // --- Locomotion -----------------------------------------------------------
 
-	// XY plane speed only — vertical velocity excluded to avoid blending artifacts during jumps.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
-	float Speed;
+    // XY plane speed only — vertical velocity excluded to avoid blending artifacts during jumps.
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
+    float Speed;
 
-	// -180 ~ 180 degrees, 0 = forward, 90 = right, -90 = left, -180 = back
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
-	float Direction;
+    // -180 ~ 180 degrees, 0 = forward, 90 = right, -90 = left, -180 = back
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
+    float Direction;
 
-	// Updated via OnWeaponChanged delegate — fed into ABP Blend Space Evaluator.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
-	TObjectPtr<UBlendSpace> CachedLocomotionBS;
+    // Updated via OnWeaponChanged — drives ABP default locomotion Blendspace Player.
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
+    TObjectPtr<UBlendSpace> CachedLocomotionBS;
 
-	// --- State ----------------------------------------------------------------
+    // Updated via OnWeaponChanged — drives ABP guard locomotion Blendspace Player.
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
+    TObjectPtr<UBlendSpace> CachedGuardLocomotionBS;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
-	uint8 bIsInAir : 1;
+    // --- State ----------------------------------------------------------------
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
-	uint8 bIsAttacking : 1;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
+    uint8 bIsInAir : 1;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
-	uint8 bIsLockedOn : 1;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
+    uint8 bIsAttacking : 1;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
+    uint8 bIsLockedOn : 1;
+
+    // Set by URVCombatComponent::StartGuard / EndGuard — drives ABP guard branch.
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
+    uint8 bIsGuarding : 1;
 
 private:
-	UPROPERTY()
-	TObjectPtr<ACharacter> OwnerCharacter;
+    UPROPERTY()
+    TObjectPtr<ACharacter> OwnerCharacter;
 
-	UPROPERTY()
-	TObjectPtr<URVEquipmentComponent> EquipmentComponent;
+    UPROPERTY()
+    TObjectPtr<URVEquipmentComponent> EquipmentComponent;
 
-	UPROPERTY()
-	TObjectPtr<URVComboComponent> ComboComponent;
+    UPROPERTY()
+    TObjectPtr<URVComboComponent> ComboComponent;
 
-	// Bound to URVEquipmentComponent::OnWeaponChanged
-	UFUNCTION()
-	void OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData);
+    UPROPERTY()
+    TObjectPtr<URVCombatComponent> CombatComponent;
+
+    // Bound to URVEquipmentComponent::OnWeaponChanged
+    UFUNCTION()
+    void OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData);
 };

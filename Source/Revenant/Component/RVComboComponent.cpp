@@ -1,4 +1,3 @@
-// Source/Revenant/Component/RVComboComponent.cpp
 #include "Component/RVComboComponent.h"
 #include "Component/RVEquipmentComponent.h"
 #include "Component/RVCombatComponent.h"
@@ -33,7 +32,7 @@ void URVComboComponent::HandleComboInput()
         // Not attacking -- start fresh if no blocking state (Attacking and Guarding excluded)
         if (!CombatComponent->CanPerformAction(ERVCombatState::Attacking | ERVCombatState::Guarding))
         {
-	        return;
+            return;
         }
 
         StartCombo();
@@ -46,7 +45,7 @@ void URVComboComponent::HandleComboInput()
         URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
         if (!IsValid(WeaponData)) { return; }
 
-        if (ComboCount < WeaponData->MaxComboCount)
+        if (ComboCount < WeaponData->GetMaxComboCount())
         {
             bHasComboInput = true;
         }
@@ -77,7 +76,7 @@ void URVComboComponent::StartCombo()
     if (!IsValid(EquipmentComponent) || !IsValid(AttributeComponent)) { return; }
 
     URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-    if (!IsValid(WeaponData) || !IsValid(WeaponData->AttackMontage)) { return; }
+    if (!IsValid(WeaponData) || !IsValid(WeaponData->GetAttackMontage())) { return; }
 
     if (!AttributeComponent->ConsumeStamina(WeaponData->AttackStaminaCost)) { return; }
 
@@ -101,11 +100,13 @@ void URVComboComponent::StartCombo()
         AttributeComponent->PauseStaminaRegen();
     }
 
+    UAnimMontage* AttackMontage = WeaponData->GetAttackMontage();
+
     FOnMontageBlendingOutStarted BlendOutDelegate;
     BlendOutDelegate.BindUObject(this, &URVComboComponent::OnComboMontageBlendingOut);
 
-    AnimInst->Montage_Play(WeaponData->AttackMontage);
-    AnimInst->Montage_SetBlendingOutDelegate(BlendOutDelegate, WeaponData->AttackMontage);
+    AnimInst->Montage_Play(AttackMontage);
+    AnimInst->Montage_SetBlendingOutDelegate(BlendOutDelegate, AttackMontage);
 
     PlayComboSection();
 }
@@ -132,9 +133,10 @@ void URVComboComponent::PlayComboSection()
     if (!IsValid(EquipmentComponent)) { return; }
 
     URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-    if (!IsValid(WeaponData) || !IsValid(WeaponData->AttackMontage)) { return; }
+    if (!IsValid(WeaponData) || !IsValid(WeaponData->GetAttackMontage())) { return; }
 
-    if (!WeaponData->ComboSectionNames.IsValidIndex(ComboCount - 1)) { return; }
+    const TArray<FName>& SectionNames = WeaponData->GetComboSectionNames();
+    if (!SectionNames.IsValidIndex(ComboCount - 1)) { return; }
 
     ACharacter* OwnerChar = Cast<ACharacter>(GetOwner());
     if (!IsValid(OwnerChar)) { return; }
@@ -142,8 +144,8 @@ void URVComboComponent::PlayComboSection()
     UAnimInstance* AnimInst = OwnerChar->GetMesh()->GetAnimInstance();
     if (!IsValid(AnimInst)) { return; }
 
-    const FName SectionName = WeaponData->ComboSectionNames[ComboCount - 1];
-    AnimInst->Montage_JumpToSection(SectionName, WeaponData->AttackMontage);
+    const FName SectionName = SectionNames[ComboCount - 1];
+    AnimInst->Montage_JumpToSection(SectionName, WeaponData->GetAttackMontage());
 }
 
 void URVComboComponent::OnComboMontageBlendingOut(UAnimMontage* /*InMontage*/, bool /*bInterrupted*/)
