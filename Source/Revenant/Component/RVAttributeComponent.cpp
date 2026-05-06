@@ -1,4 +1,3 @@
-// Source/Revenant/Component/RVAttributeComponent.cpp
 #include "Component/RVAttributeComponent.h"
 #include "Data/RVCharacterDataAsset.h"
 

@@ -1,4 +1,3 @@
-// Source/Revenant/Component/RVEquipmentComponent.h
 #pragma once
 
 #include "CoreMinimal.h"

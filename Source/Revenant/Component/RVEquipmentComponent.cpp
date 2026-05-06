@@ -1,4 +1,3 @@
-// Source/Revenant/Component/RVEquipmentComponent.cpp
 #include "Component/RVEquipmentComponent.h"
 
 URVEquipmentComponent::URVEquipmentComponent()

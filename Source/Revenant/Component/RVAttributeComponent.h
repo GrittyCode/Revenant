@@ -1,4 +1,3 @@
-// Source/Revenant/Component/RVAttributeComponent.h
 #pragma once
 
 #include "CoreMinimal.h"

@@ -1,4 +1,3 @@
-// Source/Revenant/Data/RVCharacterDataAsset.h
 #pragma once
 
 #include "CoreMinimal.h"

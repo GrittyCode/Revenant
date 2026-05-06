@@ -1,4 +1,3 @@
-// Source/Revenant/Component/RVComboComponent.cpp
 #include "Component/RVComboComponent.h"
 #include "Component/RVEquipmentComponent.h"
 #include "Component/RVAttributeComponent.h"
@@ -52,6 +51,20 @@ void URVComboComponent::TryAdvanceCombo()
 
     if (bHasComboInput)
     {
+        // Consume stamina for the next hit before advancing.
+        // If stamina is insufficient the combo ends naturally here —
+        // the player cannot continue the chain without resources.
+        URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
+        if (!IsValid(WeaponData)) { return; }
+
+        if (!AttributeComponent->ConsumeStamina(WeaponData->AttackStaminaCost))
+        {
+            // Out of stamina — treat as if no input was buffered
+            bHasComboInput = false;
+            EndCombo();
+            return;
+        }
+
         bHasComboInput = false;
         ++ComboCount;
         PlayComboSection();

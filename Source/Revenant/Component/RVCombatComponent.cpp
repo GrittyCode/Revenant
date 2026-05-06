@@ -1,4 +1,3 @@
-// Source/Revenant/Component/RVCombatComponent.cpp
 #include "Component/RVCombatComponent.h"
 #include "Component/RVAttributeComponent.h"
 #include "Component/RVEquipmentComponent.h"
