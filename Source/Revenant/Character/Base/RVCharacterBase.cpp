@@ -1,4 +1,3 @@
-// Source/Revenant/Character/Base/RVCharacterBase.cpp
 #include "Character/Base/RVCharacterBase.h"
 #include "Component/RVAttributeComponent.h"
 #include "Component/RVComboComponent.h"
@@ -10,7 +9,7 @@
 ARVCharacterBase::ARVCharacterBase()
 {
     PrimaryActorTick.bCanEverTick = false;
-	
+
     AttributeComponent  = CreateDefaultSubobject<URVAttributeComponent> (TEXT("AttributeComponent"));
     ComboComponent      = CreateDefaultSubobject<URVComboComponent>      (TEXT("ComboComponent"));
     EquipmentComponent  = CreateDefaultSubobject<URVEquipmentComponent>  (TEXT("EquipmentComponent"));
@@ -21,29 +20,29 @@ void ARVCharacterBase::BeginPlay()
 {
     Super::BeginPlay();
 
-    // Propagate DataAsset values to AttributeComponent before any component BeginPlay reads them
-    if (IsValid(CharacterData) && IsValid(AttributeComponent))
+    // Components are created via CreateDefaultSubobject — always valid on well-formed subclasses.
+    // ensureMsgf here catches accidental DestroyComponent calls in subclass constructors.
+    ensureMsgf(IsValid(AttributeComponent), TEXT("[%s] AttributeComponent missing"), *GetName());
+    ensureMsgf(IsValid(CombatComponent),    TEXT("[%s] CombatComponent missing"),    *GetName());
+
+    // CharacterData is designer-assigned — intentionally not ensured, graceful fallback is correct
+    if (IsValid(CharacterData))
     {
         AttributeComponent->InitFromDataAsset(CharacterData);
     }
 }
 
-// --- IRVCombatInterface -----------------------------------------------------------
+// --- IRVCombatInterface ------------------------------------------------------
 
 void ARVCharacterBase::ActivateHitCheck()
 {
-    if (IsValid(CombatComponent))
-    {
-        CombatComponent->PerformAttackTrace();
-    }
+    CombatComponent->PerformAttackTrace();
 }
 
-// --- IRVDamageable -------------------------------------------------------------
+// --- IRVDamageable -----------------------------------------------------------
 
 bool ARVCharacterBase::ApplyDamage(float InDamageAmount, AActor* InInstigator)
 {
-    if (!IsValid(AttributeComponent) || !IsValid(CombatComponent)) { return false; }
-
     // Dodge i-frame — all damage blocked
     if (CombatComponent->IsInvincible()) { return false; }
 
@@ -60,4 +59,26 @@ bool ARVCharacterBase::ApplyDamage(float InDamageAmount, AActor* InInstigator)
 
 void ARVCharacterBase::OnHitReaction(FVector InHitDirection)
 {
+}
+
+// --- Movement ----------------------------------------------------------------
+
+void ARVCharacterBase::Falling()
+{
+    Super::Falling();
+
+    UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+
+    // Cache current rate before overwriting — restores correctly even if sprint or
+    // other systems have modified RotationRate before the jump.
+    OriginalRotationRate = MoveComp->RotationRate;
+    MoveComp->RotationRate = AirRotationRate;
+}
+
+void ARVCharacterBase::Landed(const FHitResult& Hit)
+{
+    Super::Landed(Hit);
+
+    // Restore the exact rate that was active before the jump, not a hardcoded default.
+    GetCharacterMovement()->RotationRate = OriginalRotationRate;
 }

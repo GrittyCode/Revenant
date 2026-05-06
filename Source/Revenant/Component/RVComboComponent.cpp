@@ -1,3 +1,4 @@
+// Source/Revenant/Component/RVComboComponent.cpp
 #include "Component/RVComboComponent.h"
 #include "Component/RVEquipmentComponent.h"
 #include "Component/RVAttributeComponent.h"
@@ -17,6 +18,10 @@ void URVComboComponent::BeginPlay()
     AActor* Owner = GetOwner();
     EquipmentComponent = Owner->FindComponentByClass<URVEquipmentComponent>();
     AttributeComponent = Owner->FindComponentByClass<URVAttributeComponent>();
+
+    // URVComboComponent must only be placed on ARVCharacterBase subclasses.
+    ensureMsgf(IsValid(EquipmentComponent), TEXT("[%s] URVEquipmentComponent missing — ComboComponent requires ARVCharacterBase"), *GetNameSafe(Owner));
+    ensureMsgf(IsValid(AttributeComponent), TEXT("[%s] URVAttributeComponent missing — ComboComponent requires ARVCharacterBase"), *GetNameSafe(Owner));
 }
 
 // --- Public API --------------------------------------------------------------
@@ -31,8 +36,6 @@ void URVComboComponent::HandleComboInput()
     else
     {
         // Already in a combo — buffer the next hit
-        if (!IsValid(EquipmentComponent)) { return; }
-
         URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
         if (!IsValid(WeaponData)) { return; }
 
@@ -64,11 +67,10 @@ void URVComboComponent::TryAdvanceCombo()
 
 void URVComboComponent::StartCombo()
 {
-    if (!IsValid(EquipmentComponent) || !IsValid(AttributeComponent)) { return; }
-
     URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
     if (!IsValid(WeaponData) || !IsValid(WeaponData->GetAttackMontage())) { return; }
 
+    // Stamina cost check — gates combo entry without consuming regen control
     if (!AttributeComponent->ConsumeStamina(WeaponData->AttackStaminaCost)) { return; }
 
     ACharacter* OwnerChar = Cast<ACharacter>(GetOwner());
@@ -83,7 +85,7 @@ void URVComboComponent::StartCombo()
 
     AttributeComponent->PauseStaminaRegen();
 
-    // CombatComponent subscribes to this to set bIsAttacking = true
+    // Notify CombatComponent: sets bIsAttacking, clears bIsGuarding if active
     OnComboStarted.Broadcast();
 
     UAnimMontage* AttackMontage = WeaponData->GetAttackMontage();
@@ -103,19 +105,14 @@ void URVComboComponent::EndCombo()
     bHasComboInput = false;
     ComboCount     = 0;
 
-    if (IsValid(AttributeComponent))
-    {
-        AttributeComponent->ResumeStaminaRegen();
-    }
+    AttributeComponent->ResumeStaminaRegen();
 
-    // CombatComponent subscribes to this to set bIsAttacking = false
+    // Notify CombatComponent: clears bIsAttacking
     OnComboEnded.Broadcast();
 }
 
 void URVComboComponent::PlayComboSection()
 {
-    if (!IsValid(EquipmentComponent)) { return; }
-
     URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
     if (!IsValid(WeaponData) || !IsValid(WeaponData->GetAttackMontage())) { return; }
 

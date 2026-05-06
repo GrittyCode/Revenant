@@ -15,6 +15,8 @@ public:
 						UAnimSequenceBase*       Animation,
 						const FAnimNotifyEventReference& EventReference) override;
 
+	virtual FString GetNotifyName_Implementation() const override;
+
 	/** True = open i-frame window, False = close it. Set per notify instance in Montage editor. */
 	UPROPERTY(EditAnywhere, Category = "RV|Dodge")
 	bool bActivate = true;

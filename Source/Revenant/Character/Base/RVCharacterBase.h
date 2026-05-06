@@ -1,4 +1,3 @@
-// Source/Revenant/Character/Base/RVCharacterBase.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -41,6 +40,17 @@ public:
 protected:
     virtual void BeginPlay() override;
 
+    /**
+     * Gate checks CombatComponent, then delegates to ComboComponent::HandleComboInput().
+     * Centralizes the action gate so ComboComponent has no dependency on CombatComponent.
+     */
+    void TryStartCombo();
+
+    // Reduces RotationRate.Yaw on airborne entry to prevent free mid-air steering.
+    // OriginalRotationRate is cached here and restored exactly on Landed().
+    virtual void Falling() override;
+    virtual void Landed(const FHitResult& Hit) override;
+
     // --- Components ---------------------------------------------------------
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
@@ -59,4 +69,19 @@ protected:
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Data")
     TObjectPtr<URVCharacterDataAsset> CharacterData;
+
+    // --- Movement ---------------------------------------------------------
+
+    /**
+     * RotationRate applied while airborne.
+     * Low Yaw gives the character a heavy, committed feel during jumps.
+     * Tunable per BP subclass in the Details panel.
+     */
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Movement")
+    FRotator AirRotationRate = FRotator(0.f, 0.0f, 0.f);
+
+private:
+    // Cached at Falling() entry — restored exactly on Landed() regardless of
+    // what RotationRate was set to (sprint, guard, etc.)
+    FRotator OriginalRotationRate;
 };

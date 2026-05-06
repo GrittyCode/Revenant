@@ -2,9 +2,9 @@
 #include "Animation/AnimNotify_DodgeIFrame.h"
 #include "Component/RVCombatComponent.h"
 
-void UAnimNotify_DodgeIFrame::Notify(USkeletalMeshComponent*         MeshComp,
-									 UAnimSequenceBase*               Animation,
-									 const FAnimNotifyEventReference& EventReference)
+void UAnimNotify_DodgeIFrame::Notify(USkeletalMeshComponent*          MeshComp,
+									 UAnimSequenceBase*                Animation,
+									 const FAnimNotifyEventReference&  EventReference)
 {
 	Super::Notify(MeshComp, Animation, EventReference);
 
@@ -15,4 +15,9 @@ void UAnimNotify_DodgeIFrame::Notify(USkeletalMeshComponent*         MeshComp,
 	if (!IsValid(CombatComp)) { return; }
 
 	CombatComp->SetDodgeIFrame(bActivate);
+}
+
+FString UAnimNotify_DodgeIFrame::GetNotifyName_Implementation() const
+{
+	return bActivate ? FString(TEXT("DodgeIFrame_Open")) : FString(TEXT("DodgeIFrame_Close"));
 }
