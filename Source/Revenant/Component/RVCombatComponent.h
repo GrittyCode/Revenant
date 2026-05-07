@@ -32,14 +32,20 @@ class REVENANT_API URVCombatComponent : public UActorComponent
 public:
     URVCombatComponent();
 
-    // --- Attack Trace -----------------------------------------------------------
+	// --- Attack Trace -----------------------------------------------------------
 
-    /**
-     * Capsule overlap from WeaponRoot to WeaponTip socket.
-     * Calls IRVDamageable::ApplyDamage on every unique hit actor.
-     * Invoked by ARVCharacterBase::ActivateHitCheck().
-     */
-    void PerformAttackTrace();
+	/** Opens hit window. Clears HitActors so each swing hits each target only once. */
+	void OpenHitWindow();
+
+	/** Closes hit window. Clears HitActors. */
+	void CloseHitWindow();
+
+	/**
+	 * Capsule overlap from WeaponRoot to WeaponTip socket.
+	 * Calls IRVDamageable::ApplyDamage on every unique hit actor.
+	 * Invoked by UAnimNotifyState_AttackHitCheck::NotifyTick().
+	 */
+	void PerformAttackTrace();
 
     // --- Combo ------------------------------------------------------------------
 
@@ -147,6 +153,12 @@ private:
     UPROPERTY()
     TObjectPtr<UCharacterMovementComponent> MovementComponent;
 
+	// --- Hit Window -------------------------------------------------------------
+
+	// Populated during hit window (OpenHitWindow ~ CloseHitWindow).
+	// Prevents the same actor from being hit multiple times per swing.
+	TSet<TWeakObjectPtr<AActor>> HitActors;
+	
     // --- State ------------------------------------------------------------------
 
     bool bIsAttacking   = false;

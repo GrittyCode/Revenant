@@ -15,6 +15,7 @@ URVCombatComponent::URVCombatComponent()
     PrimaryComponentTick.bCanEverTick = false;
 }
 
+
 void URVCombatComponent::BeginPlay()
 {
     Super::BeginPlay();
@@ -98,54 +99,66 @@ bool URVCombatComponent::CanPerformAction(ERVCombatState InAllowedActiveStates) 
 
 // --- Attack Trace ------------------------------------------------------------
 
+void URVCombatComponent::OpenHitWindow()
+{
+	HitActors.Empty();
+}
+
+void URVCombatComponent::CloseHitWindow()
+{
+	HitActors.Empty();
+}
+
 void URVCombatComponent::PerformAttackTrace()
 {
-    URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-    if (!IsValid(WeaponData)) { return; }
+	URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
+	if (!IsValid(WeaponData)) { return; }
 
-    ACharacter* OwnerChar = Cast<ACharacter>(GetOwner());
-    if (!IsValid(OwnerChar)) { return; }
+	ACharacter* OwnerChar = Cast<ACharacter>(GetOwner());
+	if (!IsValid(OwnerChar)) { return; }
 
-    USkeletalMeshComponent* Mesh = OwnerChar->GetMesh();
-    const FVector Root = Mesh->GetSocketLocation(FName("WeaponRoot"));
-    const FVector Tip  = Mesh->GetSocketLocation(FName("WeaponTip"));
+	USkeletalMeshComponent* Mesh = OwnerChar->GetMesh();
+	const FVector Root = Mesh->GetSocketLocation(FName("WeaponRoot"));
+	const FVector Tip  = Mesh->GetSocketLocation(FName("WeaponTip"));
 
-    const FVector Center     = (Root + Tip) * 0.5f;
-    const float   HalfHeight = FVector::Dist(Root, Tip) * 0.5f;
-    const FQuat   Rotation   = FRotationMatrix::MakeFromZ(Tip - Root).ToQuat();
+	const FVector Center     = (Root + Tip) * 0.5f;
+	const float   HalfHeight = FVector::Dist(Root, Tip) * 0.5f;
+	const FQuat   Rotation   = FRotationMatrix::MakeFromZ(Tip - Root).ToQuat();
 
-    FCollisionQueryParams Params;
-    Params.AddIgnoredActor(OwnerChar);
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(OwnerChar);
 
-    TArray<FOverlapResult> Overlaps;
-    // TODO: replace ECC_Pawn with project-specific channel once RVCollision.h is defined
-    GetWorld()->OverlapMultiByChannel(
-        Overlaps,
-        Center,
-        Rotation,
-        ECC_Pawn,
-        FCollisionShape::MakeCapsule(WeaponData->AttackRadius, HalfHeight),
-        Params
-    );
+	TArray<FOverlapResult> Overlaps;
+	// TODO: replace ECC_Pawn with project-specific channel once RVCollision.h is defined
+	GetWorld()->OverlapMultiByChannel(
+		Overlaps,
+		Center,
+		Rotation,
+		ECC_Pawn,
+		FCollisionShape::MakeCapsule(WeaponData->AttackRadius, HalfHeight),
+		Params
+	);
 
 #if !UE_BUILD_SHIPPING
-    DrawDebugCapsule(GetWorld(), Center, HalfHeight, WeaponData->AttackRadius,
-                     Rotation, FColor::Red, false, 1.f);
+	DrawDebugCapsule(GetWorld(), Center, HalfHeight, WeaponData->AttackRadius,
+					 Rotation, FColor::Red, false, 1.f);
 #endif
 
-    TSet<AActor*> HitActors;
-    for (const FOverlapResult& Overlap : Overlaps)
-    {
-        AActor* HitActor = Overlap.GetActor();
-        if (!IsValid(HitActor) || HitActors.Contains(HitActor)) { continue; }
+	for (const FOverlapResult& Overlap : Overlaps)
+	{
+		AActor* HitActor = Overlap.GetActor();
+		if (!IsValid(HitActor)) { continue; }
 
-        HitActors.Add(HitActor);
+		// One hit per actor per swing
+		TWeakObjectPtr<AActor> WeakHitActor(HitActor);
+		if (HitActors.Contains(WeakHitActor)) { continue; }
+		HitActors.Add(WeakHitActor);
 
-        if (IRVDamageable* Target = Cast<IRVDamageable>(HitActor))
-        {
-            Target->ApplyDamage(WeaponData->AttackDamage, OwnerChar);
-        }
-    }
+		if (IRVDamageable* Target = Cast<IRVDamageable>(HitActor))
+		{
+			Target->ApplyDamage(WeaponData->AttackDamage, OwnerChar);
+		}
+	}
 }
 
 // --- Combo -------------------------------------------------------------------

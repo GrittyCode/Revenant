@@ -27,22 +27,24 @@ void URVComboComponent::BeginPlay()
 
 void URVComboComponent::HandleComboInput()
 {
-    if (!bIsComboActive)
-    {
-        // Gate checks are the caller's responsibility (URVCombatComponent::TryStartCombo)
-        StartCombo();
-    }
-    else
-    {
-        // Already in a combo — buffer the next hit
-        URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-        if (!IsValid(WeaponData)) { return; }
+	if (!bIsComboActive)
+	{
+		StartCombo();
+	}
+	else
+	{
+		// Only accept continuation input during the explicit combo window.
+		// Input outside the window is discarded — enforces timing requirement.
+		if (!bComboWindowOpen) { return; }
 
-        if (ComboCount < WeaponData->GetMaxComboCount())
-        {
-            bHasComboInput = true;
-        }
-    }
+		URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
+		if (!IsValid(WeaponData)) { return; }
+
+		if (ComboCount < WeaponData->GetMaxComboCount())
+		{
+			bHasComboInput = true;
+		}
+	}
 }
 
 void URVComboComponent::TryAdvanceCombo()
@@ -74,6 +76,20 @@ void URVComboComponent::TryAdvanceCombo()
         // Window opened but no input — combo ends after this section
         EndCombo();
     }
+}
+
+void URVComboComponent::OpenComboWindow()
+{
+	if (!bIsComboActive) { return; }
+	bComboWindowOpen = true;
+}
+
+void URVComboComponent::CloseComboWindow()
+{
+	if (!bIsComboActive) { return; }
+
+	bComboWindowOpen = false;
+	TryAdvanceCombo();
 }
 
 // --- Internal ----------------------------------------------------------------
@@ -116,11 +132,11 @@ void URVComboComponent::EndCombo()
 {
     bIsComboActive = false;
     bHasComboInput = false;
+	bComboWindowOpen = false;
     ComboCount     = 0;
 
+	// Notify CombatComponent: clears bIsAttacking
     AttributeComponent->ResumeStaminaRegen();
-
-    // Notify CombatComponent: clears bIsAttacking
     OnComboEnded.Broadcast();
 }
 

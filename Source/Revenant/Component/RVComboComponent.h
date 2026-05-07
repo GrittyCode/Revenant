@@ -14,60 +14,79 @@ DECLARE_MULTICAST_DELEGATE(FRVOnComboEnded);
 UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
 class REVENANT_API URVComboComponent : public UActorComponent
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    URVComboComponent();
+	URVComboComponent();
 
-    /**
-     * Called by URVCombatComponent::TryStartCombo() after all gate checks pass.
-     * Starts the first combo hit or buffers the next hit if already attacking.
-     * Caller is responsible for grounded check and CanPerformAction.
-     */
-    void HandleComboInput();
+	/**
+	 * Called by URVCombatComponent::TryStartCombo() after all gate checks pass.
+	 * Starts the first combo hit or buffers the next hit if already attacking.
+	 * Caller is responsible for grounded check and CanPerformAction.
+	 */
+	void HandleComboInput();
 
-    /**
-     * Called by AnimNotify_ComboWindow.
-     * Advances to the next combo section if input was buffered.
-     */
-    void TryAdvanceCombo();
+	/**
+	 * Called by AnimNotify_ComboWindow.
+	 * Advances to the next combo section if input was buffered.
+	 */
+	void TryAdvanceCombo();
 
-    UFUNCTION(BlueprintCallable, Category = "RV|Combo")
-    bool IsComboActive() const { return bIsComboActive; }
 
-    UFUNCTION(BlueprintCallable, Category = "RV|Combo")
-    int32 GetComboCount() const { return ComboCount; }
+	/**
+	* Called by UAnimNotifyState_ComboWindow::NotifyBegin.
+	* Opens the input acceptance window — only inputs received during this window
+	* are treated as valid combo continuations.
+	*/
+	void OpenComboWindow();
 
-    // URVCombatComponent subscribes to these to keep bIsAttacking in sync
-    FRVOnComboStarted OnComboStarted;
-    FRVOnComboEnded   OnComboEnded;
+	/**
+	 * Called by UAnimNotifyState_ComboWindow::NotifyEnd.
+	 * Closes the input window and resolves the buffered input:
+	 * advances to the next section if input was buffered, ends combo otherwise.
+	 */
+	void CloseComboWindow();
+
+	UFUNCTION(BlueprintCallable, Category = "RV|Combo")
+	bool IsComboActive() const { return bIsComboActive; }
+
+	UFUNCTION(BlueprintCallable, Category = "RV|Combo")
+	int32 GetComboCount() const { return ComboCount; }
+
+	// URVCombatComponent subscribes to these to keep bIsAttacking in sync
+	FRVOnComboStarted OnComboStarted;
+	FRVOnComboEnded OnComboEnded;
 
 protected:
-    virtual void BeginPlay() override;
+	virtual void BeginPlay() override;
 
 private:
-    // --- Cached Component References --------------------------------------------
+	// --- Cached Component References --------------------------------------------
 
-    UPROPERTY()
-    TObjectPtr<URVEquipmentComponent> EquipmentComponent;
+	UPROPERTY()
+	TObjectPtr<URVEquipmentComponent> EquipmentComponent;
 
-    UPROPERTY()
-    TObjectPtr<URVAttributeComponent> AttributeComponent;
+	UPROPERTY()
+	TObjectPtr<URVAttributeComponent> AttributeComponent;
 
-    // --- State ------------------------------------------------------------------
+	// --- State ------------------------------------------------------------------
 
-    bool  bIsComboActive = false;
-    bool  bHasComboInput = false;
-    int32 ComboCount     = 0;
+	bool bIsComboActive = false;
+	bool bHasComboInput = false;
+	int32 ComboCount = 0;
 
-    // --- Internal ---------------------------------------------------------------
+	// --- Internal ---------------------------------------------------------------
 
-    void StartCombo();
-    void EndCombo();
+	void StartCombo();
+	void EndCombo();
 
-    /** Plays the montage section for the current ComboCount. */
-    void PlayComboSection();
+	/** Plays the montage section for the current ComboCount. */
+	void PlayComboSection();
 
-    /** Bound to montage blend-out — cleans up when full combo ends or is interrupted. */
-    void OnComboMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
+	/** Bound to montage blend-out — cleans up when full combo ends or is interrupted. */
+	void OnComboMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
+	
+	// True only during the NotifyState window — gates combo input acceptance
+	bool bComboWindowOpen = false;
+
 };
