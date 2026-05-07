@@ -167,7 +167,7 @@ private:
     bool bIsInvincible  = false;
     bool bIsGuardBroken = false;
     bool bIsSprinting   = false;
-
+	
     // --- Sprint -----------------------------------------------------------------
 
     /** Target MaxWalkSpeed while sprinting. */

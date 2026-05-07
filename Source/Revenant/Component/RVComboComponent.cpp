@@ -71,11 +71,6 @@ void URVComboComponent::TryAdvanceCombo()
         ++ComboCount;
         PlayComboSection();
     }
-    else
-    {
-        // Window opened but no input — combo ends after this section
-        EndCombo();
-    }
 }
 
 void URVComboComponent::OpenComboWindow()
@@ -118,13 +113,12 @@ void URVComboComponent::StartCombo()
     OnComboStarted.Broadcast();
 
     UAnimMontage* AttackMontage = WeaponData->GetAttackMontage();
-
-    FOnMontageBlendingOutStarted BlendOutDelegate;
-    BlendOutDelegate.BindUObject(this, &URVComboComponent::OnComboMontageBlendingOut);
-
+	
+	
     AnimInst->Montage_Play(AttackMontage);
-    AnimInst->Montage_SetBlendingOutDelegate(BlendOutDelegate, AttackMontage);
-
+	FOnMontageEnded MontageEndedDelegate;
+	MontageEndedDelegate.BindUObject(this, &URVComboComponent::OnComboMontageEnded);
+	AnimInst->Montage_SetEndDelegate(MontageEndedDelegate, AttackMontage);
     PlayComboSection();
 }
 
@@ -158,7 +152,7 @@ void URVComboComponent::PlayComboSection()
     AnimInst->Montage_JumpToSection(SectionName, WeaponData->GetAttackMontage());
 }
 
-void URVComboComponent::OnComboMontageBlendingOut(UAnimMontage* /*InMontage*/, bool /*bInterrupted*/)
+void URVComboComponent::OnComboMontageEnded(UAnimMontage* /*InMontage*/, bool /*bInterrupted*/)
 {
-    EndCombo();
+	EndCombo();
 }

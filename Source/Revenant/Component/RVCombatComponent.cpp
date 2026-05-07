@@ -55,14 +55,15 @@ void URVCombatComponent::OnComboStartedHandler()
 {
     SetAttacking(true);
 
-    // Attack auto-cancels guard on entry.
-    // EndGuard() is intentionally avoided: ComboComponent::StartCombo() calls PauseStaminaRegen()
-    // synchronously before broadcasting, so routing through EndGuard() here would call
-    // ResumeStaminaRegen() and undo that pause.
     if (bIsGuarding)
     {
         bIsGuarding = false;
     }
+	
+	if (bIsSprinting)
+	{
+		EndSprint();
+	}
 }
 
 void URVCombatComponent::OnComboEndedHandler()
@@ -326,11 +327,10 @@ void URVCombatComponent::OnGuardBreakRecoveryComplete()
 
 void URVCombatComponent::StartSprint()
 {
-    if (bIsDodging || bIsGuarding || bIsGuardBroken) { return; }
-
-    // Sprint is ground-only — airborne sprint has no meaningful effect
-    if (!IsGrounded()) { return; }
-
+    if (bIsSprinting || bIsDodging || bIsGuarding || bIsGuardBroken || !IsGrounded()) { return; }
+	
+	if (AttributeComponent->GetCurrentStamina() <= 0.f) { return; }
+	
     // Cache the BP-configured WalkSpeed so EndSprint restores the exact value
     OriginalWalkSpeed = MovementComponent->MaxWalkSpeed;
     MovementComponent->MaxWalkSpeed = SprintSpeed;

@@ -69,7 +69,7 @@ void ARVCharacterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	Eic->BindAction(InputConfig->DodgeAction, ETriggerEvent::Triggered, this, &ARVCharacterPlayer::InputDodge);
 
 	// Sprint: Started fires when Hold threshold is met, Completed fires on release
-	Eic->BindAction(InputConfig->SprintAction, ETriggerEvent::Started, this, &ARVCharacterPlayer::InputSprintStarted);
+	Eic->BindAction(InputConfig->SprintAction, ETriggerEvent::Triggered , this, &ARVCharacterPlayer::InputSprintStarted);
 	Eic->BindAction(InputConfig->SprintAction, ETriggerEvent::Completed, this, &ARVCharacterPlayer::InputSprintCompleted);
 
 	// Guard: Started = RMB pressed, Completed = RMB released
@@ -127,7 +127,7 @@ void ARVCharacterPlayer::InputDodge(const FInputActionValue& Value)
 
 void ARVCharacterPlayer::InputSprintStarted(const FInputActionValue& Value)
 {
-	CombatComponent->StartSprint();
+   	CombatComponent->StartSprint();
 }
 
 void ARVCharacterPlayer::InputSprintCompleted(const FInputActionValue& Value)

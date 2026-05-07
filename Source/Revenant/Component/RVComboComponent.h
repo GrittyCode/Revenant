@@ -82,9 +82,7 @@ private:
 
 	/** Plays the montage section for the current ComboCount. */
 	void PlayComboSection();
-
-	/** Bound to montage blend-out — cleans up when full combo ends or is interrupted. */
-	void OnComboMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
+	void OnComboMontageEnded(UAnimMontage*, bool);
 	
 	// True only during the NotifyState window — gates combo input acceptance
 	bool bComboWindowOpen = false;
