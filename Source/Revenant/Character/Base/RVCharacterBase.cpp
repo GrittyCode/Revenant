@@ -47,7 +47,7 @@ bool ARVCharacterBase::ApplyDamage(float InDamageAmount, AActor* InInstigator)
     if (CombatComponent->IsInvincible()) { return false; }
 
     // Guarding — absorbed as stamina damage; may trigger guard break
-    if (CombatComponent->IsGuarding())
+    if (CombatComponent->IsInState(ERVCombatState::Guarding))
     {
         CombatComponent->HandleGuardHit(InDamageAmount);
         return true; // character is alive regardless of whether guard held or broke

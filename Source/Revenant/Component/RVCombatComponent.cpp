@@ -20,16 +20,16 @@ void URVCombatComponent::BeginPlay()
 	Super::BeginPlay();
 
 	AActor* Owner = GetOwner();
+	OwnerCharacter     = Cast<ACharacter>(Owner);
 	AttributeComponent = Owner->FindComponentByClass<URVAttributeComponent>();
 	EquipmentComponent = Owner->FindComponentByClass<URVEquipmentComponent>();
 	ComboComponent     = Owner->FindComponentByClass<URVComboComponent>();
-
-	ACharacter* OwnerChar = Cast<ACharacter>(Owner);
-	if (IsValid(OwnerChar))
+	if (IsValid(OwnerCharacter))
 	{
-		MovementComponent = OwnerChar->GetCharacterMovement();
+		MovementComponent = OwnerCharacter->GetCharacterMovement();
 	}
 
+	ensureMsgf(IsValid(OwnerCharacter),     TEXT("[%s] Owner is not ACharacter — CombatComponent requires ARVCharacterBase"),       *GetNameSafe(Owner));
 	ensureMsgf(IsValid(AttributeComponent), TEXT("[%s] URVAttributeComponent missing — CombatComponent requires ARVCharacterBase"), *GetNameSafe(Owner));
 	ensureMsgf(IsValid(EquipmentComponent), TEXT("[%s] URVEquipmentComponent missing — CombatComponent requires ARVCharacterBase"), *GetNameSafe(Owner));
 	ensureMsgf(IsValid(ComboComponent),     TEXT("[%s] URVComboComponent missing — CombatComponent requires ARVCharacterBase"),     *GetNameSafe(Owner));
@@ -42,30 +42,27 @@ void URVCombatComponent::BeginPlay()
 
 //--- State -------------------------------------------------------------------
 
-void URVCombatComponent::SetAttacking(bool bInIsAttacking)
-{
-	bIsAttacking = bInIsAttacking;
-}
-
 void URVCombatComponent::ForceEndAllActions()
 {
-	if (bIsHeavyCharging || bIsHeavyAttacking) { EndHeavyAttack(); }
-	if (bIsDodging)                            { EndDodge(); }
-	if (bIsGuarding)                           { EndGuard(); }
-	if (bIsSprinting)                          { EndSprint(); }
-	if (bIsAttacking)                          { SetAttacking(false); }
+	if (HasState(ERVCombatState::HeavyCharging | ERVCombatState::HeavyAttacking)) { EndHeavyAttack(); }
+	if (HasState(ERVCombatState::Dodging))                                        { EndDodge(); }
+	if (HasState(ERVCombatState::Guarding))                                       { EndGuard(); }
+	if (bIsSprinting)                                                             { EndSprint(); }
+	RemoveState(ERVCombatState::Attacking);
 }
 
 void URVCombatComponent::OnComboStartedHandler()
 {
-	SetAttacking(true);
-	if (bIsGuarding)  { bIsGuarding = false; }
-	if (bIsSprinting) { EndSprint(); }
+	AddState(ERVCombatState::Attacking);
+	// Transition directly from guard to attack — EndGuard is intentionally bypassed
+	// to keep stamina regen paused (attack keeps it paused anyway).
+	if (HasState(ERVCombatState::Guarding)) { RemoveState(ERVCombatState::Guarding); }
+	if (bIsSprinting)                       { EndSprint(); }
 }
 
 void URVCombatComponent::OnComboEndedHandler()
 {
-	SetAttacking(false);
+	RemoveState(ERVCombatState::Attacking);
 }
 
 bool URVCombatComponent::IsGrounded() const
@@ -73,27 +70,17 @@ bool URVCombatComponent::IsGrounded() const
 	return IsValid(MovementComponent) && !MovementComponent->IsFalling();
 }
 
-ERVCombatState URVCombatComponent::GetActiveStates() const
-{
-	ERVCombatState States = ERVCombatState::None;
-	if (bIsAttacking)                          { States |= ERVCombatState::Attacking; }
-	if (bIsHeavyCharging || bIsHeavyAttacking) { States |= ERVCombatState::HeavyAttacking; }
-	if (bIsDodging)                            { States |= ERVCombatState::Dodging; }
-	if (bIsGuarding)                           { States |= ERVCombatState::Guarding; }
-	if (bIsGuardBroken)                        { States |= ERVCombatState::GuardBroken; }
-	return States;
-}
-
-bool URVCombatComponent::CanPerformActionWith(ERVCombatState InCoexistableStates) const
+bool URVCombatComponent::CheckAvailableState(ERVCombatState InCoexistableStates) const
 {
 	const ERVCombatState BlockingStates =
 		ERVCombatState::Attacking      |
+		ERVCombatState::HeavyCharging  |
 		ERVCombatState::HeavyAttacking |
 		ERVCombatState::Dodging        |
 		ERVCombatState::Guarding       |
 		ERVCombatState::GuardBroken;
 
-	const ERVCombatState Relevant = (GetActiveStates() & BlockingStates) & ~InCoexistableStates;
+	const ERVCombatState Relevant = (CurrentStates & BlockingStates) & ~InCoexistableStates;
 	return Relevant == ERVCombatState::None;
 }
 
@@ -109,15 +96,24 @@ void URVCombatComponent::CloseHitWindow()
 	HitActors.Empty();
 }
 
+float URVCombatComponent::ResolveDamage(const URVWeaponDataAsset* InWeaponData) const
+{
+	if (HasState(ERVCombatState::HeavyAttacking))
+	{
+		// AutoRelease (max charge) deals maximum damage; manual release uses base heavy damage.
+		return (ActiveTier == ERVHeavyAttackTier::AutoRelease)
+			? InWeaponData->HeavyAttackDamage_Max
+			: InWeaponData->HeavyAttackDamage;
+	}
+	return InWeaponData->AttackDamage;
+}
+
 void URVCombatComponent::PerformAttackTrace()
 {
 	URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
 	if (!IsValid(WeaponData)) { return; }
 
-	ACharacter* OwnerChar = Cast<ACharacter>(GetOwner());
-	if (!IsValid(OwnerChar)) { return; }
-
-	USkeletalMeshComponent* Mesh = OwnerChar->GetMesh();
+	USkeletalMeshComponent* Mesh = OwnerCharacter->GetMesh();
 	const FVector Root = Mesh->GetSocketLocation(FName("WeaponRoot"));
 	const FVector Tip  = Mesh->GetSocketLocation(FName("WeaponTip"));
 
@@ -126,7 +122,7 @@ void URVCombatComponent::PerformAttackTrace()
 	const FQuat   Rotation   = FRotationMatrix::MakeFromZ(Tip - Root).ToQuat();
 
 	FCollisionQueryParams Params;
-	Params.AddIgnoredActor(OwnerChar);
+	Params.AddIgnoredActor(OwnerCharacter);
 
 	TArray<FOverlapResult> Overlaps;
 	// TODO: replace ECC_Pawn with project-specific channel once RVCollision.h is defined
@@ -141,6 +137,8 @@ void URVCombatComponent::PerformAttackTrace()
 	                 Rotation, FColor::Red, false, 1.f);
 #endif
 
+	const float Damage = ResolveDamage(WeaponData);
+
 	for (const FOverlapResult& Overlap : Overlaps)
 	{
 		AActor* HitActor = Overlap.GetActor();
@@ -152,17 +150,7 @@ void URVCombatComponent::PerformAttackTrace()
 
 		if (IRVDamageable* Target = Cast<IRVDamageable>(HitActor))
 		{
-			float Damage = WeaponData->AttackDamage;
-
-			if (bIsHeavyAttacking)
-			{
-				// AutoRelease (max charge) deals maximum damage; manual release uses base heavy damage.
-				Damage = (ActiveTier == ERVHeavyAttackTier::AutoRelease)
-					? WeaponData->HeavyAttackDamage_Max
-					: WeaponData->HeavyAttackDamage;
-			}
-
-			Target->ApplyDamage(Damage, OwnerChar);
+			Target->ApplyDamage(Damage, OwnerCharacter);
 		}
 	}
 }
@@ -174,7 +162,7 @@ void URVCombatComponent::TryStartCombo()
 	if (!ComboComponent->IsComboActive())
 	{
 		if (!IsGrounded()) { return; }
-		if (!CanPerformActionWith(ERVCombatState::Attacking | ERVCombatState::Guarding)) { return; }
+		if (!CheckAvailableState(ERVCombatState::Attacking | ERVCombatState::Guarding)) { return; }
 	}
 
 	ComboComponent->HandleComboInput();
@@ -184,7 +172,7 @@ void URVCombatComponent::TryStartCombo()
 
 void URVCombatComponent::StartHeavyAttack()
 {
-	if (!CanPerformActionWith()) { return; }
+	if (!CheckAvailableState()) { return; }
 	if (!IsGrounded()) { return; }
 
 	const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
@@ -193,21 +181,18 @@ void URVCombatComponent::StartHeavyAttack()
 	// Consume stamina at charge start — cancellation mid-charge is an intended penalty
 	if (!AttributeComponent->ConsumeStamina(WeaponData->HeavyAttackStaminaCost)) { return; }
 
-	ACharacter* OwnerChar = Cast<ACharacter>(GetOwner());
-	if (!IsValid(OwnerChar)) { return; }
-
-	UAnimInstance* AnimInstance = OwnerChar->GetMesh()->GetAnimInstance();
-	if (!IsValid(AnimInstance)) { return; }
-
 	if (bIsSprinting) { EndSprint(); }
 
-	bIsHeavyCharging  = true;
-	bCanHeavyRelease  = false;  // gated until AnimNotify_HeavyAttackReady fires
-	bPendingRelease   = false;
-	bIsAutoRelease    = false;
+	AddState(ERVCombatState::HeavyCharging);
+	bCanHeavyRelease = false;
+	bPendingRelease  = false;
+	bIsAutoRelease   = false;
 	AttributeComponent->PauseStaminaRegen();
 
 	UAnimMontage* ChargeMontage = WeaponData->GetHeavyChargeMontage();
+	
+	UAnimInstance* AnimInstance = OwnerCharacter->GetMesh()->GetAnimInstance();
+	if (!IsValid(AnimInstance)) { return; }
 
 	FOnMontageBlendingOutStarted ChargeBlendOutDelegate;
 	ChargeBlendOutDelegate.BindUObject(this, &URVCombatComponent::OnChargeMontageBlendingOut);
@@ -226,7 +211,7 @@ void URVCombatComponent::StartHeavyAttack()
 
 void URVCombatComponent::ReleaseHeavyAttack()
 {
-	if (!bIsHeavyCharging) { return; }
+	if (!HasState(ERVCombatState::HeavyCharging)) { return; }
 
 	if (!bCanHeavyRelease)
 	{
@@ -252,49 +237,29 @@ void URVCombatComponent::SetHeavyAttackReady(bool bReady)
 
 void URVCombatComponent::ExecuteHeavyAttack()
 {
-	// Stamina was already consumed at StartHeavyAttack — no second charge here
-
 	GetWorld()->GetTimerManager().ClearTimer(ChargeAutoReleaseHandle);
 
 	const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-	if (!IsValid(WeaponData))
-	{
-		EndHeavyAttack();
-		return;
-	}
+	if (!IsValid(WeaponData))   { EndHeavyAttack(); return; }
 
-	ACharacter* OwnerChar = Cast<ACharacter>(GetOwner());
-	if (!IsValid(OwnerChar))
-	{
-		EndHeavyAttack();
-		return;
-	}
+	
 
-	UAnimInstance* AnimInstance = OwnerChar->GetMesh()->GetAnimInstance();
-	if (!IsValid(AnimInstance))
-	{
-		EndHeavyAttack();
-		return;
-	}
+	UAnimInstance* AnimInstance = OwnerCharacter->GetMesh()->GetAnimInstance();
+	if (!IsValid(AnimInstance)) { EndHeavyAttack(); return; }
 
 	UAnimMontage* ReleaseMontage = WeaponData->GetHeavyAttackMontage();
-	if (!IsValid(ReleaseMontage))
-	{
-		EndHeavyAttack();
-		return;
-	}
+	if (!IsValid(ReleaseMontage)) { EndHeavyAttack(); return; }
 
 	// Tier is determined by whether the timer fired (auto) or the player released manually.
-	// bIsAutoRelease is set by OnChargeAutoRelease before this function is called.
 	ActiveTier     = bIsAutoRelease ? ERVHeavyAttackTier::AutoRelease : ERVHeavyAttackTier::Manual;
 	bIsAutoRelease = false;
 
 	// Transition state before stopping charge montage.
-	// OnChargeMontageBlendingOut checks bIsHeavyCharging to detect external interruptions —
-	// setting it false here tells that handler this stop is intentional.
-	bIsHeavyCharging  = false;
-	bIsHeavyAttacking = true;
-	
+	// OnChargeMontageBlendingOut checks HeavyCharging to detect external interruptions —
+	// removing it here tells that handler this stop is intentional.
+	RemoveState(ERVCombatState::HeavyCharging);
+	AddState(ERVCombatState::HeavyAttacking);
+
 	FOnMontageBlendingOutStarted ReleaseBlendOutDelegate;
 	ReleaseBlendOutDelegate.BindUObject(this, &URVCombatComponent::OnReleaseMontageBlendingOut);
 
@@ -313,45 +278,39 @@ void URVCombatComponent::OnChargeAutoRelease()
 
 void URVCombatComponent::EndHeavyAttack()
 {
-	if (!bIsHeavyCharging && !bIsHeavyAttacking) { return; }
+	if (!HasState(ERVCombatState::HeavyCharging | ERVCombatState::HeavyAttacking)) { return; }
 
 	// Stop whichever montage is currently active so visual and logical state stay in sync.
-	// Required when called via ForceEndAllActions (Phase 3).
-	ACharacter* OwnerChar = Cast<ACharacter>(GetOwner());
-	if (IsValid(OwnerChar))
+
+	if (IsValid(OwnerCharacter))
 	{
-		UAnimInstance* AnimInstance = OwnerChar->GetMesh()->GetAnimInstance();
+		UAnimInstance* AnimInstance = OwnerCharacter->GetMesh()->GetAnimInstance();
 		if (IsValid(AnimInstance))
 		{
 			const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
 			if (IsValid(WeaponData))
 			{
-				if (bIsHeavyCharging)
-				{
-					AnimInstance->Montage_Stop(0.1f, WeaponData->GetHeavyChargeMontage());
-				}
-				else
-				{
-					AnimInstance->Montage_Stop(0.1f, WeaponData->GetHeavyAttackMontage());
-				}
+				UAnimMontage* MontageToStop = HasState(ERVCombatState::HeavyCharging)
+					? WeaponData->GetHeavyChargeMontage()
+					: WeaponData->GetHeavyAttackMontage();
+				AnimInstance->Montage_Stop(0.1f, MontageToStop);
 			}
 		}
 	}
 
-	bIsHeavyCharging  = false;
-	bIsHeavyAttacking = false;
-	bCanHeavyRelease  = false;
-	bPendingRelease   = false;
-	bIsAutoRelease    = false;
+	RemoveState(ERVCombatState::HeavyCharging | ERVCombatState::HeavyAttacking);
+	bCanHeavyRelease = false;
+	bPendingRelease  = false;
+	bIsAutoRelease   = false;
 	GetWorld()->GetTimerManager().ClearTimer(ChargeAutoReleaseHandle);
 	AttributeComponent->ResumeStaminaRegen();
 }
 
 void URVCombatComponent::OnChargeMontageBlendingOut(UAnimMontage* /*InMontage*/, bool /*bInterrupted*/)
 {
-	// bIsHeavyCharging still true = external interruption before release — clean up.
-	// bIsHeavyCharging false = ExecuteHeavyAttack already transitioned us — ignore.
-	if (bIsHeavyCharging)
+	// HeavyCharging still set = external interruption before release — clean up.
+	// HeavyCharging already removed = ExecuteHeavyAttack transitioned us — ignore.
+	if (HasState(ERVCombatState::HeavyCharging))
 	{
 		EndHeavyAttack();
 	}
@@ -366,7 +325,7 @@ void URVCombatComponent::OnReleaseMontageBlendingOut(UAnimMontage* /*InMontage*/
 
 void URVCombatComponent::StartDodge(const FVector& InDodgeDirection)
 {
-	if (!CanPerformActionWith(ERVCombatState::Guarding)) { return; }
+	if (!CheckAvailableState(ERVCombatState::Guarding)) { return; }
 	if (!IsGrounded()) { return; }
 
 	const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
@@ -374,19 +333,16 @@ void URVCombatComponent::StartDodge(const FVector& InDodgeDirection)
 
 	if (!AttributeComponent->ConsumeStamina(WeaponData->DodgeStaminaCost)) { return; }
 
-	if (bIsSprinting) { EndSprint(); }
-	if (bIsGuarding)  { EndGuard(); }
+	if (bIsSprinting)                       { EndSprint(); }
+	if (HasState(ERVCombatState::Guarding)) { EndGuard(); }
 
-	ACharacter* OwnerChar = Cast<ACharacter>(GetOwner());
-	if (!IsValid(OwnerChar)) { return; }
-
-	UAnimInstance* AnimInstance = OwnerChar->GetMesh()->GetAnimInstance();
+	UAnimInstance* AnimInstance = OwnerCharacter->GetMesh()->GetAnimInstance();
 	if (!IsValid(AnimInstance)) { return; }
 
-	OwnerChar->SetActorRotation(InDodgeDirection.ToOrientationRotator());
+	OwnerCharacter->SetActorRotation(InDodgeDirection.ToOrientationRotator());
 	MovementComponent->bOrientRotationToMovement = false;
 
-	bIsDodging = true;
+	AddState(ERVCombatState::Dodging);
 	AttributeComponent->PauseStaminaRegen();
 
 	UAnimMontage* DodgeMontage = WeaponData->GetDodgeMontage();
@@ -400,15 +356,15 @@ void URVCombatComponent::StartDodge(const FVector& InDodgeDirection)
 
 void URVCombatComponent::SetDodgeIFrame(bool bActivate)
 {
-	if (!bIsDodging && bActivate) { return; }
+	if (!HasState(ERVCombatState::Dodging) && bActivate) { return; }
 	bIsInvincible = bActivate;
 }
 
 void URVCombatComponent::EndDodge()
 {
-	if (!bIsDodging) { return; }
+	if (!HasState(ERVCombatState::Dodging)) { return; }
 
-	bIsDodging    = false;
+	RemoveState(ERVCombatState::Dodging);
 	bIsInvincible = false;
 	MovementComponent->bOrientRotationToMovement = true;
 	AttributeComponent->ResumeStaminaRegen();
@@ -423,19 +379,19 @@ void URVCombatComponent::OnDodgeMontageBlendingOut(UAnimMontage* /*InMontage*/, 
 
 void URVCombatComponent::StartGuard()
 {
-	if (!CanPerformActionWith()) { return; }
+	if (!CheckAvailableState()) { return; }
 	if (!IsGrounded()) { return; }
 	if (bIsSprinting) { EndSprint(); }
 
-	bIsGuarding = true;
+	AddState(ERVCombatState::Guarding);
 	AttributeComponent->PauseStaminaRegen();
 }
 
 void URVCombatComponent::EndGuard()
 {
-	if (!bIsGuarding) { return; }
+	if (!HasState(ERVCombatState::Guarding)) { return; }
 
-	bIsGuarding = false;
+	RemoveState(ERVCombatState::Guarding);
 	AttributeComponent->ResumeStaminaRegen();
 }
 
@@ -447,10 +403,7 @@ void URVCombatComponent::HandleGuardHit(float InDamageAmount)
 	const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
 	if (!IsValid(WeaponData) || !IsValid(WeaponData->GetGuardHitMontage())) { return; }
 
-	ACharacter* OwnerChar = Cast<ACharacter>(GetOwner());
-	if (!IsValid(OwnerChar)) { return; }
-
-	UAnimInstance* AnimInstance = OwnerChar->GetMesh()->GetAnimInstance();
+	UAnimInstance* AnimInstance = OwnerCharacter->GetMesh()->GetAnimInstance();
 	if (!IsValid(AnimInstance)) { return; }
 
 	AnimInstance->Montage_Play(WeaponData->GetGuardHitMontage());
@@ -460,17 +413,14 @@ void URVCombatComponent::HandleGuardHit(float InDamageAmount)
 
 void URVCombatComponent::OnGuardBreakHandler()
 {
-	bIsGuarding    = false;
-	bIsGuardBroken = true;
+	RemoveState(ERVCombatState::Guarding);
+	AddState(ERVCombatState::GuardBroken);
 	AttributeComponent->PauseStaminaRegen();
 
 	URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
 	if (!IsValid(WeaponData) || !IsValid(WeaponData->GetGuardBreakMontage())) { return; }
 
-	ACharacter* OwnerChar = Cast<ACharacter>(GetOwner());
-	if (!IsValid(OwnerChar)) { return; }
-
-	UAnimInstance* AnimInstance = OwnerChar->GetMesh()->GetAnimInstance();
+	UAnimInstance* AnimInstance = OwnerCharacter->GetMesh()->GetAnimInstance();
 	if (!IsValid(AnimInstance)) { return; }
 
 	AnimInstance->Montage_Play(WeaponData->GetGuardBreakMontage());
@@ -486,7 +436,7 @@ void URVCombatComponent::OnGuardBreakHandler()
 
 void URVCombatComponent::OnGuardBreakRecoveryComplete()
 {
-	bIsGuardBroken = false;
+	RemoveState(ERVCombatState::GuardBroken);
 	AttributeComponent->ResumeStaminaRegen();
 }
 
@@ -495,7 +445,7 @@ void URVCombatComponent::OnGuardBreakRecoveryComplete()
 void URVCombatComponent::StartSprint()
 {
 	if (bIsSprinting) { return; }
-	if (!CanPerformActionWith()) { return; }
+	if (!CheckAvailableState()) { return; }
 	if (!IsGrounded()) { return; }
 	if (AttributeComponent->GetCurrentStamina() <= 0.f) { return; }
 

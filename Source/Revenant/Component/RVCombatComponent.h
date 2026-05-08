@@ -4,21 +4,24 @@
 #include "Components/ActorComponent.h"
 #include "RVCombatComponent.generated.h"
 
+class ACharacter;
 class URVAttributeComponent;
 class URVEquipmentComponent;
 class URVComboComponent;
 class UCharacterMovementComponent;
 class UAnimMontage;
+class URVWeaponDataAsset;
 
 UENUM(BlueprintType, meta=(Bitflags, UseEnumValuesAsMaskValuesInEditor="true"))
 enum class ERVCombatState : uint8
 {
-    None           = 0        UMETA(Hidden),
-    Attacking      = 1 << 0   UMETA(DisplayName="Attacking"),
-    HeavyAttacking = 1 << 1   UMETA(DisplayName="HeavyAttacking"),
-    Dodging        = 1 << 2   UMETA(DisplayName="Dodging"),
-    Guarding       = 1 << 3   UMETA(DisplayName="Guarding"),
-    GuardBroken    = 1 << 4   UMETA(DisplayName="GuardBroken"),
+	None           = 0        UMETA(Hidden),
+	Attacking      = 1 << 0   UMETA(DisplayName="Attacking"),
+	HeavyAttacking = 1 << 1   UMETA(DisplayName="HeavyAttacking"),
+	Dodging        = 1 << 2   UMETA(DisplayName="Dodging"),
+	Guarding       = 1 << 3   UMETA(DisplayName="Guarding"),
+	GuardBroken    = 1 << 4   UMETA(DisplayName="GuardBroken"),
+	HeavyCharging  = 1 << 5   UMETA(DisplayName="HeavyCharging"),
 };
 
 ENUM_CLASS_FLAGS(ERVCombatState);
@@ -27,211 +30,213 @@ ENUM_CLASS_FLAGS(ERVCombatState);
 UENUM(BlueprintType)
 enum class ERVHeavyAttackTier : uint8
 {
-    Manual      = 0,  // player released before MaxChargeTime
-    AutoRelease = 1,  // held until MaxChargeTime — maximum damage
+	Manual      = 0,  // player released before MaxChargeTime
+	AutoRelease = 1,  // held until MaxChargeTime — maximum damage
 };
 
 UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
 class REVENANT_API URVCombatComponent : public UActorComponent
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    URVCombatComponent();
+	URVCombatComponent();
 
-    // --- Attack Trace -----------------------------------------------------------
+	// --- Attack Trace -----------------------------------------------------------
 
-    void OpenHitWindow();
-    void CloseHitWindow();
+	void OpenHitWindow();
+	void CloseHitWindow();
 
-    /**
-     * Capsule overlap from WeaponRoot to WeaponTip socket.
-     * Uses tier-based damage when bIsHeavyAttacking, else AttackDamage.
-     */
-    void PerformAttackTrace();
+	/** Capsule overlap from WeaponRoot to WeaponTip socket. Damage resolved internally by current state. */
+	void PerformAttackTrace();
 
-    // --- Combo ------------------------------------------------------------------
+	// --- Combo ------------------------------------------------------------------
 
-    void TryStartCombo();
+	void TryStartCombo();
 
-    // --- Heavy Attack -----------------------------------------------------------
+	// --- Heavy Attack -----------------------------------------------------------
 
-    /**
-     * Begins heavy attack charge. Plays HeavyChargeMontage (loops until released).
-     * Consumes stamina immediately — charge cancellation is a penalty.
-     * Called by ARVCharacterPlayer::InputHeavyAttackStarted().
-     */
-    void StartHeavyAttack();
+	/**
+	 * Begins heavy attack charge. Plays HeavyChargeMontage (loops until released).
+	 * Consumes stamina immediately — charge cancellation is a penalty.
+	 * Called by ARVCharacterPlayer::InputHeavyAttackStarted().
+	 */
+	void StartHeavyAttack();
 
-    /**
-     * Requests heavy attack release.
-     * If the charge montage has not yet reached the Loop section, the release is
-     * buffered in bPendingRelease and fired automatically when Loop entry is confirmed.
-     * Called by ARVCharacterPlayer::InputHeavyAttackCompleted().
-     */
-    void ReleaseHeavyAttack();
+	/**
+	 * Requests heavy attack release.
+	 * If the charge montage has not yet reached the Loop section, the release is
+	 * buffered in bPendingRelease and fired automatically when Loop entry is confirmed.
+	 * Called by ARVCharacterPlayer::InputHeavyAttackCompleted().
+	 */
+	void ReleaseHeavyAttack();
 
-    /**
-     * Called by AnimNotify_HeavyAttackReady on NotifyBegin (Loop section entry).
-     * Activates release gating and flushes any pending buffered release.
-     */
-    void SetHeavyAttackReady(bool bReady);
+	/**
+	 * Called by AnimNotify_HeavyAttackReady on NotifyBegin (Loop section entry).
+	 * Activates release gating and flushes any pending buffered release.
+	 */
+	void SetHeavyAttackReady(bool bReady);
 
-    // --- Dodge ------------------------------------------------------------------
+	// --- Dodge ------------------------------------------------------------------
 
-    void StartDodge(const FVector& InDodgeDirection);
-    void SetDodgeIFrame(bool bActivate);
+	void StartDodge(const FVector& InDodgeDirection);
+	void SetDodgeIFrame(bool bActivate);
 
-    // --- Guard ------------------------------------------------------------------
+	// --- Guard ------------------------------------------------------------------
 
-    void StartGuard();
-    void EndGuard();
-    void HandleGuardHit(float InDamageAmount);
+	void StartGuard();
+	void EndGuard();
+	void HandleGuardHit(float InDamageAmount);
 
-    // --- Sprint -----------------------------------------------------------------
+	// --- Sprint -----------------------------------------------------------------
 
-    void StartSprint();
-    void EndSprint();
+	void StartSprint();
+	void EndSprint();
 
-    // --- State Write ------------------------------------------------------------
+	// --- State Control ----------------------------------------------------------
 
-    void SetAttacking(bool bInIsAttacking);
+	/**
+	 * Forcibly terminates any active combat action.
+	 * Called by the hit-reaction system (Phase 3) to cancel in-progress actions.
+	 */
+	void ForceEndAllActions();
 
-    /**
-     * Forcibly terminates any active combat action.
-     * Called by the hit-reaction system (Phase 3) to cancel in-progress actions.
-     */
-    void ForceEndAllActions();
+	// --- State Queries ----------------------------------------------------------
 
-    // --- State Queries ----------------------------------------------------------
+	/**
+	 * Returns true if all bits in InState are currently active.
+	 * Supports compound queries: IsInState(Attacking | HeavyCharging)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "RV|Combat")
+	bool IsInState(ERVCombatState InState) const { return (CurrentStates & InState) != ERVCombatState::None; }
 
-    UFUNCTION(BlueprintCallable, Category = "RV|Combat")
-    bool IsAttacking()      const { return bIsAttacking; }
+	// Invincible and Sprinting are modifier flags outside the combat state enum.
+	UFUNCTION(BlueprintCallable, Category = "RV|Combat")
+	bool IsInvincible() const { return bIsInvincible; }
 
-    UFUNCTION(BlueprintCallable, Category = "RV|Combat")
-    bool IsDodging()        const { return bIsDodging; }
+	UFUNCTION(BlueprintCallable, Category = "RV|Combat")
+	bool IsSprinting()  const { return bIsSprinting; }
 
-    UFUNCTION(BlueprintCallable, Category = "RV|Combat")
-    bool IsGuarding()       const { return bIsGuarding; }
+	UFUNCTION(BlueprintCallable, Category = "RV|Combat")
+	ERVHeavyAttackTier GetHeavyAttackTier() const { return ActiveTier; }
 
-    UFUNCTION(BlueprintCallable, Category = "RV|Combat")
-    bool IsInvincible()     const { return bIsInvincible; }
+	UFUNCTION(BlueprintCallable, Category = "RV|Combat")
+	bool IsGrounded() const;
 
-    UFUNCTION(BlueprintCallable, Category = "RV|Combat")
-    bool IsGuardBroken()    const { return bIsGuardBroken; }
+	/** Returns the active combat state bitmask directly. */
+	ERVCombatState GetActiveStates() const { return CurrentStates; }
 
-    UFUNCTION(BlueprintCallable, Category = "RV|Combat")
-    bool IsSprinting()      const { return bIsSprinting; }
-
-    UFUNCTION(BlueprintCallable, Category = "RV|Combat")
-    bool IsHeavyCharging()  const { return bIsHeavyCharging; }
-
-    UFUNCTION(BlueprintCallable, Category = "RV|Combat")
-    bool IsHeavyAttacking() const { return bIsHeavyAttacking; }
-
-    UFUNCTION(BlueprintCallable, Category = "RV|Combat")
-    ERVHeavyAttackTier GetHeavyAttackTier() const { return ActiveTier; }
-
-    UFUNCTION(BlueprintCallable, Category = "RV|Combat")
-    bool IsGrounded() const;
-
-    ERVCombatState GetActiveStates() const;
-
-    /**
-     * Returns true if no blocking combat state is currently active.
-     */
-    bool CanPerformActionWith(ERVCombatState InCoexistableStates = ERVCombatState::None) const;
+	/**
+	 * Returns true if no blocking combat state is currently active.
+	 * InCoexistableStates: states that are allowed to be active simultaneously (e.g. Guarding while jumping).
+	 */
+	bool CheckAvailableState(ERVCombatState InCoexistableStates = ERVCombatState::None) const;
 
 protected:
-    virtual void BeginPlay() override;
+	virtual void BeginPlay() override;
 
 private:
-    // --- Cached Component References --------------------------------------------
+	// --- Cached References --------------------------------------------
 
-    UPROPERTY()
-    TObjectPtr<URVAttributeComponent> AttributeComponent;
+	UPROPERTY()
+	TObjectPtr<ACharacter> OwnerCharacter;
 
-    UPROPERTY()
-    TObjectPtr<URVEquipmentComponent> EquipmentComponent;
 
-    UPROPERTY()
-    TObjectPtr<URVComboComponent> ComboComponent;
+	UPROPERTY()
+	TObjectPtr<URVAttributeComponent> AttributeComponent;
 
-    UPROPERTY()
-    TObjectPtr<UCharacterMovementComponent> MovementComponent;
+	UPROPERTY()
+	TObjectPtr<URVEquipmentComponent> EquipmentComponent;
 
-    // --- Hit Window -------------------------------------------------------------
+	UPROPERTY()
+	TObjectPtr<URVComboComponent> ComboComponent;
 
-    TSet<TWeakObjectPtr<AActor>> HitActors;
+	UPROPERTY()
+	TObjectPtr<UCharacterMovementComponent> MovementComponent;
 
-    // --- State ------------------------------------------------------------------
+	// --- Hit Window -------------------------------------------------------------
 
-    bool bIsAttacking      = false;
-    bool bIsHeavyCharging  = false;
-    bool bIsHeavyAttacking = false;
-    bool bIsDodging        = false;
-    bool bIsGuarding       = false;
-    bool bIsInvincible     = false;
-    bool bIsGuardBroken    = false;
-    bool bIsSprinting      = false;
+	TSet<TWeakObjectPtr<AActor>> HitActors;
 
-    // --- Heavy Attack -----------------------------------------------------------
+	// --- Combat State -----------------------------------------------------------
 
-    /** Hold time at which charge auto-releases at maximum damage. */
-    UPROPERTY(EditDefaultsOnly, Category = "RV|HeavyAttack")
-    float MaxChargeTime = 1.5f;
+	// Single bitmask owning all combat states. Use AddState / RemoveState / HasState to modify.
+	ERVCombatState CurrentStates = ERVCombatState::None;
 
-    // Tier resolved at ExecuteHeavyAttack — read by PerformAttackTrace for damage lookup.
-    ERVHeavyAttackTier ActiveTier = ERVHeavyAttackTier::Manual;
+	// Invincible: dodge sub-flag — not a combat state, does not block actions.
+	bool bIsInvincible = false;
 
-    // Fires ReleaseHeavyAttack automatically after MaxChargeTime.
-    FTimerHandle ChargeAutoReleaseHandle;
+	// Sprinting: movement modifier — not a combat state, does not block actions.
+	bool bIsSprinting  = false;
 
-    // True once AnimNotify_HeavyAttackReady fires (Loop section entered).
-    bool bCanHeavyRelease = false;
+	// --- Heavy Attack -----------------------------------------------------------
 
-    // Set when ReleaseHeavyAttack is called before bCanHeavyRelease is true.
-    bool bPendingRelease  = false;
+	/** Hold time at which charge auto-releases at maximum damage. */
+	UPROPERTY(EditDefaultsOnly, Category = "RV|HeavyAttack")
+	float MaxChargeTime = 1.5f;
 
-    // Set by OnChargeAutoRelease before calling ReleaseHeavyAttack.
-    // Tells ExecuteHeavyAttack to use AutoRelease tier (max damage).
-    bool bIsAutoRelease   = false;
+	// Tier resolved at ExecuteHeavyAttack — read by ResolveDamage for damage lookup.
+	ERVHeavyAttackTier ActiveTier = ERVHeavyAttackTier::Manual;
 
-    // --- Sprint -----------------------------------------------------------------
+	// Fires ReleaseHeavyAttack automatically after MaxChargeTime.
+	FTimerHandle ChargeAutoReleaseHandle;
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Sprint")
-    float SprintSpeed = 1000.f;
+	// True once AnimNotify_HeavyAttackReady fires (Loop section entered).
+	bool bCanHeavyRelease = false;
 
-    float OriginalWalkSpeed = 0.f;
+	// Set when ReleaseHeavyAttack is called before bCanHeavyRelease is true.
+	bool bPendingRelease  = false;
 
-    // --- Guard Break Recovery ---------------------------------------------------
+	// Set by OnChargeAutoRelease before calling ReleaseHeavyAttack.
+	// Tells ExecuteHeavyAttack to use AutoRelease tier (max damage).
+	bool bIsAutoRelease   = false;
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Guard")
-    float GuardBreakRecoveryTime = 2.f;
+	// --- Sprint -----------------------------------------------------------------
 
-    FTimerHandle GuardBreakRecoveryHandle;
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Sprint")
+	float SprintSpeed = 1000.f;
 
-    // --- Internal Helpers -------------------------------------------------------
+	float OriginalWalkSpeed = 0.f;
 
-    void EndDodge();
-    void EndHeavyAttack();
+	// --- Guard Break Recovery ---------------------------------------------------
 
-    /** Performs the actual montage transition from charge to release. Called by ReleaseHeavyAttack and SetHeavyAttackReady. */
-    void ExecuteHeavyAttack();
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Guard")
+	float GuardBreakRecoveryTime = 2.f;
 
-    void OnComboStartedHandler();
-    void OnComboEndedHandler();
+	FTimerHandle GuardBreakRecoveryHandle;
 
-    UFUNCTION()
-    void OnGuardBreakHandler();
+	// --- State Management Helpers -----------------------------------------------
 
-    UFUNCTION()
-    void OnGuardBreakRecoveryComplete();
+	FORCEINLINE void AddState(ERVCombatState InState)          { CurrentStates |= InState; }
+	FORCEINLINE void RemoveState(ERVCombatState InState)       { CurrentStates &= ~InState; }
+	FORCEINLINE bool HasState(ERVCombatState InState)    const { return (CurrentStates & InState) != ERVCombatState::None; }
 
-    UFUNCTION()
-    void OnChargeAutoRelease();
+	// --- Damage Resolution ------------------------------------------------------
 
-    void OnDodgeMontageBlendingOut(UAnimMontage*, bool bInterrupted);
-    void OnChargeMontageBlendingOut(UAnimMontage*, bool bInterrupted);
-    void OnReleaseMontageBlendingOut(UAnimMontage*, bool bInterrupted);
+	/** Selects the correct damage value from WeaponData based on the current attack state. */
+	float ResolveDamage(const URVWeaponDataAsset* InWeaponData) const;
+
+	// --- Internal Helpers -------------------------------------------------------
+
+	void EndDodge();
+	void EndHeavyAttack();
+
+	/** Performs the actual montage transition from charge to release. Called by ReleaseHeavyAttack and SetHeavyAttackReady. */
+	void ExecuteHeavyAttack();
+
+	void OnComboStartedHandler();
+	void OnComboEndedHandler();
+
+	UFUNCTION()
+	void OnGuardBreakHandler();
+
+	UFUNCTION()
+	void OnGuardBreakRecoveryComplete();
+
+	UFUNCTION()
+	void OnChargeAutoRelease();
+
+	void OnDodgeMontageBlendingOut(UAnimMontage*, bool bInterrupted);
+	void OnChargeMontageBlendingOut(UAnimMontage*, bool bInterrupted);
+	void OnReleaseMontageBlendingOut(UAnimMontage*, bool bInterrupted);
 };

@@ -57,7 +57,7 @@ void ARVCharacterPlayer::Tick(float DeltaTime)
 
 	// Rotate character toward camera yaw while attacking so the hit lands in the aimed direction.
 	// Skipped outside attack states to avoid interfering with Orient-to-Movement locomotion.
-	if (CombatComponent->IsAttacking() || CombatComponent->IsHeavyCharging() || CombatComponent->IsHeavyAttacking())
+	if (CombatComponent->IsInState(ERVCombatState::Attacking | ERVCombatState::HeavyCharging | ERVCombatState::HeavyAttacking))
 	{
 		const FRotator ControlRot = GetControlRotation();
 		const FRotator CurrentRot = GetActorRotation();
@@ -126,7 +126,7 @@ void ARVCharacterPlayer::InputLook(const FInputActionValue& Value)
 
 void ARVCharacterPlayer::InputJump(const FInputActionValue& Value)
 {
-	if (!CombatComponent->CanPerformActionWith(ERVCombatState::Guarding))
+	if (!CombatComponent->CheckAvailableState(ERVCombatState::Guarding))
 	{
 		return;
 	}
@@ -190,7 +190,7 @@ void ARVCharacterPlayer::InputWeaponSwap(const FInputActionValue& Value)
 {
 	// Block swap during active combat states — same gate as Jump.
 	// Guarding is coexistable: player may want to switch style while holding guard.
-	if (!CombatComponent->CanPerformActionWith(ERVCombatState::Guarding)) { return; }
+	if (!CombatComponent->CheckAvailableState(ERVCombatState::Guarding)) { return; }
 
 	bIsWeaponA = !bIsWeaponA;
 	URVWeaponDataAsset* NextWeapon = bIsWeaponA ? WeaponDataA : WeaponDataB;

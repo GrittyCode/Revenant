@@ -57,7 +57,7 @@ void URVAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 
     bIsInAir     = OwnerCharacter->GetCharacterMovement()->IsFalling();
     bIsAttacking = IsValid(ComboComponent) ? ComboComponent->IsComboActive() : false;
-    bIsGuarding  = IsValid(CombatComponent) ? CombatComponent->IsGuarding() : false;
+    bIsGuarding  = IsValid(CombatComponent) ? CombatComponent->IsInState(ERVCombatState::Guarding) : false;
     bIsLockedOn =  false;
 }
 
