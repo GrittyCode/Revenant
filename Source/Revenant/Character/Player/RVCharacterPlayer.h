@@ -8,6 +8,7 @@ class URVInputConfig;
 class UInputMappingContext;
 class USpringArmComponent;
 class UCameraComponent;
+class URVWeaponDataAsset;
 
 struct FInputActionValue;
 
@@ -18,11 +19,12 @@ class REVENANT_API ARVCharacterPlayer : public ARVCharacterBase
 
 public:
 	ARVCharacterPlayer();
-
-protected:
-	virtual void BeginPlay() override;
+	
 	virtual void Tick(float DeltaTime) override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+	
+protected:
+	virtual void BeginPlay() override;
 
 private:
 	// -- Input Handlers ---------------------------------------------------------
@@ -40,6 +42,9 @@ private:
 
 	void InputGuardStarted  (const FInputActionValue& Value);
 	void InputGuardCompleted(const FInputActionValue& Value);
+
+	// Phase 2 only — replaced by ARVWeaponPickup overlap in Phase 4.
+	void InputWeaponSwap(const FInputActionValue& Value);
 
 	// -- Input Config ---------------------------------------------------------
 
@@ -65,4 +70,17 @@ private:
 	 */
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Combat")
 	float AttackRotationInterpSpeed = 10.f;
+
+	// -- Weapon Swap (Phase 2 temp) --------------------------------------------
+
+	// Assigned in BP_RVCharacterPlayer. Swapped via Tab key.
+	// Both slots removed and replaced by ARVWeaponPickup in Phase 4.
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Weapon")
+	TObjectPtr<URVWeaponDataAsset> WeaponDataA;
+
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Weapon")
+	TObjectPtr<URVWeaponDataAsset> WeaponDataB;
+
+	// Tracks which slot is currently active for toggle.
+	bool bIsWeaponA = true;
 };

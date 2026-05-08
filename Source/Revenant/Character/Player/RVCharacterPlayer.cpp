@@ -1,6 +1,8 @@
 #include "Character/Player/RVCharacterPlayer.h"
 #include "Camera/CameraComponent.h"
 #include "Component/RVCombatComponent.h"
+#include "Component/RVEquipmentComponent.h"
+#include "Data/RVWeaponDataAsset.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
@@ -96,6 +98,12 @@ void ARVCharacterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	// Guard: Started = RMB pressed, Completed = RMB released
 	Eic->BindAction(InputConfig->GuardAction, ETriggerEvent::Started, this, &ARVCharacterPlayer::InputGuardStarted);
 	Eic->BindAction(InputConfig->GuardAction, ETriggerEvent::Completed, this, &ARVCharacterPlayer::InputGuardCompleted);
+
+	// Weapon swap: Tab — Phase 2 temp, replaced by Pickup in Phase 4
+	if (IsValid(InputConfig->WeaponSwapAction))
+	{
+		Eic->BindAction(InputConfig->WeaponSwapAction, ETriggerEvent::Started, this, &ARVCharacterPlayer::InputWeaponSwap);
+	}
 }
 
 // ─── Movement ────────────────────────────────────────────────────────────────
@@ -174,4 +182,21 @@ void ARVCharacterPlayer::InputGuardStarted(const FInputActionValue& Value)
 void ARVCharacterPlayer::InputGuardCompleted(const FInputActionValue& Value)
 {
 	CombatComponent->EndGuard();
+}
+
+// ─── Weapon Swap (Phase 2 temp) ──────────────────────────────────────────────
+
+void ARVCharacterPlayer::InputWeaponSwap(const FInputActionValue& Value)
+{
+	// Block swap during active combat states — same gate as Jump.
+	// Guarding is coexistable: player may want to switch style while holding guard.
+	if (!CombatComponent->CanPerformActionWith(ERVCombatState::Guarding)) { return; }
+
+	bIsWeaponA = !bIsWeaponA;
+	URVWeaponDataAsset* NextWeapon = bIsWeaponA ? WeaponDataA : WeaponDataB;
+
+	// Null guard: if only one slot is assigned, swap is silently ignored.
+	if (!IsValid(NextWeapon)) { return; }
+
+	EquipmentComponent->SetCurrentWeaponData(NextWeapon);
 }
