@@ -9,7 +9,9 @@
 
 ARVCharacterPlayer::ARVCharacterPlayer()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	// Tick required for camera-driven attack rotation.
+	// Enabled here only — ARVCharacterBase stays tick-disabled so Enemy/Boss are unaffected.
+	PrimaryActorTick.bCanEverTick = true;
 
 	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(RootComponent);
@@ -47,6 +49,22 @@ void ARVCharacterPlayer::BeginPlay()
 	Subsystem->AddMappingContext(DefaultMappingContext, 0);
 }
 
+void ARVCharacterPlayer::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+
+	// Rotate character toward camera yaw while attacking so the hit lands in the aimed direction.
+	// Skipped outside attack states to avoid interfering with Orient-to-Movement locomotion.
+	if (CombatComponent->IsAttacking() || CombatComponent->IsHeavyCharging() || CombatComponent->IsHeavyAttacking())
+	{
+		const FRotator ControlRot = GetControlRotation();
+		const FRotator CurrentRot = GetActorRotation();
+		const FRotator TargetRot  = FRotator(0.f, ControlRot.Yaw, 0.f);
+
+		SetActorRotation(FMath::RInterpTo(CurrentRot, TargetRot, DeltaTime, AttackRotationInterpSpeed));
+	}
+}
+
 void ARVCharacterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
@@ -62,6 +80,9 @@ void ARVCharacterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 
 	// ─── Combat ───────────────────────────────────────────────────────────────
 
+	Eic->BindAction(InputConfig->HeavyAttackAction, ETriggerEvent::Started,   this, &ARVCharacterPlayer::InputHeavyAttackStarted);
+	Eic->BindAction(InputConfig->HeavyAttackAction, ETriggerEvent::Completed, this, &ARVCharacterPlayer::InputHeavyAttackCompleted);
+	Eic->BindAction(InputConfig->HeavyModifierAction, ETriggerEvent::Completed, this, &ARVCharacterPlayer::InputHeavyAttackCompleted);
 	Eic->BindAction(InputConfig->AttackAction, ETriggerEvent::Started, this, &ARVCharacterPlayer::InputAttack);
 
 	// Dodge: Triggered fires after the Tap threshold is met (set in IA_Dodge).
@@ -97,7 +118,7 @@ void ARVCharacterPlayer::InputLook(const FInputActionValue& Value)
 
 void ARVCharacterPlayer::InputJump(const FInputActionValue& Value)
 {
-	if (!CombatComponent->CanPerformAction(ERVCombatState::Guarding))
+	if (!CombatComponent->CanPerformActionWith(ERVCombatState::Guarding))
 	{
 		return;
 	}
@@ -110,6 +131,16 @@ void ARVCharacterPlayer::InputJump(const FInputActionValue& Value)
 void ARVCharacterPlayer::InputAttack(const FInputActionValue& Value)
 {
 	CombatComponent->TryStartCombo();
+}
+
+void ARVCharacterPlayer::InputHeavyAttackStarted(const FInputActionValue& Value)
+{
+	CombatComponent->StartHeavyAttack();
+}
+
+void ARVCharacterPlayer::InputHeavyAttackCompleted(const FInputActionValue& Value)
+{
+	CombatComponent->ReleaseHeavyAttack();
 }
 
 void ARVCharacterPlayer::InputDodge(const FInputActionValue& Value)

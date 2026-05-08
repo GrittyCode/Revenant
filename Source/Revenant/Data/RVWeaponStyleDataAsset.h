@@ -18,6 +18,20 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
 	TObjectPtr<UAnimMontage> AttackMontage;
 
+	/**
+	 * Looping charge montage played while holding heavy attack.
+	 * Contains Begin + Loop sections. Stopped by HeavyAttack.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
+	TObjectPtr<UAnimMontage> HeavyChargeMontage;
+
+	/**
+	 * Attack montage played immediately after charge is released.
+	 * Played as a separate one-shot montage — no section jumps needed.
+	 */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
+	TObjectPtr<UAnimMontage> HeavyAttackMontage;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
 	TObjectPtr<UAnimMontage> DodgeMontage;
 

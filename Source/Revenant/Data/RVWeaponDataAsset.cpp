@@ -1,13 +1,29 @@
 #include "Data/RVWeaponDataAsset.h"
 #include "Data/RVWeaponStyleDataAsset.h"
 
-// --- Combo & Dodge (instance-level override supported) -----------------------
+// --- Combo (instance-level override supported) --------------------------------
 
 UAnimMontage* URVWeaponDataAsset::GetAttackMontage() const
 {
 	if (bOverrideCombo) { return OverrideAttackMontage; }
 	return IsValid(WeaponStyle) ? WeaponStyle->AttackMontage : nullptr;
 }
+
+// --- Heavy Attack (charge and release are overridden independently) -----------
+
+UAnimMontage* URVWeaponDataAsset::GetHeavyChargeMontage() const
+{
+	if (bOverrideHeavyChargeMontage) { return OverrideHeavyChargeMontage; }
+	return IsValid(WeaponStyle) ? WeaponStyle->HeavyChargeMontage : nullptr;
+}
+
+UAnimMontage* URVWeaponDataAsset::GetHeavyAttackMontage() const
+{
+	if (bOverrideHeavyAttackMontage) { return OverrideHeavyAttackMontage; }
+	return IsValid(WeaponStyle) ? WeaponStyle->HeavyAttackMontage : nullptr;
+}
+
+// --- Dodge (instance-level override supported) --------------------------------
 
 UAnimMontage* URVWeaponDataAsset::GetDodgeMontage() const
 {

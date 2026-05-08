@@ -21,6 +21,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void Tick(float DeltaTime) override;
 	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
 private:
@@ -30,7 +31,8 @@ private:
 	void InputLook  (const FInputActionValue& Value);
 	void InputJump  (const FInputActionValue& Value);
 	void InputAttack(const FInputActionValue& Value);
-
+	void InputHeavyAttackStarted  (const FInputActionValue& Value);
+	void InputHeavyAttackCompleted(const FInputActionValue& Value);
 	void InputDodge(const FInputActionValue& Value);
 
 	void InputSprintStarted  (const FInputActionValue& Value);
@@ -54,5 +56,13 @@ private:
 	
 	UPROPERTY(VisibleAnywhere, Category = "RV|Components")
 	TObjectPtr<UCameraComponent> FollowCamera;
-	
+
+	// -- Attack Rotation -------------------------------------------------------
+
+	/**
+	 * Interpolation speed for rotating toward camera yaw during attack.
+	 * Higher values snap faster; 10–15 is a good starting range.
+	 */
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Combat")
+	float AttackRotationInterpSpeed = 10.f;
 };

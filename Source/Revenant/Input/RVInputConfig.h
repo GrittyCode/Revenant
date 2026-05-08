@@ -24,7 +24,10 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
 	TObjectPtr<UInputAction> AttackAction;
-
+	
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
+	TObjectPtr<UInputAction> HeavyAttackAction;
+	
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
 	TObjectPtr<UInputAction> DodgeAction;
 	
@@ -33,4 +36,8 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
 	TObjectPtr<UInputAction> GuardAction;
+	
+	/** Left Shift — used as Chord modifier for heavy attack. */
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
+	TObjectPtr<UInputAction> HeavyModifierAction;
 };

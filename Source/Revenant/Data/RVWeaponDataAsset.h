@@ -1,3 +1,4 @@
+// Source/Revenant/Data/RVWeaponDataAsset.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -23,7 +24,7 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|WeaponStyle")
     TObjectPtr<URVWeaponStyleDataAsset> WeaponStyle;
 
-    // --- Combat Values (owned per instance) ----------------------------------
+    // --- Combat Values ---------------------------------------------------------
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Attack")
     float AttackDamage = 30.f;
@@ -37,7 +38,21 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Dodge")
     float DodgeStaminaCost = 30.f;
 
-    // --- Combo Override Group ------------------------------------------------
+	// --- Heavy Attack Values ---------------------------------------------------
+
+	/** Damage applied on manual release (player released before MaxChargeTime). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|HeavyAttack")
+	float HeavyAttackDamage = 60.f;
+
+	/** Damage applied on auto-release (held to MaxChargeTime — maximum charge). */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|HeavyAttack")
+	float HeavyAttackDamage_Max = 110.f;
+
+	/** Stamina consumed when heavy attack starts charging. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|HeavyAttack")
+	float HeavyAttackStaminaCost = 40.f;
+
+    // --- Combo Override Group --------------------------------------------------
     // All three fields must be set together.
     // Enable bOverrideCombo to activate this group.
 
@@ -61,7 +76,30 @@ public:
               meta = (EditCondition = "bOverrideCombo"))
     TArray<FName> OverrideComboSectionNames;
 
-    // --- Dodge Override ------------------------------------------------------
+	// --- Heavy Charge Override -------------------------------------------------
+
+	/** Enable to override heavy charge montage for this instance. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Override|HeavyAttack",
+			  meta = (InlineEditConditionToggle))
+	uint8 bOverrideHeavyChargeMontage : 1;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Override|HeavyAttack",
+			  meta = (EditCondition = "bOverrideHeavyChargeMontage"))
+	TObjectPtr<UAnimMontage> OverrideHeavyChargeMontage;
+
+	// --- Heavy Release Override ------------------------------------------------
+
+	/** Enable to override heavy release montage for this instance. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Override|HeavyAttack",
+			  meta = (EditCondition = "bOverrideHeavyAttackMontage",
+			          InlineEditConditionToggle))
+	uint8 bOverrideHeavyAttackMontage : 1;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Override|HeavyAttack",
+			  meta = (EditCondition = "bOverrideHeavyAttackMontage"))
+	TObjectPtr<UAnimMontage> OverrideHeavyAttackMontage;
+
+    // --- Dodge Override -------------------------------------------------------
 
     /** Enable to override dodge montage for this instance. */
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Override|Dodge",
@@ -72,45 +110,43 @@ public:
               meta = (EditCondition = "bOverrideDodgeMontage"))
     TObjectPtr<UAnimMontage> OverrideDodgeMontage;
 
-    // --- Getters (fallback logic — always use these for asset fields) ---------
+    // --- Getters (fallback logic — always use these for asset fields) ----------
 
-    /** Returns override attack montage if bOverrideCombo, else WeaponStyle->AttackMontage. */
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UAnimMontage* GetAttackMontage() const;
 
-    /** Returns override dodge montage if bOverrideDodgeMontage, else WeaponStyle->DodgeMontage. */
+	/** Returns the looping charge montage played while holding heavy attack. */
+	UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
+	UAnimMontage* GetHeavyChargeMontage() const;
+
+	/** Returns the one-shot attack montage played after heavy attack. */
+	UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
+	UAnimMontage* GetHeavyAttackMontage() const;
+
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UAnimMontage* GetDodgeMontage() const;
 
-    /** Returns WeaponStyle->GuardBreakMontage. */
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UAnimMontage* GetGuardBreakMontage() const;
 
-    /** Returns WeaponStyle->GuardHitMontage. */
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UAnimMontage* GetGuardHitMontage() const;
 
-    /** Returns WeaponStyle->LocomotionBS. */
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UBlendSpace* GetLocomotionBS() const;
 
-    /** Returns WeaponStyle->LockOnLocomotionBS. */
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UBlendSpace* GetLockOnLocomotionBS() const;
 
-    /** Returns WeaponStyle->GuardLocomotionBS. */
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UBlendSpace* GetGuardLocomotionBS() const;
 
-    /** Returns WeaponStyle->GuardLocomotionBS_LockOn. */
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UBlendSpace* GetGuardLocomotionBS_LockOn() const;
 
-    /** Returns OverrideMaxComboCount if bOverrideCombo, else WeaponStyle->MaxComboCount. */
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     int32 GetMaxComboCount() const;
 
-    /** Returns OverrideComboSectionNames if bOverrideCombo, else WeaponStyle->ComboSectionNames. */
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     const TArray<FName>& GetComboSectionNames() const;
 };
