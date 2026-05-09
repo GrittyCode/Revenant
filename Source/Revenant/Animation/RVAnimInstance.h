@@ -6,7 +6,7 @@
 
 class URVEquipmentComponent;
 class URVComboComponent;
-class URVCombatComponent;
+class URVCombatStateComponent;
 class URVWeaponDataAsset;
 class UBlendSpace;
 
@@ -76,7 +76,7 @@ private:
     TObjectPtr<URVComboComponent> ComboComponent;
 
     UPROPERTY()
-    TObjectPtr<URVCombatComponent> CombatComponent;
+    TObjectPtr<URVCombatStateComponent> CombatStateComponent;
 
     // Bound to URVEquipmentComponent::OnWeaponChanged
     UFUNCTION()

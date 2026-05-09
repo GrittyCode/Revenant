@@ -9,7 +9,11 @@
 class URVAttributeComponent;
 class URVComboComponent;
 class URVEquipmentComponent;
-class URVCombatComponent;
+class URVCombatStateComponent;
+class URVHeavyAttackComponent;
+class URVDodgeComponent;
+class URVGuardComponent;
+class URVSprintComponent;
 class URVCharacterDataAsset;
 
 UCLASS()
@@ -20,17 +24,17 @@ class REVENANT_API ARVCharacterBase : public ACharacter, public IRVCombatInterfa
 public:
     ARVCharacterBase();
 
-    // --- IRVCombatInterface ---------------------------------------------------------
+    // --- IRVCombatInterface --------------------------------------------------
 
-    /** Delegates to URVCombatComponent::PerformAttackTrace(). */
+    /** Delegates to URVCombatStateComponent::PerformAttackTrace(). */
     virtual void ActivateHitCheck() override;
 
-    // --- IRVDamageable ---------------------------------------------------------
+    // --- IRVDamageable -------------------------------------------------------
 
     /**
      * Routes incoming damage based on current combat state:
      *   Invincible (i-frame) → blocked
-     *   Guarding             → stamina damage (may trigger guard break)
+     *   Guarding             → stamina damage via GuardComponent (may trigger guard break)
      *   Default              → HP damage
      */
     virtual bool ApplyDamage(float InDamageAmount, AActor* InInstigator) override;
@@ -40,18 +44,10 @@ public:
 protected:
     virtual void BeginPlay() override;
 
-    /**
-     * Gate checks CombatComponent, then delegates to ComboComponent::HandleComboInput().
-     * Centralizes the action gate so ComboComponent has no dependency on CombatComponent.
-     */
-    void TryStartCombo();
-
-    // Reduces RotationRate.Yaw on airborne entry to prevent free mid-air steering.
-    // OriginalRotationRate is cached here and restored exactly on Landed().
     virtual void Falling() override;
     virtual void Landed(const FHitResult& Hit) override;
 
-    // --- Components ---------------------------------------------------------
+    // --- Components ----------------------------------------------------------
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
     TObjectPtr<URVAttributeComponent> AttributeComponent;
@@ -63,25 +59,30 @@ protected:
     TObjectPtr<URVEquipmentComponent> EquipmentComponent;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-    TObjectPtr<URVCombatComponent> CombatComponent;
+    TObjectPtr<URVCombatStateComponent> CombatStateComponent;
 
-    // --- Data ---------------------------------------------------------
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVHeavyAttackComponent> HeavyAttackComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVDodgeComponent> DodgeComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVGuardComponent> GuardComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVSprintComponent> SprintComponent;
+
+    // --- Data ----------------------------------------------------------------
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Data")
     TObjectPtr<URVCharacterDataAsset> CharacterData;
 
-    // --- Movement ---------------------------------------------------------
+    // --- Movement ------------------------------------------------------------
 
-    /**
-     * RotationRate applied while airborne.
-     * Low Yaw gives the character a heavy, committed feel during jumps.
-     * Tunable per BP subclass in the Details panel.
-     */
     UPROPERTY(EditDefaultsOnly, Category = "RV|Movement")
-    FRotator AirRotationRate = FRotator(0.f, 0.0f, 0.f);
+    FRotator AirRotationRate = FRotator(0.f, 0.f, 0.f);
 
 private:
-    // Cached at Falling() entry — restored exactly on Landed() regardless of
-    // what RotationRate was set to (sprint, guard, etc.)
     FRotator OriginalRotationRate;
 };

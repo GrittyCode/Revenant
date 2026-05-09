@@ -1,6 +1,6 @@
 #include "Animation/RVAnimInstance.h"
 #include "Component/RVComboComponent.h"
-#include "Component/RVCombatComponent.h"
+#include "Component/RVCombatStateComponent.h"
 #include "Component/RVEquipmentComponent.h"
 #include "Data/RVWeaponDataAsset.h"
 #include "KismetAnimationLibrary.h"
@@ -16,7 +16,7 @@ void URVAnimInstance::NativeInitializeAnimation()
 
     EquipmentComponent = OwnerCharacter->FindComponentByClass<URVEquipmentComponent>();
     ComboComponent     = OwnerCharacter->FindComponentByClass<URVComboComponent>();
-    CombatComponent    = OwnerCharacter->FindComponentByClass<URVCombatComponent>();
+    CombatStateComponent    = OwnerCharacter->FindComponentByClass<URVCombatStateComponent>();
 
     if (IsValid(EquipmentComponent))
     {
@@ -57,7 +57,7 @@ void URVAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 
     bIsInAir     = OwnerCharacter->GetCharacterMovement()->IsFalling();
     bIsAttacking = IsValid(ComboComponent) ? ComboComponent->IsComboActive() : false;
-    bIsGuarding  = IsValid(CombatComponent) ? CombatComponent->IsInState(ERVCombatState::Guarding) : false;
+    bIsGuarding  = IsValid(CombatStateComponent) ? CombatStateComponent->IsInState(ERVCombatState::Guarding) : false;
     bIsLockedOn =  false;
 }
 

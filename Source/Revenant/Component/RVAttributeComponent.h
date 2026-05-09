@@ -9,7 +9,7 @@ class URVCharacterDataAsset;
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FRVOnHealthChanged,  float, NewHealth,  float, InDelta);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnDeath);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FRVOnStaminaChanged, float, NewStamina, float, InDelta);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnGuardBreak);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnStaminaDepleted);
 
 UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
 class REVENANT_API URVAttributeComponent : public UActorComponent
@@ -30,9 +30,9 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "RV|Attribute")
     FRVOnStaminaChanged OnStaminaChanged;
 
-    /** Fired when stamina reaches 0 while guarding. URVCombatComponent binds this. */
+    /** Fired when stamina reaches 0 via ApplyStaminaDamage. URVCombatComponent binds this. */
     UPROPERTY(BlueprintAssignable, Category = "RV|Attribute")
-    FRVOnGuardBreak OnGuardBreak;
+    FRVOnStaminaDepleted OnStaminaDepleted;
 
     // ─── Init ────────────────────────────────────────────────────────────────
 
@@ -55,14 +55,14 @@ public:
 
     /**
      * Reduces stamina for an action cost (attack, dodge).
-     * Does NOT fire OnGuardBreak — see ApplyStaminaDamage for guard hits.
+     * Does NOT fire OnStaminaDepleted — see ApplyStaminaDamage for guard hits.
      * Returns true if stamina was sufficient.
      */
     bool ConsumeStamina(float InAmount);
 
     /**
      * Reduces stamina from a blocked hit.
-     * Fires OnGuardBreak if stamina reaches 0.
+     * Fires OnStaminaDepleted if stamina reaches 0.
      * Returns true if guard held (stamina still > 0).
      */
     bool ApplyStaminaDamage(float InAmount);
@@ -111,8 +111,8 @@ private:
     UPROPERTY(EditDefaultsOnly, Category = "RV|Attribute")
     float StaminaRegenInterval = 0.1f;
 
-    /** Delay before regen starts after ResumeStaminaRegen is called. */
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Attribute")
+    /** Delay before regen starts after ResumeStaminaRegen is called. Loaded from DataAsset. */
+    UPROPERTY(VisibleAnywhere, Category = "RV|Attribute")
     float StaminaRegenDelay = 1.5f;
 
     FTimerHandle StaminaRegenDelayHandle;
@@ -120,5 +120,4 @@ private:
 
     void StartStaminaRegenTick();
     void TickStaminaRegen();
-	
 };

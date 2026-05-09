@@ -4,7 +4,7 @@
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "AnimNotifyState_DodgeIFrame.generated.h"
 
-class URVCombatComponent;
+class URVCombatStateComponent;
 
 UCLASS()
 class REVENANT_API UAnimNotifyState_DodgeIFrame : public UAnimNotifyState
@@ -19,9 +19,4 @@ public:
 		const FAnimNotifyEventReference& EventReference) override;
 
 	virtual FString GetNotifyName_Implementation() const override;
-
-private:
-	UPROPERTY()
-	// Keyed by MeshComp — safe for multiple characters playing the same montage simultaneously.
-	TMap<USkeletalMeshComponent*, URVCombatComponent*> CachedCombatComps;
 };

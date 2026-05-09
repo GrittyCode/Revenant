@@ -1,14 +1,14 @@
 #include "Animation/AnimNotifyState_AttackHitCheck.h"
-#include "Component/RVCombatComponent.h"
+#include "Component/RVCombatStateComponent.h"
 
 void UAnimNotifyState_AttackHitCheck::NotifyBegin(USkeletalMeshComponent* MeshComp,
-	UAnimSequenceBase* Animation, float TotalDuration,
-	const FAnimNotifyEventReference& EventReference)
+                                                  UAnimSequenceBase* Animation, float TotalDuration,
+                                                  const FAnimNotifyEventReference& EventReference)
 {
 	Super::NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
 
-	URVCombatComponent* CombatComp =
-		MeshComp->GetOwner()->FindComponentByClass<URVCombatComponent>();
+	URVCombatStateComponent* CombatComp =
+		MeshComp->GetOwner()->FindComponentByClass<URVCombatStateComponent>();
 	if (!IsValid(CombatComp)) { return; }
 
 	CachedCombatComps.Add(MeshComp, CombatComp);
@@ -21,7 +21,7 @@ void UAnimNotifyState_AttackHitCheck::NotifyTick(USkeletalMeshComponent* MeshCom
 {
 	Super::NotifyTick(MeshComp, Animation, FrameDeltaTime, EventReference);
 
-	URVCombatComponent* CombatComp = CachedCombatComps.FindRef(MeshComp);
+	URVCombatStateComponent* CombatComp = CachedCombatComps.FindRef(MeshComp);
 	if (!IsValid(CombatComp)) { return; }
 
 	CombatComp->PerformAttackTrace();
@@ -33,7 +33,7 @@ void UAnimNotifyState_AttackHitCheck::NotifyEnd(USkeletalMeshComponent* MeshComp
 {
 	Super::NotifyEnd(MeshComp, Animation, EventReference);
 
-	URVCombatComponent* CombatComp = CachedCombatComps.FindRef(MeshComp);
+	URVCombatStateComponent* CombatComp = CachedCombatComps.FindRef(MeshComp);
 	CachedCombatComps.Remove(MeshComp);
 
 	if (!IsValid(CombatComp)) { return; }

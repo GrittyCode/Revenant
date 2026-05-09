@@ -19,5 +19,8 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Attribute")
 	float StaminaRegenRate = 20.f;
-	
+
+	/** Seconds before stamina regen begins after an action. */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Attribute")
+	float StaminaRegenDelay = 1.5f;
 };

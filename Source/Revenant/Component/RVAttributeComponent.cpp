@@ -1,3 +1,4 @@
+// Source/Revenant/Component/RVAttributeComponent.cpp
 #include "Component/RVAttributeComponent.h"
 #include "Data/RVCharacterDataAsset.h"
 
@@ -13,7 +14,7 @@ void URVAttributeComponent::BeginPlay()
     // Fallback init — overwritten by InitFromDataAsset if CharacterData is set
     CurrentHealth  = MaxHealth;
     CurrentStamina = MaxStamina;
-	
+
     // Start regen from the beginning of play
     ResumeStaminaRegen();
 }
@@ -22,11 +23,12 @@ void URVAttributeComponent::InitFromDataAsset(URVCharacterDataAsset* InData)
 {
     if (!IsValid(InData)) { return; }
 
-    MaxHealth     = InData->MaxHealth;
-    MaxStamina    = InData->MaxStamina;
-	StaminaRegenRate = InData->StaminaRegenRate; 
+    MaxHealth        = InData->MaxHealth;
+    MaxStamina       = InData->MaxStamina;
+    StaminaRegenRate = InData->StaminaRegenRate;
+    StaminaRegenDelay = InData->StaminaRegenDelay;
 
-	CurrentHealth  = MaxHealth;
+    CurrentHealth  = MaxHealth;
     CurrentStamina = MaxStamina;
 }
 
@@ -88,10 +90,11 @@ bool URVAttributeComponent::ApplyStaminaDamage(float InAmount)
 
     if (CurrentStamina <= 0.f)
     {
-        OnGuardBreak.Broadcast();
-        return false; // guard broke
+        // Publisher perspective: "stamina hit zero" — subscriber decides what this means.
+        OnStaminaDepleted.Broadcast();
+        return false; // guard broke (caller interprets context)
     }
-    return true; // guard held
+    return true; // stamina still remains
 }
 
 void URVAttributeComponent::PauseStaminaRegen()
