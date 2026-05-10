@@ -1,4 +1,3 @@
-// Source/Revenant/Character/Enemy/RVDummyTarget.cpp
 #include "Character/Enemy/RVDummyTarget.h"
 #include "Interface/RVDamageable.h"
 #include "DrawDebugHelpers.h"
@@ -7,17 +6,15 @@
 ARVDummyTarget::ARVDummyTarget()
 {
     PrimaryActorTick.bCanEverTick = true;
-	
-	// Align mesh to capsule — standard ACharacter offset
-	GetMesh()->SetRelativeLocationAndRotation(
-		FVector(0.f, 0.f, -88.f),
-		FRotator(0.f, -90.f, 0.f)
-	);
+
+    GetMesh()->SetRelativeLocationAndRotation(
+        FVector(0.f, 0.f, -88.f),
+        FRotator(0.f, -90.f, 0.f)
+    );
 }
 
 void ARVDummyTarget::BeginPlay()
 {
-    // ARVCharacterBase::BeginPlay — AttributeComponent 초기화 포함
     Super::BeginPlay();
 
     TimeUntilNextDamage = DealDamageInterval;
@@ -82,24 +79,25 @@ void ARVDummyTarget::Tick(float DeltaTime)
 
 // --- IRVDamageable -----------------------------------------------------------
 
-bool ARVDummyTarget::ApplyDamage(float InDamageAmount, AActor* InInstigator)
+bool ARVDummyTarget::ApplyDamage(const FRVHitInfo& InHitInfo)
 {
-    // Route through base — handles i-frame / guard / HP reduction
-    const bool bResult = Super::ApplyDamage(InDamageAmount, InInstigator);
+    // Route through ARVCharacterBase — handles i-frame / guard / HP reduction
+    // and triggers URVHitReactionComponent for stagger / groggy / knockdown.
+    const bool bResult = Super::ApplyDamage(InHitInfo);
 
     if (bResult)
     {
-        LastReceivedDamage = InDamageAmount;
+        LastReceivedDamage = InHitInfo.Damage;
         HitDisplayTimer    = HitDisplayDuration;
 
-        UE_LOG(LogTemp, Warning, TEXT("[DummyTarget] %.0f damage received from %s"),
-            InDamageAmount, *GetNameSafe(InInstigator));
+        UE_LOG(LogTemp, Warning, TEXT("[DummyTarget] %.0f dmg / %.0f poise from %s"),
+            InHitInfo.Damage, InHitInfo.PoiseDamage, *GetNameSafe(InHitInfo.Instigator));
 
 #if !UE_BUILD_SHIPPING
         if (GEngine)
         {
             GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Orange,
-                FString::Printf(TEXT("[DummyTarget] %.0f damage received"), InDamageAmount));
+                FString::Printf(TEXT("[DummyTarget] %.0f dmg received"), InHitInfo.Damage));
         }
 #endif
     }
@@ -116,7 +114,16 @@ void ARVDummyTarget::DealDamageToPlayer()
     IRVDamageable* Target = Cast<IRVDamageable>(CachedPlayer.Get());
     if (!Target) { return; }
 
-    Target->ApplyDamage(DealDamageAmount, this);
+    FRVHitInfo HitInfo;
+    HitInfo.Damage          = DealDamageAmount;
+    HitInfo.PoiseDamage     = DealPoiseDamage;
+    HitInfo.bForceKnockdown = false;
+    // Direction from this dummy toward the player — used for stagger direction selection.
+    HitInfo.HitDirection    = (CachedPlayer->GetActorLocation() - GetActorLocation()).GetSafeNormal();
+    HitInfo.Instigator      = this;
 
-    UE_LOG(LogTemp, Warning, TEXT("[DummyTarget] Dealt %.0f damage to player"), DealDamageAmount);
+    Target->ApplyDamage(HitInfo);
+
+    UE_LOG(LogTemp, Warning, TEXT("[DummyTarget] Dealt %.0f dmg / %.0f poise to player"),
+        DealDamageAmount, DealPoiseDamage);
 }

@@ -20,37 +20,33 @@ public:
     virtual void NativeUninitializeAnimation() override;
     virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 
+    /**
+     * InWorldHitDirection: world-space FROM instigator TOWARD target (normalized).
+     */
+    void TriggerHitReaction(const FVector& InWorldHitDirection);
+
 protected:
     // --- Locomotion -----------------------------------------------------------
 
-    // XY plane speed only — vertical velocity excluded to avoid blending artifacts during jumps.
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     float Speed;
 
-    // -180 ~ 180 degrees, 0 = forward, 90 = right, -90 = left, -180 = back
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     float Direction;
 
-    // Updated via OnWeaponChanged — drives ABP default locomotion Blendspace Player.
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UBlendSpace> CachedLocomotionBS;
 
-    // Updated via OnWeaponChanged — drives ABP lock-on locomotion Blendspace Player.
-    // Direction + Speed; strafe mode. bOrientRotationToMovement off while locked on.
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UBlendSpace> CachedLockOnLocomotionBS;
 
-    // Updated via OnWeaponChanged — drives ABP guard locomotion (no lock-on).
-    // Speed-only; character rotates via bOrientRotationToMovement.
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UBlendSpace> CachedGuardLocomotionBS;
 
-    // Updated via OnWeaponChanged — drives ABP guard locomotion (lock-on active).
-    // Direction + Speed; full 6-direction strafe. nullptr until Phase 4 asset is assigned.
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UBlendSpace> CachedGuardLocomotionBS_LockOn;
 
-    // --- State ----------------------------------------------------------------
+    // --- Locomotion State ----------------------------------------------------
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     uint8 bIsInAir : 1;
@@ -61,9 +57,31 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     uint8 bIsLockedOn : 1;
 
-    // Set by URVCombatComponent::StartGuard / EndGuard — drives ABP guard branch.
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     uint8 bIsGuarding : 1;
+
+    // --- Physical Reaction ---------------------------------------------------
+
+    /**
+     * Alpha for the additive hit-reaction layer in the ABP.
+     * Set to 1.0 by TriggerHitReaction, then decays to 0 in NativeUpdateAnimation.
+     * Wire this to the "Alpha" pin of an "Apply Additive" node in ABP.
+     */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
+    float HitReactionWeight;
+
+    /**
+     * Angle (CalculateDirection-style, -180 to 180) of the hit origin direction,
+     * relative to this character's facing. Used by an AimOffset or blendspace
+     * in the ABP to select the correct directional flinch pose.
+     *
+     *   0   = hit came from front
+     *   180 = hit came from back
+     *   90  = hit came from right side
+     *  -90  = hit came from left side
+     */
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
+    float HitDirectionAngle;
 
 private:
     UPROPERTY()
@@ -78,7 +96,9 @@ private:
     UPROPERTY()
     TObjectPtr<URVCombatStateComponent> CombatStateComponent;
 
-    // Bound to URVEquipmentComponent::OnWeaponChanged
+    /** Rate at which HitReactionWeight decays per second. Adjust for flinch duration. */
+    static constexpr float HitReactionDecayRate = 4.f; // full decay in ~0.25s
+
     UFUNCTION()
     void OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData);
 };

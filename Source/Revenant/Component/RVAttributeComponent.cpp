@@ -1,4 +1,3 @@
-// Source/Revenant/Component/RVAttributeComponent.cpp
 #include "Component/RVAttributeComponent.h"
 #include "Data/RVCharacterDataAsset.h"
 
@@ -14,8 +13,8 @@ void URVAttributeComponent::BeginPlay()
     // Fallback init — overwritten by InitFromDataAsset if CharacterData is set
     CurrentHealth  = MaxHealth;
     CurrentStamina = MaxStamina;
+    CurrentPoise   = MaxPoise;
 
-    // Start regen from the beginning of play
     ResumeStaminaRegen();
 }
 
@@ -27,9 +26,11 @@ void URVAttributeComponent::InitFromDataAsset(URVCharacterDataAsset* InData)
     MaxStamina       = InData->MaxStamina;
     StaminaRegenRate = InData->StaminaRegenRate;
     StaminaRegenDelay = InData->StaminaRegenDelay;
+    MaxPoise         = InData->MaxPoise;
 
     CurrentHealth  = MaxHealth;
     CurrentStamina = MaxStamina;
+    CurrentPoise   = MaxPoise;
 }
 
 // ─── HP ──────────────────────────────────────────────────────────────────────
@@ -92,9 +93,9 @@ bool URVAttributeComponent::ApplyStaminaDamage(float InAmount)
     {
         // Publisher perspective: "stamina hit zero" — subscriber decides what this means.
         OnStaminaDepleted.Broadcast();
-        return false; // guard broke (caller interprets context)
+        return false;
     }
-    return true; // stamina still remains
+    return true;
 }
 
 void URVAttributeComponent::PauseStaminaRegen()
@@ -111,7 +112,6 @@ void URVAttributeComponent::ResumeStaminaRegen()
     UWorld* World = GetWorld();
     if (!IsValid(World)) { return; }
 
-    // Restart the delay before regen begins
     World->GetTimerManager().SetTimer(
         StaminaRegenDelayHandle,
         this,
@@ -151,4 +151,32 @@ void URVAttributeComponent::TickStaminaRegen()
 float URVAttributeComponent::GetStaminaPercent() const
 {
     return MaxStamina > 0.f ? CurrentStamina / MaxStamina : 0.f;
+}
+
+// ─── Poise ───────────────────────────────────────────────────────────────────
+
+bool URVAttributeComponent::ApplyPoiseDamage(float InPoiseDamage)
+{
+    const float Clamped = FMath::Max(0.f, InPoiseDamage);
+    CurrentPoise = FMath::Max(0.f, CurrentPoise - Clamped);
+
+    if (CurrentPoise <= 0.f)
+    {
+        // Publisher perspective: "poise hit zero."
+        // The reaction decision (Stagger / Groggy / Knockdown) is made synchronously
+        // in URVHitReactionComponent::HandleHit based on the return value of this function.
+        OnPoiseDepleted.Broadcast();
+        return true; // depleted — caller triggers reaction
+    }
+    return false; // poise still remains
+}
+
+void URVAttributeComponent::ResetPoise()
+{
+    CurrentPoise = MaxPoise;
+}
+
+float URVAttributeComponent::GetPoisePercent() const
+{
+    return MaxPoise > 0.f ? CurrentPoise / MaxPoise : 0.f;
 }

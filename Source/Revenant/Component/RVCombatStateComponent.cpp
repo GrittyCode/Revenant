@@ -23,7 +23,7 @@ void URVCombatStateComponent::InitReferences(
     URVEquipmentComponent* InEquipmentComponent,
     UCharacterMovementComponent* InMovementComponent)
 {
-    OwnerCharacter    = InOwnerCharacter;
+    OwnerCharacter     = InOwnerCharacter;
     EquipmentComponent = InEquipmentComponent;
     MovementComponent  = InMovementComponent;
 }
@@ -47,13 +47,19 @@ bool URVCombatStateComponent::IsGrounded() const
 
 bool URVCombatStateComponent::CheckAvailableState(ERVCombatState InCoexistableStates) const
 {
+    // All states that block new action input.
+    // HitReaction / Groggy / Knockdown added in Phase 3 — a character taking damage
+    // cannot start new actions while staggered, groggy, or knocked down.
     const ERVCombatState BlockingStates =
         ERVCombatState::Attacking      |
         ERVCombatState::HeavyCharging  |
         ERVCombatState::HeavyAttacking |
         ERVCombatState::Dodging        |
         ERVCombatState::Guarding       |
-        ERVCombatState::GuardBroken;
+        ERVCombatState::GuardBroken    |
+        ERVCombatState::HitReaction    |
+        ERVCombatState::Groggy         |
+        ERVCombatState::Knockdown;
 
     const ERVCombatState Relevant = (CurrentStates & BlockingStates) & ~InCoexistableStates;
     return Relevant == ERVCombatState::None;
@@ -63,7 +69,9 @@ bool URVCombatStateComponent::CheckAvailableState(ERVCombatState InCoexistableSt
 
 void URVCombatStateComponent::ForceEndAllActions()
 {
-    // Sprint is handled by URVSprintComponent via OnForceEnd subscription.
+    // Each subscribed action component cleans up its own state and timers.
+    // HitReaction / Groggy / Knockdown are NOT cleared here —
+    // URVHitReactionComponent owns their lifetime.
     OnForceEnd.Broadcast();
 }
 
@@ -71,8 +79,6 @@ void URVCombatStateComponent::OnAttackStarted()
 {
     AddState(ERVCombatState::Attacking);
     // Guard → attack transition: bypass EndGuard to keep stamina regen paused.
-    // AddState(Attacking) already broadcast OnStateChanged — SprintComponent
-    // self-terminates from that broadcast, no explicit EndSprint call needed.
     if (HasState(ERVCombatState::Guarding)) { RemoveState(ERVCombatState::Guarding); }
 }
 
@@ -133,7 +139,11 @@ void URVCombatStateComponent::PerformAttackTrace()
                      Rotation, FColor::Red, false, 1.f);
 #endif
 
-    const float Damage = ResolveDamage(WeaponData);
+    // Determine if this hit should force knockdown.
+    // Heavy auto-release with bHeavyAttackForceKnockdown set = guaranteed knockdown.
+    const bool bForceKnockdown = WeaponData->bHeavyAttackForceKnockdown
+                               && HasState(ERVCombatState::HeavyAttacking)
+                               && ActiveTier == ERVHeavyAttackTier::AutoRelease;
 
     for (const FOverlapResult& Overlap : Overlaps)
     {
@@ -146,7 +156,16 @@ void URVCombatStateComponent::PerformAttackTrace()
 
         if (IRVDamageable* Target = Cast<IRVDamageable>(HitActor))
         {
-            Target->ApplyDamage(Damage, OwnerCharacter);
+            FRVHitInfo HitInfo;
+            HitInfo.Damage          = ResolveDamage(WeaponData);
+            HitInfo.PoiseDamage     = WeaponData->PoiseDamage;
+            HitInfo.bForceKnockdown = bForceKnockdown;
+            // Direction from attacker toward target — used by HitReactionComponent
+            // to select directional stagger montage and drive ABP additive layer.
+            HitInfo.HitDirection    = (HitActor->GetActorLocation() - OwnerCharacter->GetActorLocation()).GetSafeNormal();
+            HitInfo.Instigator      = OwnerCharacter;
+
+            Target->ApplyDamage(HitInfo);
         }
     }
 }

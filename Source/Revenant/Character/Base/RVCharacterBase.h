@@ -14,6 +14,7 @@ class URVHeavyAttackComponent;
 class URVDodgeComponent;
 class URVGuardComponent;
 class URVSprintComponent;
+class URVHitReactionComponent;
 class URVCharacterDataAsset;
 
 UCLASS()
@@ -33,13 +34,12 @@ public:
 
     /**
      * Routes incoming damage based on current combat state:
-     *   Invincible (i-frame) → blocked
-     *   Guarding             → stamina damage via GuardComponent (may trigger guard break)
-     *   Default              → HP damage
+     *   Invincible (i-frame)  → blocked entirely
+     *   Guarding              → stamina damage via GuardComponent (may trigger guard break)
+     *   Normal                → HP damage via AttributeComponent,
+     *                           then hit reaction via HitReactionComponent
      */
-    virtual bool ApplyDamage(float InDamageAmount, AActor* InInstigator) override;
-
-    virtual void OnHitReaction(FVector InHitDirection) override;
+    virtual bool ApplyDamage(const FRVHitInfo& InHitInfo) override;
 
 protected:
     virtual void BeginPlay() override;
@@ -72,6 +72,9 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
     TObjectPtr<URVSprintComponent> SprintComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVHitReactionComponent> HitReactionComponent;
 
     // --- Data ----------------------------------------------------------------
 

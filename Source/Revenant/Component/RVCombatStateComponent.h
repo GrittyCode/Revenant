@@ -10,16 +10,26 @@ class UCharacterMovementComponent;
 class UAnimMontage;
 class URVWeaponDataAsset;
 
-UENUM(BlueprintType, meta=(Bitflags, UseEnumValuesAsMaskValuesInEditor="true"))
-enum class ERVCombatState : uint8
+/**
+ * Combat action state bitmask.
+ * Bit allocation:
+ *   0-5  : action states (Attacking … HeavyCharging)
+ *   6-8  : hit-reaction states (HitReaction, Groggy, Knockdown)   ← Phase 3
+ *   9-10 : execution states (Executing, BeingExecuted)             ← Phase 5 reserved
+ */
+UENUM(meta=(Bitflags))
+enum class ERVCombatState : uint16
 {
-    None           = 0        UMETA(Hidden),
-    Attacking      = 1 << 0   UMETA(DisplayName="Attacking"),
-    HeavyAttacking = 1 << 1   UMETA(DisplayName="HeavyAttacking"),
-    Dodging        = 1 << 2   UMETA(DisplayName="Dodging"),
-    Guarding       = 1 << 3   UMETA(DisplayName="Guarding"),
-    GuardBroken    = 1 << 4   UMETA(DisplayName="GuardBroken"),
-    HeavyCharging  = 1 << 5   UMETA(DisplayName="HeavyCharging"),
+    None           = 0,
+    Attacking      = 1 << 0,
+    HeavyAttacking = 1 << 1,
+    Dodging        = 1 << 2,
+    Guarding       = 1 << 3,
+    GuardBroken    = 1 << 4,
+    HeavyCharging  = 1 << 5,
+	HitReaction    = 1 << 6,
+    Groggy         = 1 << 7,
+    Knockdown      = 1 << 8,
 };
 
 ENUM_CLASS_FLAGS(ERVCombatState);
@@ -34,8 +44,6 @@ enum class ERVHeavyAttackTier : uint8
 
 /**
  * Broadcast when any combat state bit is added.
- * Subscribers (e.g. URVSprintComponent) react to state transitions without
- * being called directly by action components.
  */
 DECLARE_MULTICAST_DELEGATE_OneParam(FRVOnCombatStateChanged, ERVCombatState);
 
@@ -48,8 +56,6 @@ DECLARE_MULTICAST_DELEGATE(FRVOnForceEnd);
 /**
  * Central authority for combat action states.
  * Owns ERVCombatState bitmask and invincibility flag.
- * Sprint is managed independently by URVSprintComponent.
- * Only action components and ARVCharacterBase should call AddState / RemoveState directly.
  */
 UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
 class REVENANT_API URVCombatStateComponent : public UActorComponent
@@ -79,7 +85,9 @@ public:
 
     /**
      * Broadcasts OnForceEnd so all subscribed action components self-clean.
-     * Called by the hit-reaction system (Phase 3).
+     * Called by URVHitReactionComponent when a poise-depleting hit lands.
+     * HitReaction / Groggy / Knockdown states are NOT cleared here —
+     * they are managed exclusively by URVHitReactionComponent.
      */
     void ForceEndAllActions();
 
@@ -102,6 +110,8 @@ public:
     /**
      * Returns true if no blocking combat state is currently active.
      * InCoexistableStates: states permitted to coexist with the requested action.
+     *
+     * Blocking set includes HitReaction, Groggy, Knockdown — all prevent action input.
      */
     bool CheckAvailableState(ERVCombatState InCoexistableStates = ERVCombatState::None) const;
 
@@ -161,6 +171,5 @@ private:
 
     // --- Damage Resolution ---------------------------------------------------
 
-    /** Selects damage value from WeaponData based on current attack state and tier. */
     float ResolveDamage(const URVWeaponDataAsset* InWeaponData) const;
 };

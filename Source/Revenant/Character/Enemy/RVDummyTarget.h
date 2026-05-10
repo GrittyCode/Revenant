@@ -1,4 +1,3 @@
-// Source/Revenant/Character/Enemy/RVDummyTarget.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -16,7 +15,7 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	/** Overrides base to also trigger debug label on hit received. */
-	virtual bool ApplyDamage(float InDamageAmount, AActor* InInstigator) override;
+	virtual bool ApplyDamage(const FRVHitInfo& InHitInfo) override;
 
 protected:
 	virtual void BeginPlay() override;
@@ -34,9 +33,15 @@ private:
 	UPROPERTY(EditInstanceOnly, Category = "RV|Test")
 	float DealDamageAmount = 30.f;
 
+	/**
+	 * Poise damage dealt in periodic test hits.
+	 * Tunable per instance to test stagger / groggy thresholds in the editor.
+	 */
+	UPROPERTY(EditInstanceOnly, Category = "RV|Test")
+	float DealPoiseDamage = 30.f;
+
 	// --- Debug Display -------------------------------------------------------
 
-	/** Duration the "HIT! -N" label stays visible after damage is received. */
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Test")
 	float HitDisplayDuration = 0.3f;
 
