@@ -1,0 +1,15 @@
+ID,HitType,Damage,PoiseDamage,StaminaCost
+Sword_A_Combo1,Normal,30,25,20
+Sword_A_Combo2,Normal,32,25,0
+Sword_A_Combo3,Normal,35,28,0
+Sword_A_Combo4,Normal,40,30,0
+Sword_A_Heavy_Charge,Normal,0,0,40
+Sword_A_Heavy,Heavy,80,60,0
+Sword_A_HeavyMax,Heavy,110,80,0
+Sword_B_Combo1,Normal,30,25,20
+Sword_B_Combo2,Normal,32,25,0
+Sword_B_Combo3,Normal,35,28,0
+Sword_B_Combo4,Normal,40,30,0
+Sword_B_Heavy_Charge,Normal,0,0,40
+Sword_B_Heavy,Heavy,80,60,40
+Sword_B_HeavyMax,Heavy,110,80,0

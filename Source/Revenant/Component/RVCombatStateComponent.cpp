@@ -1,9 +1,14 @@
+// Source/Revenant/Component/RVCombatStateComponent.cpp
 #include "Component/RVCombatStateComponent.h"
 #include "Component/RVEquipmentComponent.h"
 #include "Data/RVWeaponDataAsset.h"
+#include "Data/RVMontageStatData.h"
+#include "Data/RVAttackActionMultiplierRow.h"
+#include "Data/RVWeaponStatRow.h"
 #include "Interface/RVDamageable.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Animation/AnimInstance.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/OverlapResult.h"
 
@@ -15,7 +20,6 @@ URVCombatStateComponent::URVCombatStateComponent()
 void URVCombatStateComponent::BeginPlay()
 {
     Super::BeginPlay();
-    // References injected via InitReferences() from ARVCharacterBase::BeginPlay.
 }
 
 void URVCombatStateComponent::InitReferences(
@@ -33,8 +37,6 @@ void URVCombatStateComponent::InitReferences(
 void URVCombatStateComponent::AddState(ERVCombatState InState)
 {
     CurrentStates |= InState;
-    // Broadcast so subscribers (e.g. SprintComponent) can react without being
-    // called directly by action components.
     OnStateChanged.Broadcast(CurrentStates);
 }
 
@@ -47,16 +49,12 @@ bool URVCombatStateComponent::IsGrounded() const
 
 bool URVCombatStateComponent::CheckAvailableState(ERVCombatState InCoexistableStates) const
 {
-    // All states that block new action input.
-    // HitReaction / Groggy / Knockdown added in Phase 3 — a character taking damage
-    // cannot start new actions while staggered, groggy, or knocked down.
     const ERVCombatState BlockingStates =
         ERVCombatState::Attacking      |
         ERVCombatState::HeavyCharging  |
         ERVCombatState::HeavyAttacking |
         ERVCombatState::Dodging        |
         ERVCombatState::Guarding       |
-        ERVCombatState::GuardBroken    |
         ERVCombatState::HitReaction    |
         ERVCombatState::Groggy         |
         ERVCombatState::Knockdown;
@@ -69,16 +67,12 @@ bool URVCombatStateComponent::CheckAvailableState(ERVCombatState InCoexistableSt
 
 void URVCombatStateComponent::ForceEndAllActions()
 {
-    // Each subscribed action component cleans up its own state and timers.
-    // HitReaction / Groggy / Knockdown are NOT cleared here —
-    // URVHitReactionComponent owns their lifetime.
     OnForceEnd.Broadcast();
 }
 
 void URVCombatStateComponent::OnAttackStarted()
 {
     AddState(ERVCombatState::Attacking);
-    // Guard → attack transition: bypass EndGuard to keep stamina regen paused.
     if (HasState(ERVCombatState::Guarding)) { RemoveState(ERVCombatState::Guarding); }
 }
 
@@ -99,21 +93,40 @@ void URVCombatStateComponent::CloseHitWindow()
     HitActors.Empty();
 }
 
-float URVCombatStateComponent::ResolveDamage(const URVWeaponDataAsset* InWeaponData) const
-{
-    if (HasState(ERVCombatState::HeavyAttacking))
-    {
-        return (ActiveTier == ERVHeavyAttackTier::AutoRelease)
-            ? InWeaponData->HeavyAttackDamage_Max
-            : InWeaponData->HeavyAttackDamage;
-    }
-    return InWeaponData->AttackDamage;
-}
-
 void URVCombatStateComponent::PerformAttackTrace()
 {
     URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
     if (!IsValid(WeaponData)) { return; }
+
+    // --- Resolve stats ------------------------------------------------------
+    // Base values come from the weapon (DT_WeaponStats).
+    // Multipliers come from the currently playing montage's UserData (DT_AttackStats).
+    // Final = base × multiplier — weapons sharing the same animation style
+    // can still have different damage output.
+
+    const FRVWeaponStatRow* WeaponStat = WeaponData->GetWeaponStatRow();
+
+    UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
+    if (!IsValid(AnimInst)) { return; }
+
+	UAnimMontage* CurrentMontage = AnimInst->GetCurrentActiveMontage();
+    const URVMontageStatData* StatData = CurrentMontage
+        ? CurrentMontage->GetAssetUserData<URVMontageStatData>()
+        : nullptr;
+
+    const FRVAttackActionMultiplierRow* AttackStat = StatData ? StatData->GetStatRow() : nullptr;
+
+    const float BaseDamage      = WeaponStat ? WeaponStat->BaseDamage      : 0.f;
+    const float BasePoiseDamage = WeaponStat ? WeaponStat->BasePoiseDamage  : 0.f;
+    const float DmgMult         = AttackStat ? AttackStat->DamageMultiplier      : 1.f;
+    const float PoiseMult       = AttackStat ? AttackStat->PoiseDamageMultiplier : 1.f;
+
+    const float Damage      = BaseDamage      * DmgMult;
+    const float PoiseDamage = BasePoiseDamage * PoiseMult;
+    const ERVHitType HitType = AttackStat ? AttackStat->HitType : ERVHitType::Normal;
+    const float AttackRadius = WeaponData->AttackRadius;
+
+    // --- Capsule sweep -------------------------------------------------------
 
     USkeletalMeshComponent* Mesh = OwnerCharacter->GetMesh();
     const FVector Root = Mesh->GetSocketLocation(FName("WeaponRoot"));
@@ -130,20 +143,16 @@ void URVCombatStateComponent::PerformAttackTrace()
     // TODO: replace ECC_Pawn with project-specific channel once RVCollision.h is defined
     GetWorld()->OverlapMultiByChannel(
         Overlaps, Center, Rotation, ECC_Pawn,
-        FCollisionShape::MakeCapsule(WeaponData->AttackRadius, HalfHeight),
+        FCollisionShape::MakeCapsule(AttackRadius, HalfHeight),
         Params
     );
 
 #if !UE_BUILD_SHIPPING
-    DrawDebugCapsule(GetWorld(), Center, HalfHeight, WeaponData->AttackRadius,
+    DrawDebugCapsule(GetWorld(), Center, HalfHeight, AttackRadius,
                      Rotation, FColor::Red, false, 1.f);
 #endif
 
-    // Determine if this hit should force knockdown.
-    // Heavy auto-release with bHeavyAttackForceKnockdown set = guaranteed knockdown.
-    const bool bForceKnockdown = WeaponData->bHeavyAttackForceKnockdown
-                               && HasState(ERVCombatState::HeavyAttacking)
-                               && ActiveTier == ERVHeavyAttackTier::AutoRelease;
+    // --- Damage application --------------------------------------------------
 
     for (const FOverlapResult& Overlap : Overlaps)
     {
@@ -157,13 +166,12 @@ void URVCombatStateComponent::PerformAttackTrace()
         if (IRVDamageable* Target = Cast<IRVDamageable>(HitActor))
         {
             FRVHitInfo HitInfo;
-            HitInfo.Damage          = ResolveDamage(WeaponData);
-            HitInfo.PoiseDamage     = WeaponData->PoiseDamage;
-            HitInfo.bForceKnockdown = bForceKnockdown;
-            // Direction from attacker toward target — used by HitReactionComponent
-            // to select directional stagger montage and drive ABP additive layer.
-            HitInfo.HitDirection    = (HitActor->GetActorLocation() - OwnerCharacter->GetActorLocation()).GetSafeNormal();
-            HitInfo.Instigator      = OwnerCharacter;
+            HitInfo.Damage       = Damage;
+            HitInfo.PoiseDamage  = PoiseDamage;
+            HitInfo.HitType      = HitType;
+            HitInfo.HitDirection = (HitActor->GetActorLocation()
+                                  - OwnerCharacter->GetActorLocation()).GetSafeNormal();
+            HitInfo.Instigator   = OwnerCharacter;
 
             Target->ApplyDamage(HitInfo);
         }

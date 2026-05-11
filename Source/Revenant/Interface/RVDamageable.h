@@ -6,6 +6,20 @@
 #include "RVDamageable.generated.h"
 
 /**
+ * Determines how URVHitReactionComponent resolves poise depletion.
+ * Normal : standard hit — Stagger on poise depletion, Knockdown only if airborne or in HitReaction
+ * Heavy  : heavy attack — Knockdown on poise depletion regardless of character state
+ */
+UENUM(BlueprintType)
+enum class ERVHitType : uint8
+{
+    Normal = 0,
+    Heavy  = 1,
+    Grab   = 2,
+    Smash  = 3,
+};
+
+/**
  * Carries all information about a single hit.
  */
 USTRUCT(BlueprintType)
@@ -13,17 +27,22 @@ struct REVENANT_API FRVHitInfo
 {
     GENERATED_BODY()
 
+    /** HP damage to apply. */
     float Damage = 0.f;
+
+    /** Poise damage to apply. Poise depletion triggers hit reaction. */
     float PoiseDamage = 0.f;
 
     /**
-     * If true, forces Knockdown regardless of poise value or airborne state.
+     * Determines reaction severity when poise is depleted.
+     * Heavy force Knockdown regardless of poise or character state.
      */
-    bool bForceKnockdown = false;
+    ERVHitType HitType = ERVHitType::Normal;
 
     /**
      * World-space direction from instigator toward target (normalized).
-
+     * Used by URVHitReactionComponent to select directional stagger montage
+     * and drive the ABP additive flinch layer.
      */
     FVector HitDirection = FVector::ZeroVector;
 
@@ -44,7 +63,6 @@ class REVENANT_API IRVDamageable
 
 public:
     /**
-     * Applies damage from a single hit.
      * Returns true if the target survived (HP > 0 after hit).
      */
     virtual bool ApplyDamage(const FRVHitInfo& InHitInfo) = 0;

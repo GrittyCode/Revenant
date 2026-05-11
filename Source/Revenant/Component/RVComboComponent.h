@@ -4,99 +4,69 @@
 #include "Components/ActorComponent.h"
 #include "RVComboComponent.generated.h"
 
-class URVEquipmentComponent;
-class URVAttributeComponent;
+class ACharacter;
 class URVCombatStateComponent;
+class URVAttributeComponent;
+class URVEquipmentComponent;
+class URVWeaponDataAsset;
+class UAnimMontage;
 
-// Fired on combo start/end — URVCombatStateComponent subscribes to manage Attacking bit
 DECLARE_MULTICAST_DELEGATE(FRVOnComboStarted);
 DECLARE_MULTICAST_DELEGATE(FRVOnComboEnded);
 
 UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
 class REVENANT_API URVComboComponent : public UActorComponent
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    URVComboComponent();
+	URVComboComponent();
 
-    /**
-     * Entry point for all combo input — called directly by ARVCharacterPlayer::InputAttack.
-     * Performs gate checks (grounded, CheckAvailableState) via CombatStateComponent,
-     * then starts a new combo or buffers continuation input.
-     */
-    void HandleComboInput();
+	void HandleComboInput();
+	void TryChainNextCombo();
 
-    /**
-     * Called by UAnimNotifyState_ComboWindow::NotifyBegin.
-     * Opens the input acceptance window — only inputs received during this window
-     * are treated as valid combo continuations.
-     */
-    void OpenComboWindow();
+	void OpenComboWindow();
+	void CloseComboWindow();
 
-    /**
-     * Called by UAnimNotifyState_ComboWindow::NotifyEnd.
-     * Closes the input window and resolves the buffered input:
-     * advances to the next section if input was buffered, ends combo otherwise.
-     */
-    void CloseComboWindow();
+	void ForceEndCombo();
 
-    UFUNCTION(BlueprintCallable, Category = "RV|Combo")
-    bool IsComboActive() const { return bIsComboActive; }
+	bool IsComboActive() const { return bIsComboActive; }
 
-    UFUNCTION(BlueprintCallable, Category = "RV|Combo")
-    int32 GetComboCount() const { return ComboCount; }
+	FRVOnComboStarted OnComboStarted;
+	FRVOnComboEnded   OnComboEnded;
 
-    // URVCombatStateComponent subscribes to these to keep Attacking bit in sync
-    FRVOnComboStarted OnComboStarted;
-    FRVOnComboEnded   OnComboEnded;
+	void InitReferences(ACharacter* InOwnerCharacter,
+						URVCombatStateComponent* InCombatStateComponent,
+						URVAttributeComponent* InAttributeComponent,
+						URVEquipmentComponent* InEquipmentComponent);
 
 protected:
-    virtual void BeginPlay() override;
+	virtual void BeginPlay() override;
 
 private:
-    // --- Cached References ---------------------------------------------------
+	UPROPERTY()
+	TObjectPtr<ACharacter> OwnerCharacter;
 
-    UPROPERTY()
-    TObjectPtr<URVEquipmentComponent> EquipmentComponent;
+	UPROPERTY()
+	TObjectPtr<URVCombatStateComponent> CombatStateComponent;
 
-    UPROPERTY()
-    TObjectPtr<URVAttributeComponent> AttributeComponent;
+	UPROPERTY()
+	TObjectPtr<URVAttributeComponent> AttributeComponent;
 
-    // Higher-level orchestrator: ComboComponent asks CombatStateComponent for gate state.
-    UPROPERTY()
-    TObjectPtr<URVCombatStateComponent> CombatStateComponent;
+	UPROPERTY()
+	TObjectPtr<URVEquipmentComponent> EquipmentComponent;
 
-    // Cached to avoid repeated Cast<ACharacter>(GetOwner()) in hot paths.
-    UPROPERTY()
-    TObjectPtr<ACharacter> OwnerCharacter;
+	bool bIsComboActive   = false;
+	bool bComboWindowOpen = false;
+	bool bHasComboInput   = false;
 
-    // --- State ---------------------------------------------------------------
+	void StartCombo();
+	void EndCombo();
+	void PlayComboMontage(UAnimMontage* InMontage);
 
-    bool  bIsComboActive  = false;
-    bool  bHasComboInput  = false;
-    bool  bComboWindowOpen = false;
-    int32 ComboCount       = 0;
+	// Returns false if stamina was insufficient (caller should abort the combo).
+	bool ConsumeComboStamina(UAnimMontage* InMontage, const URVWeaponDataAsset* InWeaponData);
 
-    // --- Internal ------------------------------------------------------------
-
-    void StartCombo();
-    void EndCombo();
-
-    /** Plays the montage section for the current ComboCount. */
-    void PlayComboSection();
-
-    /**
-     * Called by CloseComboWindow. Advances to the next section if input was buffered,
-     * ends combo otherwise.
-     */
-    void TryAdvanceCombo();
-
-    /**
-     * Called via URVCombatStateComponent::OnForceEnd delegate.
-     * Stops the attack montage and resets all combo state atomically.
-     */
-    void ForceEndCombo();
-
-    void OnComboMontageEnded(UAnimMontage*, bool bInterrupted);
+	UFUNCTION()
+	void OnComboMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted);
 };

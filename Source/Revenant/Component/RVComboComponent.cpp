@@ -1,8 +1,13 @@
+// Source/Revenant/Component/RVComboComponent.cpp
 #include "Component/RVComboComponent.h"
-#include "Component/RVEquipmentComponent.h"
-#include "Component/RVAttributeComponent.h"
 #include "Component/RVCombatStateComponent.h"
+#include "Component/RVAttributeComponent.h"
+#include "Component/RVEquipmentComponent.h"
 #include "Data/RVWeaponDataAsset.h"
+#include "Data/RVWeaponAnimationDataAsset.h"
+#include "Data/RVAttackActionMultiplierRow.h"
+#include "Data/RVWeaponStatRow.h"
+#include "Data/RVMontageStatData.h"
 #include "GameFramework/Character.h"
 #include "Animation/AnimInstance.h"
 
@@ -14,169 +19,151 @@ URVComboComponent::URVComboComponent()
 void URVComboComponent::BeginPlay()
 {
     Super::BeginPlay();
+}
 
-    AActor* Owner = GetOwner();
-    EquipmentComponent   = Owner->FindComponentByClass<URVEquipmentComponent>();
-    AttributeComponent   = Owner->FindComponentByClass<URVAttributeComponent>();
-    CombatStateComponent = Owner->FindComponentByClass<URVCombatStateComponent>();
-    OwnerCharacter       = Cast<ACharacter>(Owner);
+void URVComboComponent::InitReferences(
+    ACharacter* InOwnerCharacter,
+    URVCombatStateComponent* InCombatStateComponent,
+    URVAttributeComponent* InAttributeComponent,
+    URVEquipmentComponent* InEquipmentComponent)
+{
+    OwnerCharacter       = InOwnerCharacter;
+    CombatStateComponent = InCombatStateComponent;
+    AttributeComponent   = InAttributeComponent;
+    EquipmentComponent   = InEquipmentComponent;
 
-    ensureMsgf(IsValid(EquipmentComponent),   TEXT("[%s] URVEquipmentComponent missing — ComboComponent requires ARVCharacterBase"),   *GetNameSafe(Owner));
-    ensureMsgf(IsValid(AttributeComponent),   TEXT("[%s] URVAttributeComponent missing — ComboComponent requires ARVCharacterBase"),   *GetNameSafe(Owner));
-    ensureMsgf(IsValid(CombatStateComponent), TEXT("[%s] URVCombatStateComponent missing — ComboComponent requires ARVCharacterBase"), *GetNameSafe(Owner));
-    ensureMsgf(IsValid(OwnerCharacter),       TEXT("[%s] Owner is not ACharacter — ComboComponent requires ARVCharacterBase"),         *GetNameSafe(Owner));
-
-    // Subscribe to CombatStateComponent's force-end broadcast.
-    // When ForceEndAllActions fires (e.g. hit reaction), ComboComponent cleans up its own state.
     CombatStateComponent->OnForceEnd.AddUObject(this, &URVComboComponent::ForceEndCombo);
 }
 
-// --- Public API --------------------------------------------------------------
+//--- Input -------------------------------------------------------------------
 
 void URVComboComponent::HandleComboInput()
 {
     if (!bIsComboActive)
     {
         if (!CombatStateComponent->IsGrounded()) { return; }
-
-        // Attacking and Guarding are coexistable:
-        if (!CombatStateComponent->CheckAvailableState(ERVCombatState::Attacking | ERVCombatState::Guarding)) { return; }
-
+        if (!CombatStateComponent->CheckAvailableState(ERVCombatState::Attacking)) { return; }
         StartCombo();
+        return;
     }
-    else
-    {
-        // Only accept continuation input during the explicit combo window.
-        // Input outside the window is discarded — enforces timing requirement.
-        if (!bComboWindowOpen) { return; }
 
-        URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-        if (!IsValid(WeaponData)) { return; }
-
-        if (ComboCount < WeaponData->GetMaxComboCount())
-        {
-            bHasComboInput = true;
-        }
-    }
+    if (bComboWindowOpen) { bHasComboInput = true; }
 }
+
+//--- Combo Window ------------------------------------------------------------
 
 void URVComboComponent::OpenComboWindow()
 {
-    if (!bIsComboActive) { return; }
     bComboWindowOpen = true;
 }
 
 void URVComboComponent::CloseComboWindow()
 {
-    if (!bIsComboActive) { return; }
-
     bComboWindowOpen = false;
-    TryAdvanceCombo();
 }
 
-// --- Internal ----------------------------------------------------------------
+//--- Chain -------------------------------------------------------------------
+
+void URVComboComponent::TryChainNextCombo()
+{
+    if (!bHasComboInput) { EndCombo(); return; }
+
+    const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
+    if (!IsValid(WeaponData) || !IsValid(WeaponData->AnimationDataAsset)) { EndCombo(); return; }
+
+    URVWeaponAnimationDataAsset* AnimData = WeaponData->AnimationDataAsset;
+    UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
+    if (!IsValid(AnimInst)) { EndCombo(); return; }
+
+    const UAnimMontage* CurrentMontage = AnimInst->GetCurrentActiveMontage();
+    const int32 CurrentIndex = AnimData->FindComboMontageIndex(CurrentMontage);
+
+    if (CurrentIndex == INDEX_NONE) { EndCombo(); return; }
+
+    UAnimMontage* NextMontage = AnimData->GetComboMontage(CurrentIndex + 1);
+    if (!IsValid(NextMontage)) { EndCombo(); return; }
+
+    bHasComboInput = false;
+
+    if (!ConsumeComboStamina(NextMontage, WeaponData)) { EndCombo(); return; }
+
+    PlayComboMontage(NextMontage);
+}
+
+//--- Internal ----------------------------------------------------------------
 
 void URVComboComponent::StartCombo()
 {
-    URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-    if (!IsValid(WeaponData) || !IsValid(WeaponData->GetAttackMontage())) { return; }
+    const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
+    if (!IsValid(WeaponData) || !IsValid(WeaponData->AnimationDataAsset)) { return; }
 
-    // Stamina cost check — gates combo entry
-    if (!AttributeComponent->ConsumeStamina(WeaponData->AttackStaminaCost)) { return; }
+    UAnimMontage* FirstMontage = WeaponData->AnimationDataAsset->GetComboMontage(0);
+    if (!IsValid(FirstMontage)) { return; }
 
+    if (!ConsumeComboStamina(FirstMontage, WeaponData)) { return; }
+
+    bIsComboActive = true;
+    OnComboStarted.Broadcast();
+
+    PlayComboMontage(FirstMontage);
+}
+
+bool URVComboComponent::ConsumeComboStamina(UAnimMontage* InMontage, const URVWeaponDataAsset* InWeaponData)
+{
+    const URVMontageStatData* StatData = InMontage->GetAssetUserData<URVMontageStatData>();
+    const FRVAttackActionMultiplierRow* AttackStat = StatData ? StatData->GetStatRow() : nullptr;
+    if (!AttackStat || AttackStat->StaminaCostMultiplier <= 0.f) { return true; }
+
+    const FRVWeaponStatRow* WeaponStat = InWeaponData->GetWeaponStatRow();
+    const float StaminaCost = WeaponStat ? WeaponStat->BaseStaminaCost * AttackStat->StaminaCostMultiplier : 0.f;
+
+    return StaminaCost <= 0.f || AttributeComponent->ConsumeStamina(StaminaCost);
+}
+
+void URVComboComponent::PlayComboMontage(UAnimMontage* InMontage)
+{
     UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
     if (!IsValid(AnimInst)) { return; }
 
-    bIsComboActive = true;
-    ComboCount     = 1;
-    bHasComboInput = false;
+    AnimInst->Montage_Play(InMontage);
 
-    AttributeComponent->PauseStaminaRegen();
-
-    // Notify CombatStateComponent: sets Attacking bit, clears Guarding if active
-    OnComboStarted.Broadcast();
-
-    UAnimMontage* AttackMontage = WeaponData->GetAttackMontage();
-
-    AnimInst->Montage_Play(AttackMontage);
-
-    FOnMontageEnded MontageEndedDelegate;
-    MontageEndedDelegate.BindUObject(this, &URVComboComponent::OnComboMontageEnded);
-    AnimInst->Montage_SetEndDelegate(MontageEndedDelegate, AttackMontage);
-
-    PlayComboSection();
+    FOnMontageBlendingOutStarted BlendingOutDelegate;
+    BlendingOutDelegate.BindUObject(this, &URVComboComponent::OnComboMontageBlendingOut);
+    AnimInst->Montage_SetBlendingOutDelegate(BlendingOutDelegate, InMontage);
 }
 
 void URVComboComponent::EndCombo()
 {
     bIsComboActive   = false;
-    bHasComboInput   = false;
     bComboWindowOpen = false;
-    ComboCount       = 0;
+    bHasComboInput   = false;
 
-    AttributeComponent->ResumeStaminaRegen();
-
-    // Notify CombatStateComponent: clears Attacking bit
     OnComboEnded.Broadcast();
-}
-
-void URVComboComponent::TryAdvanceCombo()
-{
-    if (!bIsComboActive) { return; }
-
-    if (bHasComboInput)
-    {
-        // Consume stamina for the next hit before advancing.
-        // If stamina is insufficient the combo ends naturally here.
-        URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-        if (!IsValid(WeaponData)) { return; }
-
-        if (!AttributeComponent->ConsumeStamina(WeaponData->AttackStaminaCost))
-        {
-            // Out of stamina — treat as if no input was buffered
-            bHasComboInput = false;
-            EndCombo();
-            return;
-        }
-
-        bHasComboInput = false;
-        ++ComboCount;
-        PlayComboSection();
-    }
 }
 
 void URVComboComponent::ForceEndCombo()
 {
     if (!bIsComboActive) { return; }
 
-    // Stop the attack montage so visual state matches logical state.
-    URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
     UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
-    if (IsValid(AnimInst) && IsValid(WeaponData))
+    if (IsValid(AnimInst))
     {
-        AnimInst->Montage_Stop(0.1f, WeaponData->GetAttackMontage());
+        UAnimMontage* CurrentMontage = AnimInst->GetCurrentActiveMontage();
+        if (IsValid(CurrentMontage))
+        {
+            AnimInst->Montage_Stop(0.1f, CurrentMontage);
+        }
     }
 
-    // EndCombo broadcasts OnComboEnded → CombatStateComponent clears Attacking bit.
     EndCombo();
 }
 
-void URVComboComponent::PlayComboSection()
+//--- Callbacks ---------------------------------------------------------------
+
+void URVComboComponent::OnComboMontageBlendingOut(UAnimMontage* /*Montage*/, bool bInterrupted)
 {
-    URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-    if (!IsValid(WeaponData) || !IsValid(WeaponData->GetAttackMontage())) { return; }
-
-    const TArray<FName>& SectionNames = WeaponData->GetComboSectionNames();
-    if (!SectionNames.IsValidIndex(ComboCount - 1)) { return; }
-
-    UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
-    if (!IsValid(AnimInst)) { return; }
-
-    const FName SectionName = SectionNames[ComboCount - 1];
-    AnimInst->Montage_JumpToSection(SectionName, WeaponData->GetAttackMontage());
-}
-
-void URVComboComponent::OnComboMontageEnded(UAnimMontage* /*InMontage*/, bool /*bInterrupted*/)
-{
-    EndCombo();
+    if (!bInterrupted && bIsComboActive)
+    {
+        EndCombo();
+    }
 }

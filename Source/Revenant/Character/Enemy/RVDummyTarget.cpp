@@ -109,21 +109,20 @@ bool ARVDummyTarget::ApplyDamage(const FRVHitInfo& InHitInfo)
 
 void ARVDummyTarget::DealDamageToPlayer()
 {
-    if (!CachedPlayer.IsValid()) { return; }
+	if (!CachedPlayer.IsValid()) { return; }
 
-    IRVDamageable* Target = Cast<IRVDamageable>(CachedPlayer.Get());
-    if (!Target) { return; }
+	IRVDamageable* Target = Cast<IRVDamageable>(CachedPlayer.Get());
+	if (!Target) { return; }
 
-    FRVHitInfo HitInfo;
-    HitInfo.Damage          = DealDamageAmount;
-    HitInfo.PoiseDamage     = DealPoiseDamage;
-    HitInfo.bForceKnockdown = false;
-    // Direction from this dummy toward the player — used for stagger direction selection.
-    HitInfo.HitDirection    = (CachedPlayer->GetActorLocation() - GetActorLocation()).GetSafeNormal();
-    HitInfo.Instigator      = this;
+	FRVHitInfo HitInfo;
+	HitInfo.Damage       = DealDamageAmount;
+	HitInfo.PoiseDamage  = DealPoiseDamage;
+	HitInfo.HitType      = ERVHitType::Normal;
+	HitInfo.HitDirection = (CachedPlayer->GetActorLocation() - GetActorLocation()).GetSafeNormal();
+	HitInfo.Instigator   = this;
 
-    Target->ApplyDamage(HitInfo);
+	Target->ApplyDamage(HitInfo);
 
-    UE_LOG(LogTemp, Warning, TEXT("[DummyTarget] Dealt %.0f dmg / %.0f poise to player"),
-        DealDamageAmount, DealPoiseDamage);
+	UE_LOG(LogTemp, Warning, TEXT("[DummyTarget] Dealt %.0f dmg / %.0f poise to player"),
+		DealDamageAmount, DealPoiseDamage);
 }

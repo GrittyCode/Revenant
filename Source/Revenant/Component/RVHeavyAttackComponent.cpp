@@ -3,6 +3,7 @@
 #include "Component/RVAttributeComponent.h"
 #include "Component/RVEquipmentComponent.h"
 #include "Data/RVWeaponDataAsset.h"
+#include "Data/RVWeaponStatRow.h"
 #include "GameFramework/Character.h"
 #include "Animation/AnimInstance.h"
 
@@ -34,12 +35,19 @@ void URVHeavyAttackComponent::StartHeavyAttack()
     if (!CombatStateComponent->IsGrounded()) { return; }
 
     const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-    if (!IsValid(WeaponData) || !IsValid(WeaponData->GetHeavyChargeMontage())) { return; }
+    if (!IsValid(WeaponData)) { return; }
 
-    if (!AttributeComponent->ConsumeStamina(WeaponData->HeavyAttackStaminaCost)) { return; }
+    UAnimMontage* ChargeMontage = WeaponData->GetHeavyChargeMontage();
+    if (!IsValid(ChargeMontage)) { return; }
 
-    // AddState broadcasts OnStateChanged — SprintComponent self-terminates from that.
-    // No explicit EndSprint call needed here.
+    // Stamina cost is a flat weapon stat — not a per-hit multiplier.
+    // Paid upfront at charge start regardless of whether Manual or AutoRelease fires.
+    const FRVWeaponStatRow* WeaponStat = WeaponData->GetWeaponStatRow();
+    if (WeaponStat && WeaponStat->HeavyChargeStaminaCost > 0.f)
+    {
+        if (!AttributeComponent->ConsumeStamina(WeaponStat->HeavyChargeStaminaCost)) { return; }
+    }
+
     CombatStateComponent->AddState(ERVCombatState::HeavyCharging);
     bCanHeavyRelease = false;
     bPendingRelease  = false;
@@ -48,8 +56,6 @@ void URVHeavyAttackComponent::StartHeavyAttack()
 
     UAnimInstance* AnimInstance = OwnerCharacter->GetMesh()->GetAnimInstance();
     if (!IsValid(AnimInstance)) { return; }
-
-    UAnimMontage* ChargeMontage = WeaponData->GetHeavyChargeMontage();
 
     FOnMontageBlendingOutStarted ChargeBlendOutDelegate;
     ChargeBlendOutDelegate.BindUObject(this, &URVHeavyAttackComponent::OnChargeMontageBlendingOut);
@@ -106,13 +112,11 @@ void URVHeavyAttackComponent::ExecuteHeavyAttack()
     UAnimInstance* AnimInstance = OwnerCharacter->GetMesh()->GetAnimInstance();
     if (!IsValid(AnimInstance)) { EndHeavyAttack(); return; }
 
-    UAnimMontage* ReleaseMontage = WeaponData->GetHeavyAttackMontage();
+    // Select montage by tier — each montage carries its own URVMontageStatData.
+    // PerformAttackTrace reads HitType and multipliers directly from the playing montage.
+    UAnimMontage* ReleaseMontage = WeaponData->GetHeavyAttackMontage(bIsAutoRelease);
     if (!IsValid(ReleaseMontage)) { EndHeavyAttack(); return; }
 
-    const ERVHeavyAttackTier Tier = bIsAutoRelease
-        ? ERVHeavyAttackTier::AutoRelease
-        : ERVHeavyAttackTier::Manual;
-    CombatStateComponent->SetHeavyAttackTier(Tier);
     bIsAutoRelease = false;
 
     // Remove HeavyCharging before playing release montage.
@@ -140,8 +144,12 @@ void URVHeavyAttackComponent::EndHeavyAttack()
         {
             UAnimMontage* MontageToStop = CombatStateComponent->HasState(ERVCombatState::HeavyCharging)
                 ? WeaponData->GetHeavyChargeMontage()
-                : WeaponData->GetHeavyAttackMontage();
-            AnimInstance->Montage_Stop(0.1f, MontageToStop);
+                : AnimInstance->GetCurrentActiveMontage();
+
+            if (IsValid(MontageToStop))
+            {
+                AnimInstance->Montage_Stop(0.1f, MontageToStop);
+            }
         }
     }
 
@@ -155,7 +163,6 @@ void URVHeavyAttackComponent::EndHeavyAttack()
 
 void URVHeavyAttackComponent::OnChargeAutoRelease()
 {
-    UE_LOG(LogTemp, Log, TEXT("[%s] URVHeavyAttackComponent: OnChargeAutoRelease fired"), *GetNameSafe(GetOwner()));
     bIsAutoRelease = true;
     ReleaseHeavyAttack();
 }

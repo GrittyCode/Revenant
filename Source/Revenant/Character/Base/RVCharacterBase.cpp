@@ -7,7 +7,7 @@
 #include "Component/RVDodgeComponent.h"
 #include "Component/RVGuardComponent.h"
 #include "Component/RVSprintComponent.h"
-#include "Component/RVHitreactioncomponent.h"
+#include "Component/RVHitReactionComponent.h"
 #include "Data/RVCharacterDataAsset.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
@@ -40,76 +40,65 @@ void ARVCharacterBase::BeginPlay()
     ensureMsgf(IsValid(SprintComponent),       TEXT("[%s] SprintComponent missing"),       *GetName());
     ensureMsgf(IsValid(HitReactionComponent),  TEXT("[%s] HitReactionComponent missing"),  *GetName());
 
-    // --- DataAsset init ------------------------------------------------------
-
     if (IsValid(CharacterData))
     {
         AttributeComponent->InitFromDataAsset(CharacterData);
     }
 
-    // --- Reference injection (Composition Root) ------------------------------
+    //--- Reference Injection (Composition Root) ------------------------------
 
     UCharacterMovementComponent* MoveComp = GetCharacterMovement();
 
-    CombatStateComponent->InitReferences(this, EquipmentComponent, MoveComp);
-    HeavyAttackComponent->InitReferences(this, CombatStateComponent, AttributeComponent, EquipmentComponent);
-    DodgeComponent->InitReferences      (this, CombatStateComponent, AttributeComponent, EquipmentComponent);
-    GuardComponent->InitReferences      (this, CombatStateComponent, AttributeComponent, EquipmentComponent);
-    HitReactionComponent->InitReferences(this, CombatStateComponent, AttributeComponent, CharacterData);
-    // SprintComponent finds its own dependencies in BeginPlay via FindComponentByClass.
+    CombatStateComponent->InitReferences (this, EquipmentComponent, MoveComp);
+    ComboComponent->InitReferences       (this, CombatStateComponent, AttributeComponent, EquipmentComponent);
+    HeavyAttackComponent->InitReferences (this, CombatStateComponent, AttributeComponent, EquipmentComponent);
+    DodgeComponent->InitReferences       (this, CombatStateComponent, AttributeComponent, EquipmentComponent);
+    GuardComponent->InitReferences       (this, CombatStateComponent, AttributeComponent, EquipmentComponent);
+    HitReactionComponent->InitReferences (this, CombatStateComponent, AttributeComponent, EquipmentComponent, CharacterData);
 
-    // --- Delegate wiring (Composition Root) ----------------------------------
+    //--- Delegate Wiring (Composition Root) ----------------------------------
 
-    // Stamina depleted → GuardComponent interprets context (guard break or future use)
     AttributeComponent->OnStaminaDepleted.AddDynamic(
         GuardComponent, &URVGuardComponent::OnStaminaDepletedHandler);
 
-    // Combo state → CombatStateComponent keeps Attacking bit in sync
+    GuardComponent->OnGuardBreakTriggered.AddUObject(
+        HitReactionComponent, &URVHitReactionComponent::TriggerStaggerWithMontage);
+
     ComboComponent->OnComboStarted.AddUObject(CombatStateComponent, &URVCombatStateComponent::OnAttackStarted);
     ComboComponent->OnComboEnded.AddUObject  (CombatStateComponent, &URVCombatStateComponent::OnAttackEnded);
 
-    // ForceEnd → each action component self-cleans its own state
-    // HitReactionComponent does NOT subscribe — its states (HitReaction/Groggy/Knockdown)
-    // are managed exclusively by HitReactionComponent and are not cleared by ForceEnd.
     CombatStateComponent->OnForceEnd.AddUObject(HeavyAttackComponent, &URVHeavyAttackComponent::ForceEndHeavyAttack);
     CombatStateComponent->OnForceEnd.AddUObject(DodgeComponent,       &URVDodgeComponent::ForceEndDodge);
     CombatStateComponent->OnForceEnd.AddUObject(GuardComponent,       &URVGuardComponent::ForceEndGuard);
-    // SprintComponent and ComboComponent subscribe to OnForceEnd in their own BeginPlay
+    // ComboComponent and SprintComponent subscribe to OnForceEnd inside their own InitReferences/BeginPlay.
 }
 
-// --- IRVCombatInterface ------------------------------------------------------
+//--- IRVCombatInterface ------------------------------------------------------
 
 void ARVCharacterBase::ActivateHitCheck()
 {
     CombatStateComponent->PerformAttackTrace();
 }
 
-// --- IRVDamageable -----------------------------------------------------------
+//--- IRVDamageable -----------------------------------------------------------
 
 bool ARVCharacterBase::ApplyDamage(const FRVHitInfo& InHitInfo)
 {
-    // Dodge i-frame — all incoming damage blocked
     if (CombatStateComponent->IsInvincible()) { return false; }
 
-    // Guarding — absorbed as stamina damage; may trigger guard break via OnStaminaDepleted
     if (CombatStateComponent->IsInState(ERVCombatState::Guarding))
     {
         GuardComponent->HandleGuardHit(InHitInfo.Damage);
         return true;
     }
 
-    // Normal hit — apply HP damage first, then handle poise / hit reaction.
-    // HP and Poise are independent: character can take poise damage even at low HP.
     const bool bSurvived = AttributeComponent->ApplyDamage(InHitInfo.Instigator, InHitInfo.Damage);
-
-    // Hit reaction runs regardless of survival — a dying character should still
-    // play the stagger or knockdown animation before the death sequence.
     HitReactionComponent->HandleHit(InHitInfo);
 
     return bSurvived;
 }
 
-// --- Movement ----------------------------------------------------------------
+//--- Movement ----------------------------------------------------------------
 
 void ARVCharacterBase::Falling()
 {

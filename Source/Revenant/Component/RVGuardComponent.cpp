@@ -4,7 +4,6 @@
 #include "Component/RVEquipmentComponent.h"
 #include "Data/RVWeaponDataAsset.h"
 #include "GameFramework/Character.h"
-#include "Animation/AnimInstance.h"
 
 URVGuardComponent::URVGuardComponent()
 {
@@ -65,7 +64,8 @@ void URVGuardComponent::ForceEndGuard()
     if (!CombatStateComponent->HasState(ERVCombatState::Guarding)) { return; }
 
     CombatStateComponent->RemoveState(ERVCombatState::Guarding);
-    // Regen resume omitted — same reasoning as ForceEndDodge.
+    // Regen resume omitted — same reasoning as ForceEndDodge:
+    // hit reaction or knockdown that triggered ForceEnd will manage regen state.
 }
 
 void URVGuardComponent::OnStaminaDepletedHandler()
@@ -75,28 +75,14 @@ void URVGuardComponent::OnStaminaDepletedHandler()
     if (!CombatStateComponent->HasState(ERVCombatState::Guarding)) { return; }
 
     CombatStateComponent->RemoveState(ERVCombatState::Guarding);
-    CombatStateComponent->AddState(ERVCombatState::GuardBroken);
-    AttributeComponent->PauseStaminaRegen();
 
+    // Resolve the GuardBreakMontage from the current weapon style.
     URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-    if (!IsValid(WeaponData) || !IsValid(WeaponData->GetGuardBreakMontage())) { return; }
+    UAnimMontage* GuardBreakMontage = IsValid(WeaponData) ? WeaponData->GetGuardBreakMontage() : nullptr;
 
-    UAnimInstance* AnimInstance = OwnerCharacter->GetMesh()->GetAnimInstance();
-    if (!IsValid(AnimInstance)) { return; }
-
-    AnimInstance->Montage_Play(WeaponData->GetGuardBreakMontage());
-
-    GetWorld()->GetTimerManager().SetTimer(
-        GuardBreakRecoveryHandle,
-        this,
-        &URVGuardComponent::OnGuardBreakRecoveryComplete,
-        GuardBreakRecoveryTime,
-        false
-    );
-}
-
-void URVGuardComponent::OnGuardBreakRecoveryComplete()
-{
-    CombatStateComponent->RemoveState(ERVCombatState::GuardBroken);
-    AttributeComponent->ResumeStaminaRegen();
+    // Broadcast to HitReactionComponent (wired in ARVCharacterBase::BeginPlay).
+    // HitReactionComponent plays the montage, sets HitReaction state, and clears it
+    // on montage blend-out — the montage length is the natural recovery window.
+    // No separate GuardBroken state bit or timer needed.
+    OnGuardBreakTriggered.Broadcast(GuardBreakMontage);
 }

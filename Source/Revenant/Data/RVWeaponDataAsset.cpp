@@ -1,79 +1,75 @@
+// Source/Revenant/Data/RVWeaponDataAsset.cpp
 #include "Data/RVWeaponDataAsset.h"
-#include "Data/RVWeaponStyleDataAsset.h"
+#include "Data/RVWeaponAnimationDataAsset.h"
+#include "Data/RVWeaponStatRow.h"
 
-// --- Combo (instance-level override supported) --------------------------------
-
-UAnimMontage* URVWeaponDataAsset::GetAttackMontage() const
+const FRVWeaponStatRow* URVWeaponDataAsset::GetWeaponStatRow() const
 {
-	if (bOverrideCombo) { return OverrideAttackMontage; }
-	return IsValid(WeaponStyle) ? WeaponStyle->AttackMontage : nullptr;
+    return WeaponStatRowHandle.GetRow<FRVWeaponStatRow>(TEXT("URVWeaponDataAsset::GetWeaponStatRow"));
 }
 
-// --- Heavy Attack (charge and release are overridden independently) -----------
+UAnimMontage* URVWeaponDataAsset::GetComboMontage(int32 InIndex) const
+{
+    return IsValid(AnimationDataAsset) ? AnimationDataAsset->GetComboMontage(InIndex) : nullptr;
+}
+
+int32 URVWeaponDataAsset::GetMaxComboCount() const
+{
+    return IsValid(AnimationDataAsset) ? AnimationDataAsset->GetMaxComboCount() : 0;
+}
 
 UAnimMontage* URVWeaponDataAsset::GetHeavyChargeMontage() const
 {
-	if (bOverrideHeavyChargeMontage) { return OverrideHeavyChargeMontage; }
-	return IsValid(WeaponStyle) ? WeaponStyle->HeavyChargeMontage : nullptr;
+    if (bOverrideHeavyChargeMontage) { return OverrideHeavyChargeMontage; }
+    return IsValid(AnimationDataAsset) ? AnimationDataAsset->HeavyChargeMontage : nullptr;
 }
 
-UAnimMontage* URVWeaponDataAsset::GetHeavyAttackMontage() const
+UAnimMontage* URVWeaponDataAsset::GetHeavyAttackMontage(bool bIsMax) const
 {
-	if (bOverrideHeavyAttackMontage) { return OverrideHeavyAttackMontage; }
-	return IsValid(WeaponStyle) ? WeaponStyle->HeavyAttackMontage : nullptr;
+    if (bOverrideHeavyAttackMontage)
+    {
+        return bIsMax
+            ? OverrideMaxHeavyAttackMontage.Get()
+            : OverrideHeavyAttackMontage.Get();
+    }
+    if (!IsValid(AnimationDataAsset)) { return nullptr; }
+    return bIsMax
+        ? AnimationDataAsset->HeavyAttackMontage.Get()
+        : AnimationDataAsset->MaxHeavyAttackMontage.Get();
 }
-
-// --- Dodge (instance-level override supported) --------------------------------
 
 UAnimMontage* URVWeaponDataAsset::GetDodgeMontage() const
 {
-	if (bOverrideDodgeMontage) { return OverrideDodgeMontage; }
-	return IsValid(WeaponStyle) ? WeaponStyle->DodgeMontage : nullptr;
+    if (bOverrideDodgeMontage) { return OverrideDodgeMontage; }
+    return IsValid(AnimationDataAsset) ? AnimationDataAsset->DodgeMontage : nullptr;
 }
-
-// --- Style-level assets (no instance override — WeaponStyle owns these) ------
 
 UAnimMontage* URVWeaponDataAsset::GetGuardBreakMontage() const
 {
-	return IsValid(WeaponStyle) ? WeaponStyle->GuardBreakMontage : nullptr;
+    return IsValid(AnimationDataAsset) ? AnimationDataAsset->GuardBreakMontage : nullptr;
 }
 
 UAnimMontage* URVWeaponDataAsset::GetGuardHitMontage() const
 {
-	return IsValid(WeaponStyle) ? WeaponStyle->GuardHitMontage : nullptr;
+    return IsValid(AnimationDataAsset) ? AnimationDataAsset->GuardHitMontage : nullptr;
 }
 
 UBlendSpace* URVWeaponDataAsset::GetLocomotionBS() const
 {
-	return IsValid(WeaponStyle) ? WeaponStyle->LocomotionBS : nullptr;
+    return IsValid(AnimationDataAsset) ? AnimationDataAsset->LocomotionBS : nullptr;
 }
 
 UBlendSpace* URVWeaponDataAsset::GetLockOnLocomotionBS() const
 {
-	return IsValid(WeaponStyle) ? WeaponStyle->LockOnLocomotionBS : nullptr;
+    return IsValid(AnimationDataAsset) ? AnimationDataAsset->LockOnLocomotionBS : nullptr;
 }
 
 UBlendSpace* URVWeaponDataAsset::GetGuardLocomotionBS() const
 {
-	return IsValid(WeaponStyle) ? WeaponStyle->GuardLocomotionBS : nullptr;
+    return IsValid(AnimationDataAsset) ? AnimationDataAsset->GuardLocomotionBS : nullptr;
 }
 
 UBlendSpace* URVWeaponDataAsset::GetGuardLocomotionBS_LockOn() const
 {
-	return IsValid(WeaponStyle) ? WeaponStyle->GuardLocomotionBS_LockOn : nullptr;
-}
-
-// --- Combo metadata ----------------------------------------------------------
-
-int32 URVWeaponDataAsset::GetMaxComboCount() const
-{
-	if (bOverrideCombo) { return OverrideMaxComboCount; }
-	return IsValid(WeaponStyle) ? WeaponStyle->MaxComboCount : 0;
-}
-
-const TArray<FName>& URVWeaponDataAsset::GetComboSectionNames() const
-{
-	static const TArray<FName> EmptyNames;
-	if (bOverrideCombo) { return OverrideComboSectionNames; }
-	return IsValid(WeaponStyle) ? WeaponStyle->ComboSectionNames : EmptyNames;
+    return IsValid(AnimationDataAsset) ? AnimationDataAsset->GuardLocomotionBS_LockOn : nullptr;
 }
