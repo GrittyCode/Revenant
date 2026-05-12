@@ -124,7 +124,7 @@ void URVCombatStateComponent::PerformAttackTrace()
     const float Damage      = BaseDamage      * DmgMult;
     const float PoiseDamage = BasePoiseDamage * PoiseMult;
     const ERVHitType HitType = AttackStat ? AttackStat->HitType : ERVHitType::Normal;
-    const float AttackRadius = WeaponData->AttackRadius;
+    const float AttackRadius = 40.0f; // Hard Coding  -> Weapon Socket
 
     // --- Capsule sweep -------------------------------------------------------
 

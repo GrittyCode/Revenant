@@ -9,6 +9,7 @@ class ACharacter;
 class URVAttributeComponent;
 class URVEquipmentComponent;
 class URVCombatStateComponent;
+class URVCharacterDataAsset;
 class UAnimMontage;
 
 UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
@@ -33,7 +34,8 @@ public:
 	void InitReferences(ACharacter* InOwnerCharacter,
 						URVCombatStateComponent* InCombatStateComponent,
 						URVAttributeComponent* InAttributeComponent,
-						URVEquipmentComponent* InEquipmentComponent);
+						URVEquipmentComponent* InEquipmentComponent,
+						URVCharacterDataAsset* InCharacterData);
 
 protected:
 	virtual void BeginPlay() override;
@@ -50,6 +52,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<URVEquipmentComponent> EquipmentComponent;
+
+	UPROPERTY()
+	TObjectPtr<URVCharacterDataAsset> CharacterData;
 
 	void EndDodge();
 	void OnDodgeMontageBlendingOut(UAnimMontage*, bool bInterrupted);

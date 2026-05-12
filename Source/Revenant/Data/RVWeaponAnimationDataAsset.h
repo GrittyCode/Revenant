@@ -1,3 +1,4 @@
+// Source/Revenant/Data/RVWeaponAnimationDataAsset.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -7,14 +8,20 @@
 class UAnimMontage;
 class UBlendSpace;
 
-UCLASS()
+
+/**
+ * Layer 1 — Weapon Animation Set.
+ * Defines a moveset: all montages, blendspaces, and the weapon category this style belongs to.
+ * Multiple weapon instances (URVWeaponDataAsset) can reference the same animation set
+ */
+UCLASS(BlueprintType)
 class REVENANT_API URVWeaponAnimationDataAsset : public UPrimaryDataAsset
 {
     GENERATED_BODY()
 
 public:
     //--- Combo Montages ------------------------------------------------------
-    // Each montage carries its own stat row via URVMontageStatData (AssetUserData).
+    // Each montage carries its own stat multiplier row via URVMontageStatData (AssetUserData).
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Combo")
     TArray<TObjectPtr<UAnimMontage>> ComboMontages;
@@ -30,17 +37,11 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UAnimMontage> HeavyChargeMontage;
 
-    /**
-     * Played on manual release. Attach URVMontageStatData with StaminaCost = charge cost.
-     * StaminaCost is read at charge start — not at release.
-     */
+    // Played on manual release.
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UAnimMontage> HeavyAttackMontage;
 
-    /**
-     * Played on auto-release (max charge). Attach URVMontageStatData with StaminaCost = 0
-     * (stamina was already consumed at charge start from the Manual montage's row).
-     */
+    // Played on auto-release (max charge).
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UAnimMontage> MaxHeavyAttackMontage;
 

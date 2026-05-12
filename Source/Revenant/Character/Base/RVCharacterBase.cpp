@@ -52,7 +52,7 @@ void ARVCharacterBase::BeginPlay()
     CombatStateComponent->InitReferences (this, EquipmentComponent, MoveComp);
     ComboComponent->InitReferences       (this, CombatStateComponent, AttributeComponent, EquipmentComponent);
     HeavyAttackComponent->InitReferences (this, CombatStateComponent, AttributeComponent, EquipmentComponent);
-    DodgeComponent->InitReferences       (this, CombatStateComponent, AttributeComponent, EquipmentComponent);
+    DodgeComponent->InitReferences       (this, CombatStateComponent, AttributeComponent, EquipmentComponent, CharacterData);
     GuardComponent->InitReferences       (this, CombatStateComponent, AttributeComponent, EquipmentComponent);
     HitReactionComponent->InitReferences (this, CombatStateComponent, AttributeComponent, EquipmentComponent, CharacterData);
 

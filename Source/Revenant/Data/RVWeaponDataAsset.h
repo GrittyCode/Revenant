@@ -1,4 +1,3 @@
-// Source/Revenant/Data/RVWeaponDataAsset.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -8,38 +7,45 @@
 
 class UAnimMontage;
 class UBlendSpace;
+class USkeletalMesh;
 class URVWeaponAnimationDataAsset;
 struct FRVWeaponStatRow;
 
+/**
+ * Layer 2 — Weapon Instance.
+ * Represents one specific weapon. References an AnimationDataAsset for all
+ * shared moveset data, owns its own stat row and mesh.
+ */
 UCLASS(BlueprintType)
 class REVENANT_API URVWeaponDataAsset : public UPrimaryDataAsset
 {
     GENERATED_BODY()
 
 public:
+    //--- Animation Set Reference ---------------------------------------------
+
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<URVWeaponAnimationDataAsset> AnimationDataAsset;
 
-    //--- Weapon Base Stats ---------------------------------------------------
+    //--- Base Stats ----------------------------------------------------------
     // Points to a row in DT_WeaponStats.
-    // Final hit values = WeaponStat.Base* × AttackStatRow.Multiplier.
+    // Final hit values = WeaponStat.Base* x AttackStatRow.Multiplier.
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Combat")
     FDataTableRowHandle WeaponStatRowHandle;
 
     const FRVWeaponStatRow* GetWeaponStatRow() const;
 
-    //--- Per-Instance Values -------------------------------------------------
+    //--- Weapon Mesh ---------------------------------------------------------
+    // Loaded and attached by URVEquipmentComponent in Phase 4.
+    // Soft reference — asset path stored, loaded on demand.
+    // WeaponRoot / WeaponTip sockets on this mesh define attack capsule dimensions.
 
-    // Capsule width for attack sweep. Height is derived from WeaponRoot→WeaponTip distance.
-    // Kept in editor — physical property of the weapon mesh, not derivable from CSV.
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Combat")
-    float AttackRadius = 40.f;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Mesh")
+    TSoftObjectPtr<USkeletalMesh> WeaponMesh;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Combat")
-    float DodgeStaminaCost = 30.f;
-
-    //--- Heavy Attack Montage Override ---------------------------------------
+    //--- Per-Instance Montage Overrides --------------------------------------
+    // Use only when this specific weapon needs a different montage from its animation set.
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Override|HeavyAttack",
               meta = (InlineEditConditionToggle))
@@ -61,8 +67,6 @@ public:
               meta = (EditCondition = "bOverrideHeavyAttackMontage"))
     TObjectPtr<UAnimMontage> OverrideMaxHeavyAttackMontage;
 
-    //--- Dodge Montage Override ----------------------------------------------
-
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Override|Dodge",
               meta = (InlineEditConditionToggle))
     uint8 bOverrideDodgeMontage : 1;
@@ -71,10 +75,15 @@ public:
               meta = (EditCondition = "bOverrideDodgeMontage"))
     TObjectPtr<UAnimMontage> OverrideDodgeMontage;
 
-    //--- Montage Getters -----------------------------------------------------
+    //--- Getters (all route through AnimationDataAsset) ----------------------
 
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UAnimMontage* GetComboMontage(int32 InIndex) const;
+
+    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
+    int32 GetMaxComboCount() const;
+
+    int32 FindComboMontageIndex(const UAnimMontage* InMontage) const;
 
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UAnimMontage* GetHeavyChargeMontage() const;
@@ -91,7 +100,17 @@ public:
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UAnimMontage* GetGuardHitMontage() const;
 
-    //--- Locomotion Getters --------------------------------------------------
+    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
+    UAnimMontage* GetGroggyMontage() const;
+
+    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
+    UAnimMontage* GetKnockdownMontage() const;
+
+    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
+    UAnimMontage* GetGetUpMontage() const;
+
+    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
+    UBlendSpace* GetStaggerBlendSpace() const;
 
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UBlendSpace* GetLocomotionBS() const;
@@ -104,7 +123,4 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UBlendSpace* GetGuardLocomotionBS_LockOn() const;
-
-    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
-    int32 GetMaxComboCount() const;
 };

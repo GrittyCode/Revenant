@@ -23,7 +23,12 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Attribute")
 	float StaminaRegenDelay = 1.5f;
+	
+	//--- Stamina Costs -----------------------------------------------------------
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Stamina")
+	float DodgeStaminaCost = 30.f;
+	
 	//--- Poise ---------------------------------------------------------------
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Poise")
@@ -37,6 +42,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Poise")
 	float StaggerDuration = 0.5f;
 
+	
 	// Timer-driven — montage length does not define the window.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Poise")
 	float GroggyDuration = 3.f;
