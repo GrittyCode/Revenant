@@ -1,3 +1,4 @@
+// Source/Revenant/Input/RVInputConfig.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -36,11 +37,12 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
 	TObjectPtr<UInputAction> GuardAction;
 	
-	/** Left Shift — used as Chord modifier for heavy attack. */
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
 	TObjectPtr<UInputAction> HeavyModifierAction;
 
-	/** Tab — toggles between WeaponDataA and WeaponDataB. Removed in Phase 4 (Pickup replaces this). */
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
 	TObjectPtr<UInputAction> WeaponSwapAction;
+
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
+	TObjectPtr<UInputAction> LockOnAction;
 };

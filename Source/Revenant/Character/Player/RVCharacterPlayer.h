@@ -1,3 +1,4 @@
+// Source/Revenant/Character/Player/RVCharacterPlayer.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -9,7 +10,7 @@ class UInputMappingContext;
 class USpringArmComponent;
 class UCameraComponent;
 class URVWeaponDataAsset;
-class URVSprintComponent;
+class URVLockOnComponent;
 
 struct FInputActionValue;
 
@@ -44,6 +45,8 @@ private:
     void InputGuardStarted  (const FInputActionValue& Value);
     void InputGuardCompleted(const FInputActionValue& Value);
 
+    void InputLockOn(const FInputActionValue& Value);
+
     // Phase 2 only — replaced by ARVWeaponPickup overlap in Phase 4.
     void InputWeaponSwap(const FInputActionValue& Value);
 
@@ -62,6 +65,11 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "RV|Components")
     TObjectPtr<UCameraComponent> FollowCamera;
+
+    // -- Lock-on --------------------------------------------------------------
+
+    UPROPERTY(VisibleAnywhere, Category = "RV|Components")
+    TObjectPtr<URVLockOnComponent> LockOnComponent;
 
     // -- Attack Rotation ------------------------------------------------------
 

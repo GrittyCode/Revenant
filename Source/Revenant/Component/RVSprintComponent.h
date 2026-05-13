@@ -29,6 +29,8 @@ public:
     UFUNCTION(BlueprintCallable, Category = "RV|Sprint")
     bool IsSprinting() const { return bIsSprinting; }
 
+    float GetSprintSpeed() const { return SprintSpeed; }
+
     /** Called via CombatStateComponent::OnForceEnd. */
     void ForceEndSprint();
 

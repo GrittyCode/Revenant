@@ -80,6 +80,11 @@ UBlendSpace* URVWeaponDataAsset::GetLocomotionBS() const
     return IsValid(AnimationDataAsset) ? AnimationDataAsset->LocomotionBS.Get() : nullptr;
 }
 
+UBlendSpace* URVWeaponDataAsset::GetRunLocomotionBS() const
+{
+    return IsValid(AnimationDataAsset) ? AnimationDataAsset->RunLocomotionBS.Get() : nullptr;
+}
+
 UBlendSpace* URVWeaponDataAsset::GetLockOnLocomotionBS() const
 {
     return IsValid(AnimationDataAsset) ? AnimationDataAsset->LockOnLocomotionBS.Get() : nullptr;

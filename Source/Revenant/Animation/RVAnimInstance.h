@@ -1,3 +1,4 @@
+// Source/Revenant/Animation/RVAnimInstance.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -8,6 +9,8 @@ class URVEquipmentComponent;
 class URVComboComponent;
 class URVCombatStateComponent;
 class URVHitReactionComponent;
+class URVLockOnComponent;
+class URVSprintComponent;
 class URVWeaponDataAsset;
 class UBlendSpace;
 
@@ -27,11 +30,19 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     float Speed;
 
+    // Speed / SprintSpeed (0~1). BS input — stays accurate regardless of sprint state.
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
+    float NormalizedSpeed;
+
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     float Direction;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UBlendSpace> CachedLocomotionBS;
+
+    // Sprint state only — Default mode. Switched via bIsSprinting in ABP.
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
+    TObjectPtr<UBlendSpace> CachedRunLocomotionBS;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UBlendSpace> CachedLockOnLocomotionBS;
@@ -52,6 +63,9 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     uint8 bIsLockedOn : 1;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
+    uint8 bIsSprinting : 1;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     uint8 bIsGuarding : 1;
@@ -87,6 +101,15 @@ private:
 
     UPROPERTY()
     TObjectPtr<URVHitReactionComponent> HitReactionComponent;
+
+    UPROPERTY()
+    TObjectPtr<URVLockOnComponent> LockOnComponent;
+
+    UPROPERTY()
+    TObjectPtr<URVSprintComponent> SprintComponent;
+
+    // Cached at init from SprintComponent — fixed denominator for NormalizedSpeed.
+    float MaxLocomotionSpeed = 1.f;
 
     UFUNCTION()
     void OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData);

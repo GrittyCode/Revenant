@@ -1,3 +1,4 @@
+// Source/Revenant/Character/Player/RVCharacterPlayer.cpp
 #include "Character/Player/RVCharacterPlayer.h"
 #include "Camera/CameraComponent.h"
 #include "Component/RVCombatStateComponent.h"
@@ -7,6 +8,7 @@
 #include "Component/RVComboComponent.h"
 #include "Component/RVSprintComponent.h"
 #include "Component/RVEquipmentComponent.h"
+#include "Component/RVLockOnComponent.h"
 #include "Data/RVWeaponDataAsset.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -26,13 +28,15 @@ ARVCharacterPlayer::ARVCharacterPlayer()
     FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
     FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
     FollowCamera->bUsePawnControlRotation = false;
+
+    LockOnComponent = CreateDefaultSubobject<URVLockOnComponent>(TEXT("LockOnComponent"));
 }
 
 void ARVCharacterPlayer::BeginPlay()
 {
     Super::BeginPlay();
 
-    const APlayerController* PC = Cast<APlayerController>(GetController());
+    APlayerController* PC = Cast<APlayerController>(GetController());
     if (!ensureMsgf(IsValid(PC), TEXT("[%s] PlayerController missing — must be possessed by a player"), *GetName()))
     {
         return;
@@ -52,14 +56,17 @@ void ARVCharacterPlayer::BeginPlay()
     }
 
     Subsystem->AddMappingContext(DefaultMappingContext, 0);
+
+    LockOnComponent->InitReferences(this, PC, CombatStateComponent);
 }
 
 void ARVCharacterPlayer::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    // Rotate toward camera yaw while attacking.
-    // Skipped outside attack states to avoid interfering with Orient-to-Movement.
+    // LockOnComponent drives rotation — attack interp would fight it
+    if (LockOnComponent->IsLockedOn()) { return; }
+
     if (CombatStateComponent->IsInState(ERVCombatState::Attacking | ERVCombatState::HeavyCharging | ERVCombatState::HeavyAttacking))
     {
         const FRotator ControlRot = GetControlRotation();
@@ -101,6 +108,12 @@ void ARVCharacterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputC
     Eic->BindAction(InputConfig->GuardAction, ETriggerEvent::Started,   this, &ARVCharacterPlayer::InputGuardStarted);
     Eic->BindAction(InputConfig->GuardAction, ETriggerEvent::Completed, this, &ARVCharacterPlayer::InputGuardCompleted);
 
+    // Lock-on: Q toggle.
+    if (IsValid(InputConfig->LockOnAction))
+    {
+        Eic->BindAction(InputConfig->LockOnAction, ETriggerEvent::Started, this, &ARVCharacterPlayer::InputLockOn);
+    }
+
     // Weapon swap: Tab — Phase 2 temp, replaced by ARVWeaponPickup in Phase 4.
     if (IsValid(InputConfig->WeaponSwapAction))
     {
@@ -112,7 +125,7 @@ void ARVCharacterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 
 void ARVCharacterPlayer::InputMove(const FInputActionValue& Value)
 {
-	if (CombatStateComponent->IsInState(ERVCombatState::HitReaction)) { return; }
+    if (CombatStateComponent->IsInState(ERVCombatState::HitReaction)) { return; }
 
     const FVector2D Axis = Value.Get<FVector2D>();
     const FRotator YawOnly(0.f, GetControlRotation().Yaw, 0.f);
@@ -165,6 +178,8 @@ void ARVCharacterPlayer::InputDodge(const FInputActionValue& Value)
 
 void ARVCharacterPlayer::InputSprintStarted(const FInputActionValue& Value)
 {
+	if (LockOnComponent->IsLockedOn()) { return; }
+
     SprintComponent->StartSprint();
 }
 
@@ -183,7 +198,17 @@ void ARVCharacterPlayer::InputGuardCompleted(const FInputActionValue& Value)
     GuardComponent->EndGuard();
 }
 
-// ─── Weapon Swap (temp) ──────────────────────────────────────────────
+void ARVCharacterPlayer::InputLockOn(const FInputActionValue& Value)
+{
+	if (SprintComponent->IsSprinting())
+	{
+		SprintComponent->EndSprint();
+	}
+	
+    LockOnComponent->ToggleLockOn();
+}
+
+// ─── Weapon Swap (temp) ──────────────────────────────────────────────────────
 
 void ARVCharacterPlayer::InputWeaponSwap(const FInputActionValue& Value)
 {

@@ -1,4 +1,3 @@
-// Source/Revenant/Data/RVWeaponAnimationDataAsset.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -11,7 +10,6 @@ class UBlendSpace;
 
 /**
  * Layer 1 — Weapon Animation Set.
- * Defines a moveset: all montages, blendspaces, and the weapon category this style belongs to.
  * Multiple weapon instances (URVWeaponDataAsset) can reference the same animation set
  */
 UCLASS(BlueprintType)
@@ -76,6 +74,10 @@ public:
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Locomotion")
     TObjectPtr<UBlendSpace> LocomotionBS;
+
+    // Sprint state only — Default mode. No LockOn variant (LockOn caps at Jog).
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Locomotion")
+    TObjectPtr<UBlendSpace> RunLocomotionBS;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Locomotion")
     TObjectPtr<UBlendSpace> LockOnLocomotionBS;

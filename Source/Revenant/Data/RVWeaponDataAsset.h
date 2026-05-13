@@ -116,6 +116,9 @@ public:
     UBlendSpace* GetLocomotionBS() const;
 
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
+    UBlendSpace* GetRunLocomotionBS() const;
+
+    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UBlendSpace* GetLockOnLocomotionBS() const;
 
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")

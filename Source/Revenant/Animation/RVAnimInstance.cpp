@@ -1,8 +1,11 @@
+// Source/Revenant/Animation/RVAnimInstance.cpp
 #include "Animation/RVAnimInstance.h"
 #include "Component/RVComboComponent.h"
 #include "Component/RVCombatStateComponent.h"
 #include "Component/RVEquipmentComponent.h"
 #include "Component/RVHitReactionComponent.h"
+#include "Component/RVLockOnComponent.h"
+#include "Component/RVSprintComponent.h"
 #include "Data/RVWeaponDataAsset.h"
 #include "KismetAnimationLibrary.h"
 #include "GameFramework/Character.h"
@@ -19,6 +22,20 @@ void URVAnimInstance::NativeInitializeAnimation()
     ComboComponent       = OwnerCharacter->FindComponentByClass<URVComboComponent>();
     CombatStateComponent = OwnerCharacter->FindComponentByClass<URVCombatStateComponent>();
     HitReactionComponent = OwnerCharacter->FindComponentByClass<URVHitReactionComponent>();
+    LockOnComponent      = OwnerCharacter->FindComponentByClass<URVLockOnComponent>();
+    SprintComponent      = OwnerCharacter->FindComponentByClass<URVSprintComponent>();
+
+    ensureMsgf(IsValid(EquipmentComponent),   TEXT("[%s] EquipmentComponent missing"),   *GetNameSafe(OwnerCharacter));
+    ensureMsgf(IsValid(ComboComponent),       TEXT("[%s] ComboComponent missing"),       *GetNameSafe(OwnerCharacter));
+    ensureMsgf(IsValid(CombatStateComponent), TEXT("[%s] CombatStateComponent missing"), *GetNameSafe(OwnerCharacter));
+    ensureMsgf(IsValid(HitReactionComponent), TEXT("[%s] HitReactionComponent missing"), *GetNameSafe(OwnerCharacter));
+    ensureMsgf(IsValid(LockOnComponent),      TEXT("[%s] LockOnComponent missing"),      *GetNameSafe(OwnerCharacter));
+    ensureMsgf(IsValid(SprintComponent),      TEXT("[%s] SprintComponent missing"),      *GetNameSafe(OwnerCharacter));
+
+    if (IsValid(SprintComponent))
+    {
+        MaxLocomotionSpeed = SprintComponent->GetSprintSpeed();
+    }
 
     if (IsValid(EquipmentComponent))
     {
@@ -49,6 +66,7 @@ void URVAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
     // --- Locomotion ----------------------------------------------------------
 
     Speed = OwnerCharacter->GetVelocity().Size2D();
+    NormalizedSpeed = FMath::Clamp(Speed / MaxLocomotionSpeed, 0.f, 1.f);
 
     Direction = UKismetAnimationLibrary::CalculateDirection(
         OwnerCharacter->GetVelocity(),
@@ -57,18 +75,20 @@ void URVAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
     // --- State ---------------------------------------------------------------
 
     bIsInAir         = OwnerCharacter->GetCharacterMovement()->IsFalling();
-    bIsAttacking     = IsValid(ComboComponent)       ? ComboComponent->IsComboActive()                               : false;
-    bIsGuarding      = IsValid(CombatStateComponent) ? CombatStateComponent->IsInState(ERVCombatState::Guarding)     : false;
-    bIsInHitReaction = IsValid(CombatStateComponent) ? CombatStateComponent->IsInState(ERVCombatState::HitReaction)  : false;
-    bIsKnockedDown   = IsValid(CombatStateComponent) ? CombatStateComponent->IsInState(ERVCombatState::Knockdown)    : false;
-    bIsLockedOn      = false;
+    bIsAttacking     = ComboComponent->IsComboActive();
+    bIsGuarding      = CombatStateComponent->IsInState(ERVCombatState::Guarding);
+    bIsInHitReaction = CombatStateComponent->IsInState(ERVCombatState::HitReaction);
+    bIsKnockedDown   = CombatStateComponent->IsInState(ERVCombatState::Knockdown);
+    bIsLockedOn      = LockOnComponent->IsLockedOn();
+    bIsSprinting     = SprintComponent->IsSprinting();
 
-    StaggerDirection = IsValid(HitReactionComponent) ? HitReactionComponent->GetStaggerDirection() : 0.f;
+    StaggerDirection = HitReactionComponent->GetStaggerDirection();
 }
 
 void URVAnimInstance::OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData)
 {
     CachedLocomotionBS             = IsValid(NewWeaponData) ? NewWeaponData->GetLocomotionBS()             : nullptr;
+    CachedRunLocomotionBS          = IsValid(NewWeaponData) ? NewWeaponData->GetRunLocomotionBS()          : nullptr;
     CachedLockOnLocomotionBS       = IsValid(NewWeaponData) ? NewWeaponData->GetLockOnLocomotionBS()       : nullptr;
     CachedGuardLocomotionBS        = IsValid(NewWeaponData) ? NewWeaponData->GetGuardLocomotionBS()        : nullptr;
     CachedGuardLocomotionBS_LockOn = IsValid(NewWeaponData) ? NewWeaponData->GetGuardLocomotionBS_LockOn() : nullptr;
