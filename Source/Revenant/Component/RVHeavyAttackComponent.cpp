@@ -4,6 +4,8 @@
 #include "Component/RVEquipmentComponent.h"
 #include "Data/RVWeaponDataAsset.h"
 #include "Data/RVWeaponStatRow.h"
+#include "Data/RVMontageStatData.h"
+#include "Data/RVAttackActionMultiplierRow.h"
 #include "GameFramework/Character.h"
 #include "Animation/AnimInstance.h"
 
@@ -33,6 +35,7 @@ void URVHeavyAttackComponent::StartHeavyAttack()
 {
     if (!CombatStateComponent->CheckAvailableState()) { return; }
     if (!CombatStateComponent->IsGrounded()) { return; }
+    if (AttributeComponent->GetCurrentStamina() <= 0.f) { return; }
 
     const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
     if (!IsValid(WeaponData)) { return; }
@@ -40,19 +43,14 @@ void URVHeavyAttackComponent::StartHeavyAttack()
     UAnimMontage* ChargeMontage = WeaponData->GetHeavyChargeMontage();
     if (!IsValid(ChargeMontage)) { return; }
 
-    // Stamina cost is a flat weapon stat — not a per-hit multiplier.
-    // Paid upfront at charge start regardless of whether Manual or AutoRelease fires.
-    const FRVWeaponStatRow* WeaponStat = WeaponData->GetWeaponStatRow();
-    if (WeaponStat && WeaponStat->HeavyChargeStaminaCost > 0.f)
-    {
-        if (!AttributeComponent->ConsumeStamina(WeaponStat->HeavyChargeStaminaCost)) { return; }
-    }
-
     CombatStateComponent->AddState(ERVCombatState::HeavyCharging);
     bCanHeavyRelease = false;
     bPendingRelease  = false;
     bIsAutoRelease   = false;
-    AttributeComponent->PauseStaminaRegen();
+
+    // Charge has no per-frame stamina cost, so ConsumeStamina won't reset the clock.
+    // Reset manually so regen doesn't tick during the charge window.
+    AttributeComponent->ResetStaminaRegenDelay();
 
     UAnimInstance* AnimInstance = OwnerCharacter->GetMesh()->GetAnimInstance();
     if (!IsValid(AnimInstance)) { return; }
@@ -112,16 +110,23 @@ void URVHeavyAttackComponent::ExecuteHeavyAttack()
     UAnimInstance* AnimInstance = OwnerCharacter->GetMesh()->GetAnimInstance();
     if (!IsValid(AnimInstance)) { EndHeavyAttack(); return; }
 
-    // Select montage by tier — each montage carries its own URVMontageStatData.
-    // PerformAttackTrace reads HitType and multipliers directly from the playing montage.
     UAnimMontage* ReleaseMontage = WeaponData->GetHeavyAttackMontage(bIsAutoRelease);
     if (!IsValid(ReleaseMontage)) { EndHeavyAttack(); return; }
 
+    // Consume stamina at release — also resets the regen delay clock via ConsumeStamina.
+    const URVMontageStatData* StatData = ReleaseMontage->GetAssetUserData<URVMontageStatData>();
+    const FRVAttackActionMultiplierRow* AttackStat = StatData ? StatData->GetStatRow() : nullptr;
+    if (AttackStat && AttackStat->StaminaCostMultiplier > 0.f)
+    {
+        const FRVWeaponStatRow* WeaponStat = WeaponData->GetWeaponStatRow();
+        if (WeaponStat)
+        {
+            AttributeComponent->ConsumeStamina(WeaponStat->BaseStaminaCost * AttackStat->StaminaCostMultiplier);
+        }
+    }
+
     bIsAutoRelease = false;
 
-    // Remove HeavyCharging before playing release montage.
-    // OnChargeMontageBlendingOut checks HeavyCharging to detect external interruption —
-    // removing it here signals that this stop is intentional.
     CombatStateComponent->RemoveState(ERVCombatState::HeavyCharging);
     CombatStateComponent->AddState(ERVCombatState::HeavyAttacking);
 
@@ -158,7 +163,6 @@ void URVHeavyAttackComponent::EndHeavyAttack()
     bPendingRelease  = false;
     bIsAutoRelease   = false;
     GetWorld()->GetTimerManager().ClearTimer(ChargeAutoReleaseHandle);
-    AttributeComponent->ResumeStaminaRegen();
 }
 
 void URVHeavyAttackComponent::OnChargeAutoRelease()

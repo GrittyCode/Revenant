@@ -10,7 +10,6 @@ void URVAttributeComponent::BeginPlay()
 {
     Super::BeginPlay();
 
-    // Fallback init — overwritten by InitFromDataAsset if CharacterData is set
     CurrentHealth  = MaxHealth;
     CurrentStamina = MaxStamina;
     CurrentPoise   = MaxPoise;
@@ -22,11 +21,11 @@ void URVAttributeComponent::InitFromDataAsset(URVCharacterDataAsset* InData)
 {
     if (!IsValid(InData)) { return; }
 
-    MaxHealth        = InData->MaxHealth;
-    MaxStamina       = InData->MaxStamina;
-    StaminaRegenRate = InData->StaminaRegenRate;
+    MaxHealth         = InData->MaxHealth;
+    MaxStamina        = InData->MaxStamina;
+    StaminaRegenRate  = InData->StaminaRegenRate;
     StaminaRegenDelay = InData->StaminaRegenDelay;
-    MaxPoise         = InData->MaxPoise;
+    MaxPoise          = InData->MaxPoise;
 
     CurrentHealth  = MaxHealth;
     CurrentStamina = MaxStamina;
@@ -76,26 +75,38 @@ bool URVAttributeComponent::IsAlive() const
 
 bool URVAttributeComponent::ConsumeStamina(float InAmount)
 {
-    if (CurrentStamina < InAmount) { return false; }
+    if (CurrentStamina <= 0.f) { return false; }
 
     CurrentStamina = FMath::Max(0.f, CurrentStamina - InAmount);
     OnStaminaChanged.Broadcast(CurrentStamina, -InAmount);
+
+    // Reset the regen delay clock on every consumption.
+    // Regen starts StaminaRegenDelay seconds after the last ConsumeStamina call.
+    ResetStaminaRegenDelay();
+
     return true;
 }
 
 bool URVAttributeComponent::ApplyStaminaDamage(float InAmount)
 {
-    const float Clamped = FMath::Max(0.f, InAmount);
-    CurrentStamina = FMath::Max(0.f, CurrentStamina - Clamped);
-    OnStaminaChanged.Broadcast(CurrentStamina, -Clamped);
+	const float Clamped = FMath::Max(0.f, InAmount);
+	CurrentStamina = FMath::Max(0.f, CurrentStamina - Clamped);
+	OnStaminaChanged.Broadcast(CurrentStamina, -Clamped);
 
-    if (CurrentStamina <= 0.f)
-    {
-        // Publisher perspective: "stamina hit zero" — subscriber decides what this means.
-        OnStaminaDepleted.Broadcast();
-        return false;
-    }
-    return true;
+	ResetStaminaRegenDelay();
+
+	if (CurrentStamina <= 0.f)
+	{
+		OnStaminaDepleted.Broadcast();
+		return false;
+	}
+	return true;
+}
+
+void URVAttributeComponent::ResetStaminaRegenDelay()
+{
+    PauseStaminaRegen();
+    ResumeStaminaRegen();
 }
 
 void URVAttributeComponent::PauseStaminaRegen()
@@ -162,13 +173,10 @@ bool URVAttributeComponent::ApplyPoiseDamage(float InPoiseDamage)
 
     if (CurrentPoise <= 0.f)
     {
-        // Publisher perspective: "poise hit zero."
-        // The reaction decision (Stagger / Groggy / Knockdown) is made synchronously
-        // in URVHitReactionComponent::HandleHit based on the return value of this function.
         OnPoiseDepleted.Broadcast();
-        return true; // depleted — caller triggers reaction
+        return true;
     }
-    return false; // poise still remains
+    return false;
 }
 
 void URVAttributeComponent::ResetPoise()

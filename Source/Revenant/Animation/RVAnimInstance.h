@@ -7,6 +7,7 @@
 class URVEquipmentComponent;
 class URVComboComponent;
 class URVCombatStateComponent;
+class URVHitReactionComponent;
 class URVWeaponDataAsset;
 class UBlendSpace;
 
@@ -20,13 +21,8 @@ public:
     virtual void NativeUninitializeAnimation() override;
     virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 
-    /**
-     * InWorldHitDirection: world-space FROM instigator TOWARD target (normalized).
-     */
-    void TriggerHitReaction(const FVector& InWorldHitDirection);
-
 protected:
-    // --- Locomotion -----------------------------------------------------------
+    // --- Locomotion ----------------------------------------------------------
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     float Speed;
@@ -46,7 +42,7 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UBlendSpace> CachedGuardLocomotionBS_LockOn;
 
-    // --- Locomotion State ----------------------------------------------------
+    // --- State ---------------------------------------------------------------
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     uint8 bIsInAir : 1;
@@ -60,28 +56,21 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     uint8 bIsGuarding : 1;
 
-    // --- Physical Reaction ---------------------------------------------------
-
-    /**
-     * Alpha for the additive hit-reaction layer in the ABP.
-     * Set to 1.0 by TriggerHitReaction, then decays to 0 in NativeUpdateAnimation.
-     * Wire this to the "Alpha" pin of an "Apply Additive" node in ABP.
-     */
+    // True during stagger (timer-based). Drives Grounded → HitReaction transition.
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
-    float HitReactionWeight;
+    uint8 bIsInHitReaction : 1;
 
-    /**
-     * Angle (CalculateDirection-style, -180 to 180) of the hit origin direction,
-     * relative to this character's facing. Used by an AimOffset or blendspace
-     * in the ABP to select the correct directional flinch pose.
-     *
-     *   0   = hit came from front
-     *   180 = hit came from back
-     *   90  = hit came from right side
-     *  -90  = hit came from left side
-     */
+    // True during knockdown + get-up montage. Drives HitReaction → Knockdown transition.
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
-    float HitDirectionAngle;
+    uint8 bIsKnockedDown : 1;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
+    TObjectPtr<UBlendSpace> CachedStaggerBlendSpace;
+
+    // Polled from URVHitReactionComponent each frame.
+    // Character-local hit angle (-180~180) — Stagger BS Y-axis input.
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
+    float StaggerDirection;
 
 private:
     UPROPERTY()
@@ -96,8 +85,8 @@ private:
     UPROPERTY()
     TObjectPtr<URVCombatStateComponent> CombatStateComponent;
 
-    /** Rate at which HitReactionWeight decays per second. Adjust for flinch duration. */
-    static constexpr float HitReactionDecayRate = 4.f; // full decay in ~0.25s
+    UPROPERTY()
+    TObjectPtr<URVHitReactionComponent> HitReactionComponent;
 
     UFUNCTION()
     void OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData);

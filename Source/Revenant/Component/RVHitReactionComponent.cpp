@@ -2,13 +2,14 @@
 #include "Component/RVCombatStateComponent.h"
 #include "Component/RVAttributeComponent.h"
 #include "Component/RVEquipmentComponent.h"
-#include "Animation/RVAnimInstance.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimInstance.h"
 #include "Data/RVCharacterDataAsset.h"
 #include "Data/RVWeaponDataAsset.h"
 #include "Data/RVWeaponAnimationDataAsset.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "KismetAnimationLibrary.h"
 
 URVHitReactionComponent::URVHitReactionComponent()
 {
@@ -38,13 +39,7 @@ void URVHitReactionComponent::InitReferences(
 
 void URVHitReactionComponent::HandleHit(const FRVHitInfo& InHitInfo)
 {
-    // Physical reaction fires on every hit — micro-flinch in ABP without blocking actions.
-    TriggerPhysicalReaction(InHitInfo.HitDirection);
-
-    // Do not stack a new reaction on top of Groggy or Knockdown.
-    // Stacking would cancel the get-up sequence or extend Groggy unpredictably.
-    if (CombatStateComponent->IsInState(
-        ERVCombatState::Groggy | ERVCombatState::Knockdown | ERVCombatState::HitReaction))
+    if (CombatStateComponent->IsInState(ERVCombatState::Knockdown | ERVCombatState::HitReaction))
     {
         return;
     }
@@ -52,35 +47,20 @@ void URVHitReactionComponent::HandleHit(const FRVHitInfo& InHitInfo)
     const bool bPoiseDepleted = AttributeComponent->ApplyPoiseDamage(InHitInfo.PoiseDamage);
     if (!bPoiseDepleted) { return; }
 
-    // Interrupt all ongoing actions before playing reaction montage.
     CombatStateComponent->ForceEndAllActions();
+    AttributeComponent->ResetPoise();
 
-    // Knockdown conditions: Heavy hit type, airborne, or stagger-on-stagger.
     const bool bShouldKnockdown = InHitInfo.HitType != ERVHitType::Normal
                                 || !CombatStateComponent->IsGrounded()
                                 || CombatStateComponent->IsInState(ERVCombatState::HitReaction);
 
     if (bShouldKnockdown)
     {
-        AttributeComponent->ResetPoise();
-        TriggerKnockdown();
+        TriggerKnockdown(InHitInfo.HitDirection);
     }
     else
     {
-        ++StaggerCount;
-
-        const int32 Threshold = IsValid(CharacterData) ? CharacterData->GroggyThreshold : 2;
-        if (StaggerCount >= Threshold)
-        {
-            StaggerCount = 0;
-            AttributeComponent->ResetPoise();
-            TriggerGroggy();
-        }
-        else
-        {
-            AttributeComponent->ResetPoise();
-            TriggerStagger(InHitInfo.HitDirection);
-        }
+        TriggerStagger(InHitInfo.HitDirection);
     }
 }
 
@@ -88,14 +68,12 @@ void URVHitReactionComponent::HandleHit(const FRVHitInfo& InHitInfo)
 
 void URVHitReactionComponent::TriggerStaggerWithMontage(UAnimMontage* InMontage)
 {
-    // Guard break routes through here so montage length defines recovery — no separate timer.
     if (!IsValid(InMontage)) { return; }
 
     UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
     if (!IsValid(AnimInst)) { return; }
 
     CombatStateComponent->AddState(ERVCombatState::HitReaction);
-    AttributeComponent->PauseStaminaRegen();
 
     AnimInst->Montage_Play(InMontage);
 
@@ -106,28 +84,12 @@ void URVHitReactionComponent::TriggerStaggerWithMontage(UAnimMontage* InMontage)
 
 //--- Reaction Triggers -------------------------------------------------------
 
-void URVHitReactionComponent::TriggerPhysicalReaction(const FVector& InHitDirection)
-{
-    URVAnimInstance* AnimInst = Cast<URVAnimInstance>(
-        OwnerCharacter->GetMesh()->GetAnimInstance());
-    if (!IsValid(AnimInst)) { return; }
-
-    AnimInst->TriggerHitReaction(InHitDirection);
-}
-
 void URVHitReactionComponent::TriggerStagger(const FVector& InHitDirection)
 {
-    // Direction already set on AnimInstance by TriggerPhysicalReaction.
-    // ABP samples StaggerBlendSpace at HitDirectionAngle while HitReaction state is active.
-    // Duration comes from CharacterData — stagger resilience is a character stat, not weapon style.
-    URVAnimInstance* AnimInst = Cast<URVAnimInstance>(
-        OwnerCharacter->GetMesh()->GetAnimInstance());
-    if (!IsValid(AnimInst)) { return; }
-
-    AnimInst->TriggerHitReaction(InHitDirection);
+    StaggerDirection = UKismetAnimationLibrary::CalculateDirection(
+        InHitDirection, OwnerCharacter->GetActorRotation());
 
     CombatStateComponent->AddState(ERVCombatState::HitReaction);
-    AttributeComponent->PauseStaminaRegen();
 
     const float Duration = IsValid(CharacterData) ? CharacterData->StaggerDuration : 0.5f;
     GetWorld()->GetTimerManager().SetTimer(
@@ -139,33 +101,7 @@ void URVHitReactionComponent::TriggerStagger(const FVector& InHitDirection)
     );
 }
 
-void URVHitReactionComponent::TriggerGroggy()
-{
-    const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-    if (!IsValid(WeaponData) || !IsValid(WeaponData->AnimationDataAsset)) { return; }
-
-    URVWeaponAnimationDataAsset* AnimData = WeaponData->AnimationDataAsset;
-    if (!IsValid(AnimData->GroggyMontage)) { return; }
-
-    UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
-    if (!IsValid(AnimInst)) { return; }
-
-    CombatStateComponent->AddState(ERVCombatState::Groggy);
-    AttributeComponent->PauseStaminaRegen();
-
-    AnimInst->Montage_Play(AnimData->GroggyMontage);
-
-    // Timer-driven recovery — execution window is predictable regardless of montage length.
-    GetWorld()->GetTimerManager().SetTimer(
-        GroggyHandle,
-        this,
-        &URVHitReactionComponent::EndGroggy,
-        IsValid(CharacterData) ? CharacterData->GroggyDuration : 3.f,
-        false
-    );
-}
-
-void URVHitReactionComponent::TriggerKnockdown()
+void URVHitReactionComponent::TriggerKnockdown(const FVector& InHitDirection)
 {
     const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
     if (!IsValid(WeaponData) || !IsValid(WeaponData->AnimationDataAsset)) { return; }
@@ -175,10 +111,10 @@ void URVHitReactionComponent::TriggerKnockdown()
 
     UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
     if (!IsValid(AnimInst)) { return; }
-
-    CombatStateComponent->AddState(ERVCombatState::Knockdown);
-    AttributeComponent->PauseStaminaRegen();
-
+	
+	OwnerCharacter->SetActorRotation(FRotationMatrix::MakeFromX(InHitDirection).Rotator());
+	CombatStateComponent->AddState(ERVCombatState::Knockdown);
+	
     AnimInst->Montage_Play(AnimData->KnockdownMontage);
 
     FOnMontageBlendingOutStarted BlendingOutDelegate;
@@ -191,34 +127,15 @@ void URVHitReactionComponent::TriggerKnockdown()
 void URVHitReactionComponent::OnStaggerEnd()
 {
     CombatStateComponent->RemoveState(ERVCombatState::HitReaction);
-    AttributeComponent->ResumeStaminaRegen();
 }
 
 void URVHitReactionComponent::OnStaggerMontageBlendingOut(UAnimMontage* /*Montage*/, bool /*bInterrupted*/)
 {
     CombatStateComponent->RemoveState(ERVCombatState::HitReaction);
-    AttributeComponent->ResumeStaminaRegen();
-}
-
-void URVHitReactionComponent::EndGroggy()
-{
-    const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-    if (IsValid(WeaponData) && IsValid(WeaponData->AnimationDataAsset))
-    {
-        UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
-        if (IsValid(AnimInst) && IsValid(WeaponData->AnimationDataAsset->GroggyMontage))
-        {
-            AnimInst->Montage_Stop(0.3f, WeaponData->AnimationDataAsset->GroggyMontage);
-        }
-    }
-
-    CombatStateComponent->RemoveState(ERVCombatState::Groggy);
-    AttributeComponent->ResumeStaminaRegen();
 }
 
 void URVHitReactionComponent::OnKnockdownMontageBlendingOut(UAnimMontage* /*Montage*/, bool /*bInterrupted*/)
 {
-    // Knockdown cleared only after get-up completes, not here.
     const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
     if (!IsValid(WeaponData) || !IsValid(WeaponData->AnimationDataAsset)) { return; }
 
@@ -238,5 +155,4 @@ void URVHitReactionComponent::OnKnockdownMontageBlendingOut(UAnimMontage* /*Mont
 void URVHitReactionComponent::OnGetUpMontageBlendingOut(UAnimMontage* /*Montage*/, bool /*bInterrupted*/)
 {
     CombatStateComponent->RemoveState(ERVCombatState::Knockdown);
-    AttributeComponent->ResumeStaminaRegen();
 }

@@ -14,6 +14,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnStaminaDepleted);
 /**
  * Fired when poise reaches 0 via ApplyPoiseDamage.
  * The stagger/groggy/knockdown decision is made synchronously inside
+ * URVHitReactionComponent::HandleHit using the bool return value.
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnPoiseDepleted);
 
@@ -42,7 +43,7 @@ public:
 
     /**
      * Fired when poise reaches 0 via ApplyPoiseDamage.
-     * For external subscribers only — reaction logic is handled synchronously
+     * For external subscribers only — reaction logic is handled synchronously.
      */
     UPROPERTY(BlueprintAssignable, Category = "RV|Attribute")
     FRVOnPoiseDepleted OnPoiseDepleted;
@@ -67,22 +68,25 @@ public:
     // ─── Stamina ─────────────────────────────────────────────────────────────
 
     /**
-     * Returns true if stamina was sufficient.
+     * Deducts InAmount from stamina. Returns false if stamina was already 0.
+     * Automatically resets the regen delay clock — regen starts StaminaRegenDelay
+     * seconds after the last ConsumeStamina call.
      */
     bool ConsumeStamina(float InAmount);
 
-    /**
-     * Returns true if guard held (stamina still > 0).
-     */
+    /** Returns true if guard held (stamina still > 0). */
     bool ApplyStaminaDamage(float InAmount);
 
-    /** Stops regen. Called by action components on combat state entry. */
+    /**
+     * Resets the regen delay clock without consuming stamina.
+     * Used by actions that occupy the character without stamina cost (e.g. heavy charge).
+     */
+    void ResetStaminaRegenDelay();
+
+    /** Hard-stops regen. Reserved for heavy charge suppression. */
     void PauseStaminaRegen();
 
-    /**
-     * Schedules regen to resume after StaminaRegenDelay.
-     * Called by action components on combat state exit.
-     */
+    /** Schedules regen to resume after StaminaRegenDelay. */
     void ResumeStaminaRegen();
 
     UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
@@ -95,13 +99,13 @@ public:
 
     /**
      * Reduces poise by InPoiseDamage.
-     * Returns true if poise was depleted (reached 0) — URVHitReactionComponent.
+     * Returns true if poise was depleted (reached 0).
      */
     bool ApplyPoiseDamage(float InPoiseDamage);
 
     /**
      * Restores poise to MaxPoise.
-     * Called by URVHitReactionComponent after each Stagger or Groggy entry
+     * Called by URVHitReactionComponent after each Stagger or Groggy entry.
      */
     void ResetPoise();
 
@@ -137,7 +141,7 @@ private:
     UPROPERTY(EditDefaultsOnly, Category = "RV|Attribute")
     float StaminaRegenInterval = 0.1f;
 
-    /** Delay before regen starts after ResumeStaminaRegen is called. Loaded from DataAsset. */
+    /** Delay before regen starts after the last stamina consumption. Loaded from DataAsset. */
     UPROPERTY(VisibleAnywhere, Category = "RV|Attribute")
     float StaminaRegenDelay = 1.5f;
 

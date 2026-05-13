@@ -23,27 +23,17 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Attribute")
 	float StaminaRegenDelay = 1.5f;
-	
-	//--- Stamina Costs -----------------------------------------------------------
+
+	//--- Stamina Costs -------------------------------------------------------
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Stamina")
 	float DodgeStaminaCost = 30.f;
-	
+
 	//--- Poise ---------------------------------------------------------------
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Poise")
 	float MaxPoise = 100.f;
 
-	// Consecutive stagger count before Groggy triggers instead.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Poise",
-			  meta = (ClampMin = "1"))
-	int32 GroggyThreshold = 2;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Poise")
 	float StaggerDuration = 0.5f;
-
-	
-	// Timer-driven — montage length does not define the window.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Poise")
-	float GroggyDuration = 3.f;
 };

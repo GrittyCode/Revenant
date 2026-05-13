@@ -112,6 +112,8 @@ void ARVCharacterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 
 void ARVCharacterPlayer::InputMove(const FInputActionValue& Value)
 {
+	if (CombatStateComponent->IsInState(ERVCombatState::HitReaction)) { return; }
+
     const FVector2D Axis = Value.Get<FVector2D>();
     const FRotator YawOnly(0.f, GetControlRotation().Yaw, 0.f);
 

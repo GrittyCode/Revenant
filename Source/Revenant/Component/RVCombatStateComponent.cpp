@@ -98,13 +98,7 @@ void URVCombatStateComponent::PerformAttackTrace()
     URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
     if (!IsValid(WeaponData)) { return; }
 
-    // --- Resolve stats ------------------------------------------------------
-    // Base values come from the weapon (DT_WeaponStats).
-    // Multipliers come from the currently playing montage's UserData (DT_AttackStats).
-    // Final = base × multiplier — weapons sharing the same animation style
-    // can still have different damage output.
-
-    const FRVWeaponStatRow* WeaponStat = WeaponData->GetWeaponStatRow();
+	const FRVWeaponStatRow* WeaponStat = WeaponData->GetWeaponStatRow();
 
     UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
     if (!IsValid(AnimInst)) { return; }
@@ -169,8 +163,7 @@ void URVCombatStateComponent::PerformAttackTrace()
             HitInfo.Damage       = Damage;
             HitInfo.PoiseDamage  = PoiseDamage;
             HitInfo.HitType      = HitType;
-            HitInfo.HitDirection = (HitActor->GetActorLocation()
-                                  - OwnerCharacter->GetActorLocation()).GetSafeNormal();
+			HitInfo.HitDirection = (OwnerCharacter->GetActorLocation() - HitActor->GetActorLocation()).GetSafeNormal();
             HitInfo.Instigator   = OwnerCharacter;
 
             Target->ApplyDamage(HitInfo);

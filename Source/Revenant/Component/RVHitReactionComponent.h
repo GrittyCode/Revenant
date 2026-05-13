@@ -22,7 +22,7 @@ public:
 
     void HandleHit(const FRVHitInfo& InHitInfo);
 
-    // Guard break routes through here so recovery is montage-length-driven, not timer-driven.
+    /** Guard break routes through here so recovery is montage-length-driven, not timer-driven. */
     void TriggerStaggerWithMontage(UAnimMontage* InMontage);
 
     void InitReferences(ACharacter* InOwnerCharacter,
@@ -30,6 +30,9 @@ public:
                         URVAttributeComponent* InAttributeComponent,
                         URVEquipmentComponent* InEquipmentComponent,
                         URVCharacterDataAsset* InCharacterData);
+
+    // Snapshot set at stagger entry. URVAnimInstance polls this each frame.
+    float GetStaggerDirection() const { return StaggerDirection; }
 
 protected:
     virtual void BeginPlay() override;
@@ -54,18 +57,15 @@ private:
 
     //--- State ---------------------------------------------------------------
 
-    // Resets on Groggy entry so each Groggy cycle starts fresh.
-    int32 StaggerCount = 0;
-
     FTimerHandle StaggerHandle;
-    FTimerHandle GroggyHandle;
+
+    // Character-local hit angle (-180~180). Set by TriggerStagger(), read by URVAnimInstance.
+    float StaggerDirection = 0.f;
 
     //--- Reaction Triggers ---------------------------------------------------
 
-    void TriggerPhysicalReaction(const FVector& InHitDirection);
     void TriggerStagger(const FVector& InHitDirection);
-    void TriggerGroggy();
-    void TriggerKnockdown();
+    void TriggerKnockdown(const FVector& InHitDirection);
 
     //--- Callbacks -----------------------------------------------------------
 
@@ -74,9 +74,6 @@ private:
 
     UFUNCTION()
     void OnStaggerMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted);
-
-    UFUNCTION()
-    void EndGroggy();
 
     UFUNCTION()
     void OnKnockdownMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted);
