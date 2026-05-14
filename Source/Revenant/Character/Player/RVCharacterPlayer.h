@@ -29,7 +29,6 @@ public:
     virtual void Tick(float DeltaTime) override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
-    // Guard routing handled here; base handles invincible + HP damage + HitReaction.
     virtual bool ApplyDamage(const FRVHitInfo& InHitInfo) override;
 
 protected:
@@ -71,8 +70,15 @@ private:
 
     void InputLockOn(const FInputActionValue& Value);
 
-    // Phase 2 only — replaced by ARVWeaponPickup overlap in Phase 4.
     void InputWeaponSwap(const FInputActionValue& Value);
+
+    // -- Attack Direction -----------------------------------------------------
+
+    // Snaps rotation to target (lock-on) or freezes current yaw (default).
+    // Called at attack start to prevent mid-combo camera steering.
+    void SnapToAttackDirection();
+
+    float AttackStartYaw = 0.f;
 
     // -- Input Config ---------------------------------------------------------
 

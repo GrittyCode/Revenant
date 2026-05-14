@@ -47,7 +47,7 @@ private:
 	float CameraInterpSpeed = 5.f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "RV|LockOn")
-	float CharacterRotationInterpSpeed = 60.f;
+	float CharacterRotationInterpSpeed = 40.f;
 
 	bool bIsLockedOn = false;
 

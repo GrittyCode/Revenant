@@ -3,6 +3,7 @@
 #include "Component/RVEquipmentComponent.h"
 #include "Component/RVCombatStateComponent.h"
 #include "Component/RVHitReactionComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Data/RVCharacterDataAsset.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
@@ -19,7 +20,10 @@ ARVCharacterBase::ARVCharacterBase()
 void ARVCharacterBase::BeginPlay()
 {
     Super::BeginPlay();
-
+	
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	
     ensureMsgf(IsValid(AttributeComponent),   TEXT("[%s] AttributeComponent missing"),   *GetName());
     ensureMsgf(IsValid(EquipmentComponent),   TEXT("[%s] EquipmentComponent missing"),   *GetName());
     ensureMsgf(IsValid(CombatStateComponent), TEXT("[%s] CombatStateComponent missing"), *GetName());
