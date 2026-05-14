@@ -38,14 +38,11 @@ public:
 
     //--- Weapon Mesh ---------------------------------------------------------
     // Loaded and attached by URVEquipmentComponent in Phase 4.
-    // Soft reference — asset path stored, loaded on demand.
-    // WeaponRoot / WeaponTip sockets on this mesh define attack capsule dimensions.
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Mesh")
     TSoftObjectPtr<USkeletalMesh> WeaponMesh;
 
     //--- Per-Instance Montage Overrides --------------------------------------
-    // Use only when this specific weapon needs a different montage from its animation set.
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Override|HeavyAttack",
               meta = (InlineEditConditionToggle))
@@ -93,6 +90,22 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UAnimMontage* GetDodgeMontage() const;
+
+    // Lock-on directional dodge getters — fall back to GetDodgeMontage() if unassigned.
+    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
+    UAnimMontage* GetDodgeMontage_LockOn_F() const;
+
+    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
+    UAnimMontage* GetDodgeMontage_LockOn_L() const;
+
+    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
+    UAnimMontage* GetDodgeMontage_LockOn_R() const;
+
+    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
+    UAnimMontage* GetDodgeMontage_LockOn_BL() const;
+
+    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
+    UAnimMontage* GetDodgeMontage_LockOn_BR() const;
 
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UAnimMontage* GetGuardBreakMontage() const;

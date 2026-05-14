@@ -2,7 +2,6 @@
 #include "Component/RVCombatStateComponent.h"
 #include "Component/RVAttributeComponent.h"
 #include "Component/RVEquipmentComponent.h"
-#include "Data/RVWeaponDataAsset.h"
 #include "Data/RVCharacterDataAsset.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -32,13 +31,12 @@ void URVDodgeComponent::InitReferences(
     CharacterData        = InCharacterData;
 }
 
-void URVDodgeComponent::StartDodge(const FVector& InDodgeDirection)
+void URVDodgeComponent::StartDodge(UAnimMontage* InMontage)
 {
+    if (CombatStateComponent->HasState(ERVCombatState::Dodging)) { return; }
     if (!CombatStateComponent->CheckAvailableState(ERVCombatState::Guarding)) { return; }
     if (!CombatStateComponent->IsGrounded()) { return; }
-
-    const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-    if (!IsValid(WeaponData) || !IsValid(WeaponData->GetDodgeMontage())) { return; }
+    if (!IsValid(InMontage)) { return; }
 
     const float StaminaCost = IsValid(CharacterData) ? CharacterData->DodgeStaminaCost : 30.f;
     if (!AttributeComponent->ConsumeStamina(StaminaCost)) { return; }
@@ -51,17 +49,29 @@ void URVDodgeComponent::StartDodge(const FVector& InDodgeDirection)
     UAnimInstance* AnimInstance = OwnerCharacter->GetMesh()->GetAnimInstance();
     if (!IsValid(AnimInstance)) { return; }
 
-    OwnerCharacter->SetActorRotation(InDodgeDirection.ToOrientationRotator());
     OwnerCharacter->GetCharacterMovement()->bOrientRotationToMovement = false;
-
+    AttributeComponent->PauseStaminaRegen();
     CombatStateComponent->AddState(ERVCombatState::Dodging);
+
+    ActiveDodgeMontage = InMontage;
 
     FOnMontageBlendingOutStarted BlendOutDelegate;
     BlendOutDelegate.BindUObject(this, &URVDodgeComponent::OnDodgeMontageBlendingOut);
 
-    UAnimMontage* DodgeMontage = WeaponData->GetDodgeMontage();
-    AnimInstance->Montage_Play(DodgeMontage);
-    AnimInstance->Montage_SetBlendingOutDelegate(BlendOutDelegate, DodgeMontage);
+    AnimInstance->Montage_Play(InMontage);
+    AnimInstance->Montage_SetBlendingOutDelegate(BlendOutDelegate, InMontage);
+}
+
+void URVDodgeComponent::EndDodge()
+{
+    if (!CombatStateComponent->HasState(ERVCombatState::Dodging)) { return; }
+
+    ActiveDodgeMontage = nullptr;
+
+    CombatStateComponent->RemoveState(ERVCombatState::Dodging);
+    CombatStateComponent->SetInvincible(false);
+    OwnerCharacter->GetCharacterMovement()->bOrientRotationToMovement = true;
+    AttributeComponent->ResumeStaminaRegen();
 }
 
 void URVDodgeComponent::SetDodgeIFrame(bool bActivate)
@@ -72,23 +82,11 @@ void URVDodgeComponent::SetDodgeIFrame(bool bActivate)
 
 void URVDodgeComponent::ForceEndDodge()
 {
-    if (!CombatStateComponent->HasState(ERVCombatState::Dodging)) { return; }
-
-    CombatStateComponent->RemoveState(ERVCombatState::Dodging);
-    CombatStateComponent->SetInvincible(false);
-    OwnerCharacter->GetCharacterMovement()->bOrientRotationToMovement = true;
+    EndDodge();
 }
 
-void URVDodgeComponent::EndDodge()
+void URVDodgeComponent::OnDodgeMontageBlendingOut(UAnimMontage* InMontage, bool /*bInterrupted*/)
 {
-    if (!CombatStateComponent->HasState(ERVCombatState::Dodging)) { return; }
-
-    CombatStateComponent->RemoveState(ERVCombatState::Dodging);
-    CombatStateComponent->SetInvincible(false);
-    OwnerCharacter->GetCharacterMovement()->bOrientRotationToMovement = true;
-}
-
-void URVDodgeComponent::OnDodgeMontageBlendingOut(UAnimMontage* /*InMontage*/, bool /*bInterrupted*/)
-{
+    if (InMontage != ActiveDodgeMontage) { return; }
     EndDodge();
 }

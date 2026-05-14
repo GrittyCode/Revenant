@@ -20,12 +20,9 @@ class REVENANT_API URVDodgeComponent : public UActorComponent
 public:
 	URVDodgeComponent();
 
-	void StartDodge(const FVector& InDodgeDirection);
+	// Montage is selected and pre-rotated by the caller (ARVCharacterPlayer::InputDodge).
+	void StartDodge(UAnimMontage* InMontage);
 
-	/**
-	 * Called by AnimNotifyState_DodgeIFrame.
-	 * Guards against activation if dodge was externally interrupted.
-	 */
 	void SetDodgeIFrame(bool bActivate);
 
 	/** Called via CombatStateComponent::OnForceEnd. */
@@ -56,6 +53,10 @@ private:
 	UPROPERTY()
 	TObjectPtr<URVCharacterDataAsset> CharacterData;
 
+	// Guards OnDodgeMontageBlendingOut against stale callbacks on external interruption.
+	UPROPERTY()
+	TObjectPtr<UAnimMontage> ActiveDodgeMontage;
+
 	void EndDodge();
-	void OnDodgeMontageBlendingOut(UAnimMontage*, bool bInterrupted);
+	void OnDodgeMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
 };

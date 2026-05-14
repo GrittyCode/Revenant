@@ -45,6 +45,41 @@ UAnimMontage* URVWeaponDataAsset::GetDodgeMontage() const
     return IsValid(AnimationDataAsset) ? AnimationDataAsset->DodgeMontage.Get() : nullptr;
 }
 
+UAnimMontage* URVWeaponDataAsset::GetDodgeMontage_LockOn_F() const
+{
+    if (!IsValid(AnimationDataAsset)) { return nullptr; }
+    UAnimMontage* M = AnimationDataAsset->LockOnDodgeMontage_F.Get();
+    return IsValid(M) ? M : GetDodgeMontage();
+}
+
+UAnimMontage* URVWeaponDataAsset::GetDodgeMontage_LockOn_L() const
+{
+    if (!IsValid(AnimationDataAsset)) { return nullptr; }
+    UAnimMontage* M = AnimationDataAsset->LockOnDodgeMontage_L.Get();
+    return IsValid(M) ? M : GetDodgeMontage();
+}
+
+UAnimMontage* URVWeaponDataAsset::GetDodgeMontage_LockOn_R() const
+{
+    if (!IsValid(AnimationDataAsset)) { return nullptr; }
+    UAnimMontage* M = AnimationDataAsset->LockOnDodgeMontage_R.Get();
+    return IsValid(M) ? M : GetDodgeMontage();
+}
+
+UAnimMontage* URVWeaponDataAsset::GetDodgeMontage_LockOn_BL() const
+{
+    if (!IsValid(AnimationDataAsset)) { return nullptr; }
+    UAnimMontage* M = AnimationDataAsset->LockOnDodgeMontage_BL.Get();
+    return IsValid(M) ? M : GetDodgeMontage();
+}
+
+UAnimMontage* URVWeaponDataAsset::GetDodgeMontage_LockOn_BR() const
+{
+    if (!IsValid(AnimationDataAsset)) { return nullptr; }
+    UAnimMontage* M = AnimationDataAsset->LockOnDodgeMontage_BR.Get();
+    return IsValid(M) ? M : GetDodgeMontage();
+}
+
 UAnimMontage* URVWeaponDataAsset::GetGuardBreakMontage() const
 {
     return IsValid(AnimationDataAsset) ? AnimationDataAsset->GuardBreakMontage.Get() : nullptr;

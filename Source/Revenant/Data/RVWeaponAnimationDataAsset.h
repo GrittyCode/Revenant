@@ -7,7 +7,6 @@
 class UAnimMontage;
 class UBlendSpace;
 
-
 /**
  * Layer 1 — Weapon Animation Set.
  * Multiple weapon instances (URVWeaponDataAsset) can reference the same animation set
@@ -47,6 +46,27 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UAnimMontage> DodgeMontage;
 
+    //--- Lock-on Directional Dodge Montages ----------------------------------
+    // Used when locked on. FL/FR are handled by rotating to input dir then playing F.
+    // All fall back to DodgeMontage if unassigned — dodge works before montages are set up.
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation|LockOnDodge")
+    TObjectPtr<UAnimMontage> LockOnDodgeMontage_F;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation|LockOnDodge")
+    TObjectPtr<UAnimMontage> LockOnDodgeMontage_L;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation|LockOnDodge")
+    TObjectPtr<UAnimMontage> LockOnDodgeMontage_R;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation|LockOnDodge")
+    TObjectPtr<UAnimMontage> LockOnDodgeMontage_BL;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation|LockOnDodge")
+    TObjectPtr<UAnimMontage> LockOnDodgeMontage_BR;
+
+    //--- Guard Montages ------------------------------------------------------
+
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UAnimMontage> GuardBreakMontage;
 
@@ -59,7 +79,6 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|HitReaction")
     TObjectPtr<UBlendSpace> StaggerBlendSpace;
 
-    // Must contain "Loop" section (looping) and "End" section (plays once).
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|HitReaction")
     TObjectPtr<UAnimMontage> GroggyMontage;
 
