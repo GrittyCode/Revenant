@@ -207,18 +207,18 @@ void ARVCharacterPlayer::InputHeavyAttackCompleted(const FInputActionValue& Valu
 
 void ARVCharacterPlayer::InputDodge(const FInputActionValue& Value)
 {
-	if (!DodgeComponent->CanStartDodge()) { return; }
-	
-	const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-	if (!IsValid(WeaponData)) { return; }
-	
+    if (!DodgeComponent->CanStartDodge()) { return; }
+
+    const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
+    if (!IsValid(WeaponData)) { return; }
+
     FVector DodgeDir = GetLastMovementInputVector();
     if (DodgeDir.IsNearlyZero())
     {
         DodgeDir = GetActorForwardVector();
     }
     DodgeDir = DodgeDir.GetSafeNormal();
-	
+
     if (CombatStateComponent->IsInState(ERVCombatState::Guarding))
     {
         GuardComponent->EndGuard();
@@ -236,14 +236,35 @@ void ARVCharacterPlayer::InputDodge(const FInputActionValue& Value)
 
         if (Angle > -67.5f && Angle <= 67.5f)
         {
-            // FL / F / FR — rotate to input direction, play F montage
+            // F / FL / FR — rotate to input dir, root motion follows
             SetActorRotation(DodgeDir.ToOrientationRotator());
             Montage = WeaponData->GetDodgeMontage_LockOn_F();
         }
-        else if (Angle >  67.5f && Angle <=  112.5f) { Montage = WeaponData->GetDodgeMontage_LockOn_R();  }
-        else if (Angle >  112.5f)                     { Montage = WeaponData->GetDodgeMontage_LockOn_BR(); }
-        else if (Angle < -112.5f)                     { Montage = WeaponData->GetDodgeMontage_LockOn_BL(); }
-        else                                          { Montage = WeaponData->GetDodgeMontage_LockOn_L();  }
+        else if (Angle > 67.5f && Angle <= 112.5f)
+        {
+            Montage = WeaponData->GetDodgeMontage_LockOn_R();
+        }
+        else if (Angle > 112.5f && Angle <= 157.5f)
+        {
+        	// BR — 캐릭터를 입력 반대 방향으로 회전 (Root Motion이 로컬 전방으로 나가므로)
+        	SetActorRotation((-DodgeDir).ToOrientationRotator());
+        	Montage = WeaponData->GetDodgeMontage_LockOn_BR();
+        }
+        else if (Angle > 157.5f || Angle < -157.5f)
+        {
+        	SetActorRotation((-DodgeDir).ToOrientationRotator());
+        	Montage = (Angle > 0.f) ? WeaponData->GetDodgeMontage_LockOn_BR()
+									: WeaponData->GetDodgeMontage_LockOn_BL();
+        }
+        else if (Angle < -112.5f && Angle >= -157.5f)
+        {
+        	SetActorRotation((-DodgeDir).ToOrientationRotator());
+        	Montage = WeaponData->GetDodgeMontage_LockOn_BL();
+        }
+        else
+        {
+            Montage = WeaponData->GetDodgeMontage_LockOn_L();
+        }
     }
     else
     {
