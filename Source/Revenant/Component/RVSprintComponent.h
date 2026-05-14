@@ -8,6 +8,7 @@
 class URVCombatStateComponent;
 class URVAttributeComponent;
 class UCharacterMovementComponent;
+class ACharacter;
 
 /**
  * Manages sprint start, sprint speed, and self-termination.
@@ -33,6 +34,10 @@ public:
 
     /** Called via CombatStateComponent::OnForceEnd. */
     void ForceEndSprint();
+
+    void InitReferences(ACharacter* InOwnerCharacter,
+                        URVCombatStateComponent* InCombatStateComponent,
+                        URVAttributeComponent* InAttributeComponent);
 
 protected:
     virtual void BeginPlay() override;
@@ -60,9 +65,8 @@ private:
     // --- Handlers ------------------------------------------------------------
 
     /**
-     * Subscribed to URVCombatStateComponent::OnStateChanged.
+     * Subscribed to URVCombatStateComponent::OnStateChanged in BeginPlay.
      * Ends sprint automatically when any blocking combat state becomes active.
-     * No action component needs to call EndSprint explicitly.
      */
     void OnCombatStateChanged(ERVCombatState InNewState);
 };

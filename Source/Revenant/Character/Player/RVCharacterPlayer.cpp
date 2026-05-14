@@ -1,15 +1,18 @@
-// Source/Revenant/Character/Player/RVCharacterPlayer.cpp
 #include "Character/Player/RVCharacterPlayer.h"
 #include "Camera/CameraComponent.h"
 #include "Component/RVCombatStateComponent.h"
+#include "Component/RVComboComponent.h"
 #include "Component/RVHeavyAttackComponent.h"
 #include "Component/RVDodgeComponent.h"
 #include "Component/RVGuardComponent.h"
-#include "Component/RVComboComponent.h"
 #include "Component/RVSprintComponent.h"
 #include "Component/RVEquipmentComponent.h"
+#include "Component/RVAttributeComponent.h"
+#include "Component/RVHitReactionComponent.h"
 #include "Component/RVLockOnComponent.h"
 #include "Data/RVWeaponDataAsset.h"
+#include "Data/RVCharacterDataAsset.h"
+#include "Interface/RVDamageable.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
@@ -29,7 +32,12 @@ ARVCharacterPlayer::ARVCharacterPlayer()
     FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
     FollowCamera->bUsePawnControlRotation = false;
 
-    LockOnComponent = CreateDefaultSubobject<URVLockOnComponent>(TEXT("LockOnComponent"));
+    LockOnComponent      = CreateDefaultSubobject<URVLockOnComponent>      (TEXT("LockOnComponent"));
+    ComboComponent       = CreateDefaultSubobject<URVComboComponent>        (TEXT("ComboComponent"));
+    HeavyAttackComponent = CreateDefaultSubobject<URVHeavyAttackComponent>  (TEXT("HeavyAttackComponent"));
+    DodgeComponent       = CreateDefaultSubobject<URVDodgeComponent>        (TEXT("DodgeComponent"));
+    GuardComponent       = CreateDefaultSubobject<URVGuardComponent>        (TEXT("GuardComponent"));
+    SprintComponent      = CreateDefaultSubobject<URVSprintComponent>       (TEXT("SprintComponent"));
 }
 
 void ARVCharacterPlayer::BeginPlay()
@@ -37,34 +45,67 @@ void ARVCharacterPlayer::BeginPlay()
     Super::BeginPlay();
 
     APlayerController* PC = Cast<APlayerController>(GetController());
-    if (!ensureMsgf(IsValid(PC), TEXT("[%s] PlayerController missing — must be possessed by a player"), *GetName()))
-    {
-        return;
-    }
+    if (!ensureMsgf(IsValid(PC), TEXT("[%s] PlayerController missing"), *GetName())) { return; }
 
     UEnhancedInputLocalPlayerSubsystem* Subsystem =
         ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer());
-
-    if (!ensureMsgf(IsValid(Subsystem), TEXT("[%s] EnhancedInputLocalPlayerSubsystem missing"), *GetName()))
-    {
-        return;
-    }
-
-    if (!ensureMsgf(IsValid(DefaultMappingContext), TEXT("[%s] DefaultMappingContext not assigned in BP_RVCharacterPlayer"), *GetName()))
-    {
-        return;
-    }
+    if (!ensureMsgf(IsValid(Subsystem), TEXT("[%s] EnhancedInputLocalPlayerSubsystem missing"), *GetName())) { return; }
+    if (!ensureMsgf(IsValid(DefaultMappingContext), TEXT("[%s] DefaultMappingContext not assigned"), *GetName())) { return; }
 
     Subsystem->AddMappingContext(DefaultMappingContext, 0);
 
+    //--- Reference Injection -------------------------------------------------
+
     LockOnComponent->InitReferences(this, PC, CombatStateComponent);
+    ComboComponent->InitReferences(this, CombatStateComponent, AttributeComponent, EquipmentComponent);
+    HeavyAttackComponent->InitReferences(this, CombatStateComponent, AttributeComponent, EquipmentComponent);
+    DodgeComponent->InitReferences(this, CombatStateComponent, AttributeComponent, CharacterData);
+    GuardComponent->InitReferences(this, CombatStateComponent, AttributeComponent, EquipmentComponent);
+    SprintComponent->InitReferences(this, CombatStateComponent, AttributeComponent);
+
+    //--- Delegate Wiring -----------------------------------------------------
+
+    // Guard break chain: stamina depletion while guarding → stagger with guard break montage
+    AttributeComponent->OnStaminaDepleted.AddDynamic(
+        GuardComponent, &URVGuardComponent::OnStaminaDepletedHandler);
+
+    GuardComponent->OnGuardBreakTriggered.AddUObject(
+        HitReactionComponent, &URVHitReactionComponent::TriggerStaggerWithMontage);
+
+    // Combo ↔ CombatState
+    ComboComponent->OnComboStarted.AddUObject(CombatStateComponent, &URVCombatStateComponent::OnAttackStarted);
+    ComboComponent->OnComboEnded.AddUObject  (CombatStateComponent, &URVCombatStateComponent::OnAttackEnded);
+
+    // ForceEnd → action components
+    CombatStateComponent->OnForceEnd.AddUObject(HeavyAttackComponent, &URVHeavyAttackComponent::ForceEndHeavyAttack);
+    CombatStateComponent->OnForceEnd.AddUObject(DodgeComponent,       &URVDodgeComponent::ForceEndDodge);
+    CombatStateComponent->OnForceEnd.AddUObject(GuardComponent,       &URVGuardComponent::ForceEndGuard);
+    // ComboComponent and SprintComponent subscribe to OnForceEnd inside their own InitReferences/BeginPlay.
 }
+
+//--- IRVDamageable -----------------------------------------------------------
+
+bool ARVCharacterPlayer::ApplyDamage(const FRVHitInfo& InHitInfo)
+{
+    if (CombatStateComponent->IsInvincible()) { return false; }
+
+    // "가드 중 피격" — 플레이어 기획. Guard 라우팅은 CharacterPlayer가 결정한다.
+    if (CombatStateComponent->IsInState(ERVCombatState::Guarding))
+    {
+        GuardComponent->HandleGuardHit(InHitInfo.Damage);
+        return true;
+    }
+
+    return Super::ApplyDamage(InHitInfo);
+}
+
+//--- Tick --------------------------------------------------------------------
 
 void ARVCharacterPlayer::Tick(float DeltaTime)
 {
     Super::Tick(DeltaTime);
 
-    // LockOnComponent drives rotation — attack interp would fight it
+    // LockOnComponent drives rotation during lock-on — attack interp would fight it.
     if (LockOnComponent->IsLockedOn()) { return; }
 
     if (CombatStateComponent->IsInState(ERVCombatState::Attacking | ERVCombatState::HeavyCharging | ERVCombatState::HeavyAttacking))
@@ -76,6 +117,8 @@ void ARVCharacterPlayer::Tick(float DeltaTime)
         SetActorRotation(FMath::RInterpTo(CurrentRot, TargetRot, DeltaTime, AttackRotationInterpSpeed));
     }
 }
+
+//--- Input Setup -------------------------------------------------------------
 
 void ARVCharacterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
@@ -97,24 +140,19 @@ void ARVCharacterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputC
     Eic->BindAction(InputConfig->HeavyAttackAction,   ETriggerEvent::Completed, this, &ARVCharacterPlayer::InputHeavyAttackCompleted);
     Eic->BindAction(InputConfig->HeavyModifierAction, ETriggerEvent::Completed, this, &ARVCharacterPlayer::InputHeavyAttackCompleted);
 
-    // Dodge: Triggered fires after Tap threshold — Started fires before tap is confirmed.
     Eic->BindAction(InputConfig->DodgeAction, ETriggerEvent::Triggered, this, &ARVCharacterPlayer::InputDodge);
 
-    // Sprint: Triggered fires when Hold threshold is met, Completed fires on release.
     Eic->BindAction(InputConfig->SprintAction, ETriggerEvent::Triggered, this, &ARVCharacterPlayer::InputSprintStarted);
     Eic->BindAction(InputConfig->SprintAction, ETriggerEvent::Completed, this, &ARVCharacterPlayer::InputSprintCompleted);
 
-    // Guard: Started = RMB pressed, Completed = RMB released.
     Eic->BindAction(InputConfig->GuardAction, ETriggerEvent::Started,   this, &ARVCharacterPlayer::InputGuardStarted);
     Eic->BindAction(InputConfig->GuardAction, ETriggerEvent::Completed, this, &ARVCharacterPlayer::InputGuardCompleted);
 
-    // Lock-on: Q toggle.
     if (IsValid(InputConfig->LockOnAction))
     {
         Eic->BindAction(InputConfig->LockOnAction, ETriggerEvent::Started, this, &ARVCharacterPlayer::InputLockOn);
     }
 
-    // Weapon swap: Tab — Phase 2 temp, replaced by ARVWeaponPickup in Phase 4.
     if (IsValid(InputConfig->WeaponSwapAction))
     {
         Eic->BindAction(InputConfig->WeaponSwapAction, ETriggerEvent::Started, this, &ARVCharacterPlayer::InputWeaponSwap);
@@ -136,6 +174,9 @@ void ARVCharacterPlayer::InputMove(const FInputActionValue& Value)
 
 void ARVCharacterPlayer::InputLook(const FInputActionValue& Value)
 {
+    // Lock-on drives camera directly — player look input is suppressed.
+    if (LockOnComponent->IsLockedOn()) { return; }
+
     const FVector2D Axis = Value.Get<FVector2D>();
     AddControllerYawInput(Axis.X);
     AddControllerPitchInput(Axis.Y);
@@ -143,7 +184,6 @@ void ARVCharacterPlayer::InputLook(const FInputActionValue& Value)
 
 void ARVCharacterPlayer::InputJump(const FInputActionValue& Value)
 {
-    // Guard is coexistable — player cannot jump while in other blocking states.
     if (!CombatStateComponent->CheckAvailableState(ERVCombatState::Guarding)) { return; }
     Jump();
 }
@@ -167,50 +207,56 @@ void ARVCharacterPlayer::InputHeavyAttackCompleted(const FInputActionValue& Valu
 
 void ARVCharacterPlayer::InputDodge(const FInputActionValue& Value)
 {
-	FVector DodgeDir = GetLastMovementInputVector();
-	if (DodgeDir.IsNearlyZero())
-	{
-		DodgeDir = GetActorForwardVector();
-	}
-	DodgeDir = DodgeDir.GetSafeNormal();
-
+	if (!DodgeComponent->CanStartDodge()) { return; }
+	
 	const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
 	if (!IsValid(WeaponData)) { return; }
+	
+    FVector DodgeDir = GetLastMovementInputVector();
+    if (DodgeDir.IsNearlyZero())
+    {
+        DodgeDir = GetActorForwardVector();
+    }
+    DodgeDir = DodgeDir.GetSafeNormal();
+	
+    if (CombatStateComponent->IsInState(ERVCombatState::Guarding))
+    {
+        GuardComponent->EndGuard();
+    }
 
-	UAnimMontage* Montage = nullptr;
+    UAnimMontage* Montage = nullptr;
 
-	if (LockOnComponent->IsLockedOn())
-	{
-		const FVector Forward = GetActorForwardVector();
-		const FVector Right   = GetActorRightVector();
-		const float Angle = FMath::RadiansToDegrees(
-			FMath::Atan2(FVector::DotProduct(Right,   DodgeDir),
-						 FVector::DotProduct(Forward, DodgeDir)));
+    if (LockOnComponent->IsLockedOn())
+    {
+        const FVector Forward = GetActorForwardVector();
+        const FVector Right   = GetActorRightVector();
+        const float Angle = FMath::RadiansToDegrees(
+            FMath::Atan2(FVector::DotProduct(Right,   DodgeDir),
+                         FVector::DotProduct(Forward, DodgeDir)));
 
-		if (Angle > -67.5f && Angle <= 67.5f)
-		{
-			// FL / F / FR — rotate to input direction, play F montage
-			SetActorRotation(DodgeDir.ToOrientationRotator());
-			Montage = WeaponData->GetDodgeMontage_LockOn_F();
-		}
-		else if (Angle >  67.5f && Angle <=  112.5f) { Montage = WeaponData->GetDodgeMontage_LockOn_R();  }
-		else if (Angle >  112.5f)                     { Montage = WeaponData->GetDodgeMontage_LockOn_BR(); }
-		else if (Angle < -112.5f)                     { Montage = WeaponData->GetDodgeMontage_LockOn_BL(); }
-		else                                          { Montage = WeaponData->GetDodgeMontage_LockOn_L();  }
-	}
-	else
-	{
-		SetActorRotation(DodgeDir.ToOrientationRotator());
-		Montage = WeaponData->GetDodgeMontage();
-	}
+        if (Angle > -67.5f && Angle <= 67.5f)
+        {
+            // FL / F / FR — rotate to input direction, play F montage
+            SetActorRotation(DodgeDir.ToOrientationRotator());
+            Montage = WeaponData->GetDodgeMontage_LockOn_F();
+        }
+        else if (Angle >  67.5f && Angle <=  112.5f) { Montage = WeaponData->GetDodgeMontage_LockOn_R();  }
+        else if (Angle >  112.5f)                     { Montage = WeaponData->GetDodgeMontage_LockOn_BR(); }
+        else if (Angle < -112.5f)                     { Montage = WeaponData->GetDodgeMontage_LockOn_BL(); }
+        else                                          { Montage = WeaponData->GetDodgeMontage_LockOn_L();  }
+    }
+    else
+    {
+        SetActorRotation(DodgeDir.ToOrientationRotator());
+        Montage = WeaponData->GetDodgeMontage();
+    }
 
-	DodgeComponent->StartDodge(Montage);
+    DodgeComponent->StartDodge(Montage);
 }
 
 void ARVCharacterPlayer::InputSprintStarted(const FInputActionValue& Value)
 {
-	if (LockOnComponent->IsLockedOn()) { return; }
-
+    if (LockOnComponent->IsLockedOn()) { return; }
     SprintComponent->StartSprint();
 }
 
@@ -231,11 +277,11 @@ void ARVCharacterPlayer::InputGuardCompleted(const FInputActionValue& Value)
 
 void ARVCharacterPlayer::InputLockOn(const FInputActionValue& Value)
 {
-	if (SprintComponent->IsSprinting())
-	{
-		SprintComponent->EndSprint();
-	}
-	
+    if (SprintComponent->IsSprinting())
+    {
+        SprintComponent->EndSprint();
+    }
+
     LockOnComponent->ToggleLockOn();
 }
 

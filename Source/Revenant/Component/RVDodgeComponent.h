@@ -7,7 +7,6 @@
 
 class ACharacter;
 class URVAttributeComponent;
-class URVEquipmentComponent;
 class URVCombatStateComponent;
 class URVCharacterDataAsset;
 class UAnimMontage;
@@ -21,6 +20,7 @@ public:
 	URVDodgeComponent();
 
 	// Montage is selected and pre-rotated by the caller (ARVCharacterPlayer::InputDodge).
+	// Guard interruption is also handled by the caller before this is invoked.
 	void StartDodge(UAnimMontage* InMontage);
 
 	void SetDodgeIFrame(bool bActivate);
@@ -31,8 +31,11 @@ public:
 	void InitReferences(ACharacter* InOwnerCharacter,
 						URVCombatStateComponent* InCombatStateComponent,
 						URVAttributeComponent* InAttributeComponent,
-						URVEquipmentComponent* InEquipmentComponent,
 						URVCharacterDataAsset* InCharacterData);
+	
+	
+	bool CanStartDodge() const;
+
 
 protected:
 	virtual void BeginPlay() override;
@@ -46,9 +49,6 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<URVAttributeComponent> AttributeComponent;
-
-	UPROPERTY()
-	TObjectPtr<URVEquipmentComponent> EquipmentComponent;
 
 	UPROPERTY()
 	TObjectPtr<URVCharacterDataAsset> CharacterData;

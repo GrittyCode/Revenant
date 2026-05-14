@@ -7,13 +7,8 @@
 #include "RVCharacterBase.generated.h"
 
 class URVAttributeComponent;
-class URVComboComponent;
 class URVEquipmentComponent;
 class URVCombatStateComponent;
-class URVHeavyAttackComponent;
-class URVDodgeComponent;
-class URVGuardComponent;
-class URVSprintComponent;
 class URVHitReactionComponent;
 class URVCharacterDataAsset;
 
@@ -33,11 +28,12 @@ public:
     // --- IRVDamageable -------------------------------------------------------
 
     /**
-     * Routes incoming damage based on current combat state:
-     *   Invincible (i-frame)  → blocked entirely
-     *   Guarding              → stamina damage via GuardComponent (may trigger guard break)
-     *   Normal                → HP damage via AttributeComponent,
-     *                           then hit reaction via HitReactionComponent
+     * Routes incoming damage:
+     *   Invincible (i-frame) → blocked entirely
+     *   Otherwise           → HP damage via AttributeComponent,
+     *                         then hit reaction via HitReactionComponent
+     *
+     * Guard routing is handled by ARVCharacterPlayer::ApplyDamage override.
      */
     virtual bool ApplyDamage(const FRVHitInfo& InHitInfo) override;
 
@@ -53,25 +49,10 @@ protected:
     TObjectPtr<URVAttributeComponent> AttributeComponent;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-    TObjectPtr<URVComboComponent> ComboComponent;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
     TObjectPtr<URVEquipmentComponent> EquipmentComponent;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
     TObjectPtr<URVCombatStateComponent> CombatStateComponent;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-    TObjectPtr<URVHeavyAttackComponent> HeavyAttackComponent;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-    TObjectPtr<URVDodgeComponent> DodgeComponent;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-    TObjectPtr<URVGuardComponent> GuardComponent;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-    TObjectPtr<URVSprintComponent> SprintComponent;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
     TObjectPtr<URVHitReactionComponent> HitReactionComponent;

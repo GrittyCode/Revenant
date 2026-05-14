@@ -1,4 +1,3 @@
-// Source/Revenant/Character/Player/RVCharacterPlayer.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -11,6 +10,11 @@ class USpringArmComponent;
 class UCameraComponent;
 class URVWeaponDataAsset;
 class URVLockOnComponent;
+class URVComboComponent;
+class URVHeavyAttackComponent;
+class URVDodgeComponent;
+class URVGuardComponent;
+class URVSprintComponent;
 
 struct FInputActionValue;
 
@@ -25,8 +29,28 @@ public:
     virtual void Tick(float DeltaTime) override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
+    // Guard routing handled here; base handles invincible + HP damage + HitReaction.
+    virtual bool ApplyDamage(const FRVHitInfo& InHitInfo) override;
+
 protected:
     virtual void BeginPlay() override;
+
+    // --- Player-only Action Components ---------------------------------------
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVComboComponent> ComboComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVHeavyAttackComponent> HeavyAttackComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVDodgeComponent> DodgeComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVGuardComponent> GuardComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVSprintComponent> SprintComponent;
 
 private:
     // -- Input Handlers -------------------------------------------------------

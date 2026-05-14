@@ -1,7 +1,6 @@
 #include "Component/RVDodgeComponent.h"
 #include "Component/RVCombatStateComponent.h"
 #include "Component/RVAttributeComponent.h"
-#include "Component/RVEquipmentComponent.h"
 #include "Data/RVCharacterDataAsset.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -21,30 +20,35 @@ void URVDodgeComponent::InitReferences(
     ACharacter* InOwnerCharacter,
     URVCombatStateComponent* InCombatStateComponent,
     URVAttributeComponent* InAttributeComponent,
-    URVEquipmentComponent* InEquipmentComponent,
     URVCharacterDataAsset* InCharacterData)
 {
     OwnerCharacter       = InOwnerCharacter;
     CombatStateComponent = InCombatStateComponent;
     AttributeComponent   = InAttributeComponent;
-    EquipmentComponent   = InEquipmentComponent;
     CharacterData        = InCharacterData;
+}
+
+bool URVDodgeComponent::CanStartDodge() const
+{
+	if (CombatStateComponent->HasState(ERVCombatState::Dodging)) { return false; }
+	if (!CombatStateComponent->CheckAvailableState()) { return false; }
+	if (!CombatStateComponent->IsGrounded()) { return false; }
+
+	const float StaminaCost = IsValid(CharacterData) ? CharacterData->DodgeStaminaCost : 30.f;
+	if (AttributeComponent->GetCurrentStamina() < StaminaCost) { return false; }
+
+	return true;
 }
 
 void URVDodgeComponent::StartDodge(UAnimMontage* InMontage)
 {
     if (CombatStateComponent->HasState(ERVCombatState::Dodging)) { return; }
-    if (!CombatStateComponent->CheckAvailableState(ERVCombatState::Guarding)) { return; }
+    if (!CombatStateComponent->CheckAvailableState()) { return; }
     if (!CombatStateComponent->IsGrounded()) { return; }
     if (!IsValid(InMontage)) { return; }
 
     const float StaminaCost = IsValid(CharacterData) ? CharacterData->DodgeStaminaCost : 30.f;
     if (!AttributeComponent->ConsumeStamina(StaminaCost)) { return; }
-
-    if (CombatStateComponent->HasState(ERVCombatState::Guarding))
-    {
-        CombatStateComponent->RemoveState(ERVCombatState::Guarding);
-    }
 
     UAnimInstance* AnimInstance = OwnerCharacter->GetMesh()->GetAnimInstance();
     if (!IsValid(AnimInstance)) { return; }

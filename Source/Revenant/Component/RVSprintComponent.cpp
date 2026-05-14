@@ -9,30 +9,25 @@ URVSprintComponent::URVSprintComponent()
     PrimaryComponentTick.bCanEverTick = false;
 }
 
+void URVSprintComponent::InitReferences(
+    ACharacter* InOwnerCharacter,
+    URVCombatStateComponent* InCombatStateComponent,
+    URVAttributeComponent* InAttributeComponent)
+{
+    ensureMsgf(IsValid(InOwnerCharacter),       TEXT("[%s] InOwnerCharacter is null"),       *GetNameSafe(GetOwner()));
+    ensureMsgf(IsValid(InCombatStateComponent), TEXT("[%s] InCombatStateComponent is null"), *GetNameSafe(GetOwner()));
+    ensureMsgf(IsValid(InAttributeComponent),   TEXT("[%s] InAttributeComponent is null"),   *GetNameSafe(GetOwner()));
+
+    CombatStateComponent = InCombatStateComponent;
+    AttributeComponent   = InAttributeComponent;
+    MovementComponent    = InOwnerCharacter->GetCharacterMovement();
+    CombatStateComponent->OnStateChanged.AddUObject(this, &URVSprintComponent::OnCombatStateChanged);
+    CombatStateComponent->OnForceEnd.AddUObject(this, &URVSprintComponent::ForceEndSprint);
+}
+
 void URVSprintComponent::BeginPlay()
 {
     Super::BeginPlay();
-
-    AActor* Owner = GetOwner();
-    CombatStateComponent = Owner->FindComponentByClass<URVCombatStateComponent>();
-    AttributeComponent   = Owner->FindComponentByClass<URVAttributeComponent>();
-
-    ACharacter* OwnerChar = Cast<ACharacter>(Owner);
-    if (IsValid(OwnerChar))
-    {
-        MovementComponent = OwnerChar->GetCharacterMovement();
-    }
-
-    ensureMsgf(IsValid(CombatStateComponent), TEXT("[%s] URVCombatStateComponent missing — SprintComponent requires ARVCharacterBase"), *GetNameSafe(Owner));
-    ensureMsgf(IsValid(AttributeComponent),   TEXT("[%s] URVAttributeComponent missing — SprintComponent requires ARVCharacterBase"),   *GetNameSafe(Owner));
-    ensureMsgf(IsValid(MovementComponent),    TEXT("[%s] CharacterMovementComponent missing — SprintComponent requires ACharacter"),     *GetNameSafe(Owner));
-
-    // Self-terminate when any blocking combat state becomes active.
-    // This removes the need for HeavyAttack / Dodge / Guard / Combo to call EndSprint.
-    CombatStateComponent->OnStateChanged.AddUObject(this, &URVSprintComponent::OnCombatStateChanged);
-
-    // Self-terminate on force-end (hit reaction Phase 3).
-    CombatStateComponent->OnForceEnd.AddUObject(this, &URVSprintComponent::ForceEndSprint);
 }
 
 void URVSprintComponent::StartSprint()
@@ -64,8 +59,6 @@ void URVSprintComponent::OnCombatStateChanged(ERVCombatState InNewState)
 {
     if (!bIsSprinting) { return; }
 
-    // End sprint when any blocking state becomes active.
-    // CheckAvailableState with no coexistable states = any blocking state present → false.
     if (!CombatStateComponent->CheckAvailableState())
     {
         EndSprint();
