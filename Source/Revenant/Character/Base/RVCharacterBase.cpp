@@ -20,10 +20,10 @@ ARVCharacterBase::ARVCharacterBase()
 void ARVCharacterBase::BeginPlay()
 {
     Super::BeginPlay();
-	
-	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
-	GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
-	
+
+    GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+    GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+
     ensureMsgf(IsValid(AttributeComponent),   TEXT("[%s] AttributeComponent missing"),   *GetName());
     ensureMsgf(IsValid(EquipmentComponent),   TEXT("[%s] EquipmentComponent missing"),   *GetName());
     ensureMsgf(IsValid(CombatStateComponent), TEXT("[%s] CombatStateComponent missing"), *GetName());
@@ -56,6 +56,9 @@ bool ARVCharacterBase::ApplyDamage(const FRVHitInfo& InHitInfo)
     if (CombatStateComponent->IsInvincible()) { return false; }
 
     const bool bSurvived = AttributeComponent->ApplyDamage(InHitInfo.Instigator, InHitInfo.Damage);
+
+    // HandleHit runs even on death — Knockdown montage serves as the death fall animation.
+    // TODO(Phase 5): guard with bSurvived once OnDeath handler (DisableInput, game result) is wired.
     HitReactionComponent->HandleHit(InHitInfo);
 
     return bSurvived;

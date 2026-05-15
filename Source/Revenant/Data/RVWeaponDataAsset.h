@@ -5,9 +5,6 @@
 #include "Engine/DataTable.h"
 #include "RVWeaponDataAsset.generated.h"
 
-class UAnimMontage;
-class UBlendSpace;
-class USkeletalMesh;
 class URVWeaponAnimationDataAsset;
 struct FRVWeaponStatRow;
 
@@ -37,11 +34,19 @@ public:
     const FRVWeaponStatRow* GetWeaponStatRow() const;
 
     //--- Weapon Mesh ---------------------------------------------------------
-    // Loaded and attached by URVEquipmentComponent in Phase 4.
-
+	
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Mesh")
-    TSoftObjectPtr<USkeletalMesh> WeaponMesh;
-
+	TSoftObjectPtr<UStaticMesh> WeaponMesh;
+	
+	
+    //--- Transaform   ---------------------------------------------------------
+	
+	// Per-instance transform applied when this weapon is attached to weapon_r socket.
+	// Tune in editor per weapon mesh to align grip position and orientation.
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Transform")
+	FTransform WeaponAttachTransform;
+	
+	
     //--- Per-Instance Montage Overrides --------------------------------------
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Override|HeavyAttack",

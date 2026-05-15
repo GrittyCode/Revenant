@@ -2,13 +2,16 @@
 #include "Component/RVCombatStateComponent.h"
 
 void UAnimNotifyState_AttackHitCheck::NotifyBegin(USkeletalMeshComponent* MeshComp,
-                                                  UAnimSequenceBase* Animation, float TotalDuration,
-                                                  const FAnimNotifyEventReference& EventReference)
+												  UAnimSequenceBase* Animation, float TotalDuration,
+												  const FAnimNotifyEventReference& EventReference)
 {
 	Super::NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
 
+	AActor* Owner = MeshComp->GetOwner();
+	if (!IsValid(Owner)) { return; }
+
 	URVCombatStateComponent* CombatComp =
-		MeshComp->GetOwner()->FindComponentByClass<URVCombatStateComponent>();
+		Owner->FindComponentByClass<URVCombatStateComponent>();
 	if (!IsValid(CombatComp)) { return; }
 
 	CachedCombatComps.Add(MeshComp, CombatComp);

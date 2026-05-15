@@ -2,13 +2,17 @@
 #include "Component/RVDodgeComponent.h"
 
 void UAnimNotifyState_DodgeIFrame::NotifyBegin(USkeletalMeshComponent* MeshComp,
-                                               UAnimSequenceBase* Animation, float TotalDuration,
-                                               const FAnimNotifyEventReference& EventReference)
+											   UAnimSequenceBase* Animation, float TotalDuration,
+											   const FAnimNotifyEventReference& EventReference)
 {
 	Super::NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
 
-	URVDodgeComponent* DodgeComp = MeshComp->GetOwner()->FindComponentByClass<URVDodgeComponent>();
+	AActor* Owner = MeshComp->GetOwner();
+	if (!IsValid(Owner)) { return; }
+
+	URVDodgeComponent* DodgeComp = Owner->FindComponentByClass<URVDodgeComponent>();
 	if (!IsValid(DodgeComp)) { return; }
+
 	DodgeComp->SetDodgeIFrame(true);
 }
 
@@ -18,9 +22,13 @@ void UAnimNotifyState_DodgeIFrame::NotifyEnd(USkeletalMeshComponent* MeshComp,
 {
 	Super::NotifyEnd(MeshComp, Animation, EventReference);
 
-	URVDodgeComponent* DodgeComp = MeshComp->GetOwner()->FindComponentByClass<URVDodgeComponent>();
+	AActor* Owner = MeshComp->GetOwner();
+	if (!IsValid(Owner)) { return; }
+
+	URVDodgeComponent* DodgeComp = Owner->FindComponentByClass<URVDodgeComponent>();
 	if (!IsValid(DodgeComp)) { return; }
-	DodgeComp->SetDodgeIFrame(true);
+
+	DodgeComp->SetDodgeIFrame(false);
 }
 
 FString UAnimNotifyState_DodgeIFrame::GetNotifyName_Implementation() const

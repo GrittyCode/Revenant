@@ -5,6 +5,7 @@
 #include "RVEquipmentComponent.generated.h"
 
 class URVWeaponDataAsset;
+class UStaticMeshComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRVOnWeaponChanged, URVWeaponDataAsset*, NewWeaponData);
 
@@ -16,16 +17,13 @@ class REVENANT_API URVEquipmentComponent : public UActorComponent
 public:
 	URVEquipmentComponent();
 
-	/** Returns the active weapon DataAsset. May be null if not assigned. */
 	URVWeaponDataAsset* GetCurrentWeaponData() const { return CurrentWeaponData; }
 
-	/**
-	 * Swaps the active weapon DataAsset and broadcasts OnWeaponChanged.
-	 * Called from BeginPlay (default weapon) and Phase 2 A/B toggle.
-	 */
+	/** Returns the runtime weapon static mesh component. Null before BeginPlay. */
+	UStaticMeshComponent* GetWeaponMeshComponent() const { return WeaponMeshComponent; }
+
 	void SetCurrentWeaponData(URVWeaponDataAsset* InWeaponData);
 
-	// Fired whenever CurrentWeaponData changes — subscribers update locomotion BS, montages, etc.
 	UPROPERTY(BlueprintAssignable, Category = "RV|Equipment")
 	FRVOnWeaponChanged OnWeaponChanged;
 
@@ -38,4 +36,9 @@ protected:
 private:
 	UPROPERTY(VisibleAnywhere, Category = "RV|Equipment")
 	TObjectPtr<URVWeaponDataAsset> CurrentWeaponData;
+
+	// Runtime static mesh component for the equipped weapon.
+	// Created in BeginPlay, attached to the owner character's weapon_r socket.
+	UPROPERTY()
+	TObjectPtr<UStaticMeshComponent> WeaponMeshComponent;
 };

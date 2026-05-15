@@ -1,17 +1,19 @@
 #include "Animation/AnimNotify_HeavyAttackReady.h"
 #include "Component/RVHeavyAttackComponent.h"
 
-void UAnimNotify_HeavyAttackReady::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
+void UAnimNotify_HeavyAttackReady::Notify(USkeletalMeshComponent* MeshComp,
+	UAnimSequenceBase* Animation,
+	const FAnimNotifyEventReference& EventReference)
 {
 	Super::Notify(MeshComp, Animation, EventReference);
-	
-	URVCombatStateComponent* CombatComp =
-	 MeshComp->GetOwner()->FindComponentByClass<URVCombatStateComponent>();
-	if (!IsValid(CombatComp)) { return; }
 
-	// URVCombatComponent → URVHeavyAttackComponent
-	URVHeavyAttackComponent* HeavyAttackComp = MeshComp->GetOwner()->FindComponentByClass<URVHeavyAttackComponent>();
+	AActor* Owner = MeshComp->GetOwner();
+	if (!IsValid(Owner)) { return; }
+
+	URVHeavyAttackComponent* HeavyAttackComp =
+		Owner->FindComponentByClass<URVHeavyAttackComponent>();
 	if (!IsValid(HeavyAttackComp)) { return; }
+
 	HeavyAttackComp->SetHeavyAttackReady(true);
 }
 

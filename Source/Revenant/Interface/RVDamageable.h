@@ -13,10 +13,10 @@
 UENUM(BlueprintType)
 enum class ERVHitType : uint8
 {
-    Normal = 0,
-    Heavy  = 1,
-    Grab   = 2,
-    Smash  = 3,
+	Normal = 0,
+	Heavy  = 1,
+	Grab   = 2,
+	Smash  = 3,
 };
 
 /**
@@ -25,45 +25,47 @@ enum class ERVHitType : uint8
 USTRUCT(BlueprintType)
 struct REVENANT_API FRVHitInfo
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
-    /** HP damage to apply. */
-    float Damage = 0.f;
+	/** HP damage to apply. */
+	UPROPERTY(BlueprintReadWrite)
+	float Damage = 0.f;
 
-    /** Poise damage to apply. Poise depletion triggers hit reaction. */
-    float PoiseDamage = 0.f;
+	/** Poise damage to apply. Poise depletion triggers hit reaction. */
+	UPROPERTY(BlueprintReadWrite)
+	float PoiseDamage = 0.f;
 
-    /**
-     * Determines reaction severity when poise is depleted.
-     * Heavy force Knockdown regardless of poise or character state.
-     */
-    ERVHitType HitType = ERVHitType::Normal;
+	/**
+	 * Determines reaction severity when poise is depleted.
+	 * Heavy forces Knockdown regardless of poise or character state.
+	 */
+	UPROPERTY(BlueprintReadWrite)
+	ERVHitType HitType = ERVHitType::Normal;
 
-    /**
-     * World-space direction from instigator toward target (normalized).
-     * Used by URVHitReactionComponent to select directional stagger montage
-     * and drive the ABP additive flinch layer.
-     */
-    FVector HitDirection = FVector::ZeroVector;
+	/**
+	 * World-space direction from instigator toward target (normalized).
+	 * Used by URVHitReactionComponent to select directional stagger montage
+	 * and drive the ABP additive flinch layer.
+	 */
+	UPROPERTY(BlueprintReadWrite)
+	FVector HitDirection = FVector::ZeroVector;
 
-    /** Actor that initiated the attack. */
-    UPROPERTY()
-    TObjectPtr<AActor> Instigator;
+	/** Actor that initiated the attack. */
+	UPROPERTY(BlueprintReadWrite)
+	TObjectPtr<AActor> Instigator;
 };
 
 UINTERFACE(MinimalAPI)
 class URVDamageable : public UInterface
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 };
 
 class REVENANT_API IRVDamageable
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    /**
-     * Returns true if the target survived (HP > 0 after hit).
-     */
-    virtual bool ApplyDamage(const FRVHitInfo& InHitInfo) = 0;
+	/* Returns true if the target survived (HP > 0 after hit).*/
+	virtual bool ApplyDamage(const FRVHitInfo& InHitInfo) = 0;
 };

@@ -2,10 +2,13 @@
 #include "Component/RVComboComponent.h"
 
 void UAnimNotify_ComboChain::Notify(USkeletalMeshComponent* MeshComp,
-									 UAnimSequenceBase* Animation,
-									 const FAnimNotifyEventReference& EventReference)
+									UAnimSequenceBase* Animation,
+									const FAnimNotifyEventReference& EventReference)
 {
-	URVComboComponent* ComboComp = MeshComp->GetOwner()->FindComponentByClass<URVComboComponent>();
+	AActor* Owner = MeshComp->GetOwner();
+	if (!IsValid(Owner)) { return; }
+
+	URVComboComponent* ComboComp = Owner->FindComponentByClass<URVComboComponent>();
 	if (!IsValid(ComboComp)) { return; }
 
 	ComboComp->TryChainNextCombo();

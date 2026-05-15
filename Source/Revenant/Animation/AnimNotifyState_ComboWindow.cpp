@@ -7,8 +7,10 @@ void UAnimNotifyState_ComboWindow::NotifyBegin(USkeletalMeshComponent* MeshComp,
 {
 	Super::NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
 
-	URVComboComponent* ComboComp =
-		MeshComp->GetOwner()->FindComponentByClass<URVComboComponent>();
+	AActor* Owner = MeshComp->GetOwner();
+	if (!IsValid(Owner)) { return; }
+
+	URVComboComponent* ComboComp = Owner->FindComponentByClass<URVComboComponent>();
 	if (!IsValid(ComboComp)) { return; }
 
 	CachedComboComps.Add(MeshComp, ComboComp);

@@ -6,9 +6,7 @@
 #include "Animation/AnimInstance.h"
 #include "Data/RVCharacterDataAsset.h"
 #include "Data/RVWeaponDataAsset.h"
-#include "Data/RVWeaponAnimationDataAsset.h"
 #include "GameFramework/Character.h"
-#include "GameFramework/CharacterMovementComponent.h"
 #include "KismetAnimationLibrary.h"
 
 URVHitReactionComponent::URVHitReactionComponent()
@@ -103,23 +101,24 @@ void URVHitReactionComponent::TriggerStagger(const FVector& InHitDirection)
 
 void URVHitReactionComponent::TriggerKnockdown(const FVector& InHitDirection)
 {
+    // Route through WeaponDataAsset getter — never access AnimationDataAsset directly.
     const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-    if (!IsValid(WeaponData) || !IsValid(WeaponData->AnimationDataAsset)) { return; }
+    if (!IsValid(WeaponData)) { return; }
 
-    URVWeaponAnimationDataAsset* AnimData = WeaponData->AnimationDataAsset;
-    if (!IsValid(AnimData->KnockdownMontage)) { return; }
+    UAnimMontage* KnockdownMontage = WeaponData->GetKnockdownMontage();
+    if (!IsValid(KnockdownMontage)) { return; }
 
     UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
     if (!IsValid(AnimInst)) { return; }
-	
-	OwnerCharacter->SetActorRotation(FRotationMatrix::MakeFromX(InHitDirection).Rotator());
-	CombatStateComponent->AddState(ERVCombatState::Knockdown);
-	
-    AnimInst->Montage_Play(AnimData->KnockdownMontage);
+
+    OwnerCharacter->SetActorRotation(FRotationMatrix::MakeFromX(InHitDirection).Rotator());
+    CombatStateComponent->AddState(ERVCombatState::Knockdown);
+
+    AnimInst->Montage_Play(KnockdownMontage);
 
     FOnMontageBlendingOutStarted BlendingOutDelegate;
     BlendingOutDelegate.BindUObject(this, &URVHitReactionComponent::OnKnockdownMontageBlendingOut);
-    AnimInst->Montage_SetBlendingOutDelegate(BlendingOutDelegate, AnimData->KnockdownMontage);
+    AnimInst->Montage_SetBlendingOutDelegate(BlendingOutDelegate, KnockdownMontage);
 }
 
 //--- Callbacks ---------------------------------------------------------------
@@ -136,20 +135,21 @@ void URVHitReactionComponent::OnStaggerMontageBlendingOut(UAnimMontage* /*Montag
 
 void URVHitReactionComponent::OnKnockdownMontageBlendingOut(UAnimMontage* /*Montage*/, bool /*bInterrupted*/)
 {
+    // Route through WeaponDataAsset getter — never access AnimationDataAsset directly.
     const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-    if (!IsValid(WeaponData) || !IsValid(WeaponData->AnimationDataAsset)) { return; }
+    if (!IsValid(WeaponData)) { return; }
 
-    URVWeaponAnimationDataAsset* AnimData = WeaponData->AnimationDataAsset;
-    if (!IsValid(AnimData->GetUpMontage)) { return; }
+    UAnimMontage* GetUpMontage = WeaponData->GetGetUpMontage();
+    if (!IsValid(GetUpMontage)) { return; }
 
     UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
     if (!IsValid(AnimInst)) { return; }
 
-    AnimInst->Montage_Play(AnimData->GetUpMontage);
+    AnimInst->Montage_Play(GetUpMontage);
 
     FOnMontageBlendingOutStarted GetUpDelegate;
     GetUpDelegate.BindUObject(this, &URVHitReactionComponent::OnGetUpMontageBlendingOut);
-    AnimInst->Montage_SetBlendingOutDelegate(GetUpDelegate, AnimData->GetUpMontage);
+    AnimInst->Montage_SetBlendingOutDelegate(GetUpDelegate, GetUpMontage);
 }
 
 void URVHitReactionComponent::OnGetUpMontageBlendingOut(UAnimMontage* /*Montage*/, bool /*bInterrupted*/)
