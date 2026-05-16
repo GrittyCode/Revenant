@@ -3,6 +3,7 @@
 #include "Component/RVAttributeComponent.h"
 #include "Component/RVEquipmentComponent.h"
 #include "Data/RVWeaponDataAsset.h"
+#include "Data/RVCombatAnimDataAsset.h"
 #include "GameFramework/Character.h"
 
 URVGuardComponent::URVGuardComponent()
@@ -48,12 +49,16 @@ void URVGuardComponent::HandleGuardHit(float InDamageAmount)
     if (!bGuardHeld) { return; }
 
     const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-    if (!IsValid(WeaponData) || !IsValid(WeaponData->GetGuardHitMontage())) { return; }
+    if (!IsValid(WeaponData)) { return; }
+
+    // CombatAnimData guaranteed valid by SetCurrentWeaponData ensureMsgf.
+    UAnimMontage* GuardHitMontage = WeaponData->CombatAnimData->GuardHitMontage;
+    if (!IsValid(GuardHitMontage)) { return; }
 
     UAnimInstance* AnimInstance = OwnerCharacter->GetMesh()->GetAnimInstance();
     if (!IsValid(AnimInstance)) { return; }
 
-    AnimInstance->Montage_Play(WeaponData->GetGuardHitMontage());
+    AnimInstance->Montage_Play(GuardHitMontage);
 }
 
 void URVGuardComponent::ForceEndGuard()
@@ -70,7 +75,9 @@ void URVGuardComponent::OnStaminaDepletedHandler()
     CombatStateComponent->RemoveState(ERVCombatState::Guarding);
 
     URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-    UAnimMontage* GuardBreakMontage = IsValid(WeaponData) ? WeaponData->GetGuardBreakMontage() : nullptr;
+
+    UAnimMontage* GuardBreakMontage = IsValid(WeaponData)
+        ? WeaponData->CombatAnimData->GuardBreakMontage : nullptr;
 
     OnGuardBreakTriggered.Broadcast(GuardBreakMontage);
 }

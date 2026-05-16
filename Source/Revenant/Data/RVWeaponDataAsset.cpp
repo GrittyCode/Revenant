@@ -1,136 +1,63 @@
 #include "Data/RVWeaponDataAsset.h"
-#include "Data/RVWeaponAnimationDataAsset.h"
-#include "Data/RVWeaponStatRow.h"
+#include "Data/RVCombatAnimDataAsset.h"
+#include "Data/RVCombatDataAsset.h"
 
 const FRVWeaponStatRow* URVWeaponDataAsset::GetWeaponStatRow() const
 {
-    return WeaponStatRowHandle.GetRow<FRVWeaponStatRow>(TEXT("URVWeaponDataAsset::GetWeaponStatRow"));
-}
-
-UAnimMontage* URVWeaponDataAsset::GetComboMontage(int32 InIndex) const
-{
-    return IsValid(AnimationDataAsset) ? AnimationDataAsset->GetComboMontage(InIndex) : nullptr;
-}
-
-int32 URVWeaponDataAsset::GetMaxComboCount() const
-{
-    return IsValid(AnimationDataAsset) ? AnimationDataAsset->GetMaxComboCount() : 0;
-}
-
-int32 URVWeaponDataAsset::FindComboMontageIndex(const UAnimMontage* InMontage) const
-{
-    return IsValid(AnimationDataAsset) ? AnimationDataAsset->FindComboMontageIndex(InMontage) : INDEX_NONE;
+    return CombatData->GetWeaponStatRow();
 }
 
 UAnimMontage* URVWeaponDataAsset::GetHeavyChargeMontage() const
 {
-    if (bOverrideHeavyChargeMontage) { return OverrideHeavyChargeMontage; }
-    return IsValid(AnimationDataAsset) ? AnimationDataAsset->HeavyChargeMontage.Get() : nullptr;
+    if (bOverrideHeavyChargeMontage && IsValid(OverrideHeavyChargeMontage))
+    {
+        return OverrideHeavyChargeMontage;
+    }
+    return CombatAnimData->HeavyChargeMontage;
 }
 
 UAnimMontage* URVWeaponDataAsset::GetHeavyAttackMontage(bool bIsMax) const
 {
     if (bOverrideHeavyAttackMontage)
     {
-        return bIsMax ? OverrideMaxHeavyAttackMontage.Get() : OverrideHeavyAttackMontage.Get();
+        return bIsMax ? OverrideMaxHeavyAttackMontage : OverrideHeavyAttackMontage;
     }
-    if (!IsValid(AnimationDataAsset)) { return nullptr; }
-    return bIsMax ? AnimationDataAsset->MaxHeavyAttackMontage.Get()
-                  : AnimationDataAsset->HeavyAttackMontage.Get();
+    return bIsMax ? CombatAnimData->MaxHeavyAttackMontage
+                  : CombatAnimData->HeavyAttackMontage;
 }
 
 UAnimMontage* URVWeaponDataAsset::GetDodgeMontage() const
 {
-    if (bOverrideDodgeMontage) { return OverrideDodgeMontage; }
-    return IsValid(AnimationDataAsset) ? AnimationDataAsset->DodgeMontage.Get() : nullptr;
+    if (bOverrideDodgeMontage && IsValid(OverrideDodgeMontage)) { return OverrideDodgeMontage; }
+    return CombatAnimData->DodgeMontage;
 }
 
 UAnimMontage* URVWeaponDataAsset::GetDodgeMontage_LockOn_F() const
 {
-    if (!IsValid(AnimationDataAsset)) { return nullptr; }
-    UAnimMontage* M = AnimationDataAsset->LockOnDodgeMontage_F.Get();
-    return IsValid(M) ? M : GetDodgeMontage();
+    return IsValid(CombatAnimData->LockOnDodgeMontage_F)
+        ? CombatAnimData->LockOnDodgeMontage_F.Get() : GetDodgeMontage();
 }
 
 UAnimMontage* URVWeaponDataAsset::GetDodgeMontage_LockOn_L() const
 {
-    if (!IsValid(AnimationDataAsset)) { return nullptr; }
-    UAnimMontage* M = AnimationDataAsset->LockOnDodgeMontage_L.Get();
-    return IsValid(M) ? M : GetDodgeMontage();
+    return IsValid(CombatAnimData->LockOnDodgeMontage_L)
+        ? CombatAnimData->LockOnDodgeMontage_L.Get() : GetDodgeMontage();
 }
 
 UAnimMontage* URVWeaponDataAsset::GetDodgeMontage_LockOn_R() const
 {
-    if (!IsValid(AnimationDataAsset)) { return nullptr; }
-    UAnimMontage* M = AnimationDataAsset->LockOnDodgeMontage_R.Get();
-    return IsValid(M) ? M : GetDodgeMontage();
+    return IsValid(CombatAnimData->LockOnDodgeMontage_R)
+        ? CombatAnimData->LockOnDodgeMontage_R.Get() : GetDodgeMontage();
 }
 
 UAnimMontage* URVWeaponDataAsset::GetDodgeMontage_LockOn_BL() const
 {
-    if (!IsValid(AnimationDataAsset)) { return nullptr; }
-    UAnimMontage* M = AnimationDataAsset->LockOnDodgeMontage_BL.Get();
-    return IsValid(M) ? M : GetDodgeMontage();
+    return IsValid(CombatAnimData->LockOnDodgeMontage_BL)
+        ? CombatAnimData->LockOnDodgeMontage_BL.Get() : GetDodgeMontage();
 }
 
 UAnimMontage* URVWeaponDataAsset::GetDodgeMontage_LockOn_BR() const
 {
-    if (!IsValid(AnimationDataAsset)) { return nullptr; }
-    UAnimMontage* M = AnimationDataAsset->LockOnDodgeMontage_BR.Get();
-    return IsValid(M) ? M : GetDodgeMontage();
-}
-
-UAnimMontage* URVWeaponDataAsset::GetGuardBreakMontage() const
-{
-    return IsValid(AnimationDataAsset) ? AnimationDataAsset->GuardBreakMontage.Get() : nullptr;
-}
-
-UAnimMontage* URVWeaponDataAsset::GetGuardHitMontage() const
-{
-    return IsValid(AnimationDataAsset) ? AnimationDataAsset->GuardHitMontage.Get() : nullptr;
-}
-
-UAnimMontage* URVWeaponDataAsset::GetGroggyMontage() const
-{
-    return IsValid(AnimationDataAsset) ? AnimationDataAsset->GroggyMontage.Get() : nullptr;
-}
-
-UAnimMontage* URVWeaponDataAsset::GetKnockdownMontage() const
-{
-    return IsValid(AnimationDataAsset) ? AnimationDataAsset->KnockdownMontage.Get() : nullptr;
-}
-
-UAnimMontage* URVWeaponDataAsset::GetGetUpMontage() const
-{
-    return IsValid(AnimationDataAsset) ? AnimationDataAsset->GetUpMontage.Get() : nullptr;
-}
-
-UBlendSpace* URVWeaponDataAsset::GetStaggerBlendSpace() const
-{
-    return IsValid(AnimationDataAsset) ? AnimationDataAsset->StaggerBlendSpace.Get() : nullptr;
-}
-
-UBlendSpace* URVWeaponDataAsset::GetLocomotionBS() const
-{
-    return IsValid(AnimationDataAsset) ? AnimationDataAsset->LocomotionBS.Get() : nullptr;
-}
-
-UBlendSpace* URVWeaponDataAsset::GetRunLocomotionBS() const
-{
-    return IsValid(AnimationDataAsset) ? AnimationDataAsset->RunLocomotionBS.Get() : nullptr;
-}
-
-UBlendSpace* URVWeaponDataAsset::GetLockOnLocomotionBS() const
-{
-    return IsValid(AnimationDataAsset) ? AnimationDataAsset->LockOnLocomotionBS.Get() : nullptr;
-}
-
-UBlendSpace* URVWeaponDataAsset::GetGuardLocomotionBS() const
-{
-    return IsValid(AnimationDataAsset) ? AnimationDataAsset->GuardLocomotionBS.Get() : nullptr;
-}
-
-UBlendSpace* URVWeaponDataAsset::GetGuardLocomotionBS_LockOn() const
-{
-    return IsValid(AnimationDataAsset) ? AnimationDataAsset->GuardLocomotionBS_LockOn.Get() : nullptr;
+    return IsValid(CombatAnimData->LockOnDodgeMontage_BR)
+        ? CombatAnimData->LockOnDodgeMontage_BR.Get() : GetDodgeMontage();
 }

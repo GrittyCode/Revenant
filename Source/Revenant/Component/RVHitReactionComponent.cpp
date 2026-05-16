@@ -1,11 +1,10 @@
 #include "Component/RVHitReactionComponent.h"
 #include "Component/RVCombatStateComponent.h"
 #include "Component/RVAttributeComponent.h"
-#include "Component/RVEquipmentComponent.h"
+#include "Data/RVCombatDataAsset.h"
+#include "Data/RVCharacterDataAsset.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimInstance.h"
-#include "Data/RVCharacterDataAsset.h"
-#include "Data/RVWeaponDataAsset.h"
 #include "GameFramework/Character.h"
 #include "KismetAnimationLibrary.h"
 
@@ -23,13 +22,13 @@ void URVHitReactionComponent::InitReferences(
     ACharacter* InOwnerCharacter,
     URVCombatStateComponent* InCombatStateComponent,
     URVAttributeComponent* InAttributeComponent,
-    URVEquipmentComponent* InEquipmentComponent,
+    URVCombatDataAsset* InCombatData,
     URVCharacterDataAsset* InCharacterData)
 {
     OwnerCharacter       = InOwnerCharacter;
     CombatStateComponent = InCombatStateComponent;
     AttributeComponent   = InAttributeComponent;
-    EquipmentComponent   = InEquipmentComponent;
+    CombatData           = InCombatData;
     CharacterData        = InCharacterData;
 }
 
@@ -101,11 +100,9 @@ void URVHitReactionComponent::TriggerStagger(const FVector& InHitDirection)
 
 void URVHitReactionComponent::TriggerKnockdown(const FVector& InHitDirection)
 {
-    // Route through WeaponDataAsset getter — never access AnimationDataAsset directly.
-    const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-    if (!IsValid(WeaponData)) { return; }
+    if (!IsValid(CombatData)) { return; }
 
-    UAnimMontage* KnockdownMontage = WeaponData->GetKnockdownMontage();
+    UAnimMontage* KnockdownMontage = CombatData->KnockdownMontage;
     if (!IsValid(KnockdownMontage)) { return; }
 
     UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
@@ -135,11 +132,9 @@ void URVHitReactionComponent::OnStaggerMontageBlendingOut(UAnimMontage* /*Montag
 
 void URVHitReactionComponent::OnKnockdownMontageBlendingOut(UAnimMontage* /*Montage*/, bool /*bInterrupted*/)
 {
-    // Route through WeaponDataAsset getter — never access AnimationDataAsset directly.
-    const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-    if (!IsValid(WeaponData)) { return; }
+    if (!IsValid(CombatData)) { return; }
 
-    UAnimMontage* GetUpMontage = WeaponData->GetGetUpMontage();
+    UAnimMontage* GetUpMontage = CombatData->GetUpMontage;
     if (!IsValid(GetUpMontage)) { return; }
 
     UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();

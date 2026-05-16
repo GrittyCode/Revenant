@@ -11,7 +11,7 @@ public class Revenant : ModuleRules
 		PublicIncludePaths.AddRange(new string[]
 		{
 			"Revenant"
-		}); // Project Module 경로 설정
+		}); 
 
 		PublicDependencyModuleNames.AddRange(new string[]
 		{
@@ -19,7 +19,11 @@ public class Revenant : ModuleRules
 			"CoreUObject",
 			"Engine", 
 			"InputCore", 
-			"EnhancedInput"
+			"EnhancedInput",
+			"AIModule",
+			"NavigationSystem",
+			"StateTreeModule",
+			"GameplayStateTreeModule"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] { "AnimGraphRuntime" });

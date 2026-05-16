@@ -9,7 +9,8 @@ class UBlendSpace;
 
 /**
  * Layer 1 — Weapon Animation Set.
- * Multiple weapon instances (URVWeaponDataAsset) can reference the same animation set
+ * Holds moveset animations and locomotion blendspaces shared across weapon instances of the same style.
+ * Hit reaction animations (Stagger, Knockdown, GetUp) live in URVCombatDataAsset.
  */
 UCLASS(BlueprintType)
 class REVENANT_API URVWeaponAnimationDataAsset : public UPrimaryDataAsset
@@ -17,16 +18,13 @@ class REVENANT_API URVWeaponAnimationDataAsset : public UPrimaryDataAsset
     GENERATED_BODY()
 
 public:
-    //--- Combo Montages ------------------------------------------------------
-    // Each montage carries its own stat multiplier row via URVMontageStatData (AssetUserData).
+    //--- Combo ---------------------------------------------------------------
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Combo")
     TArray<TObjectPtr<UAnimMontage>> ComboMontages;
 
     UAnimMontage* GetComboMontage(int32 InIndex) const;
     int32 GetMaxComboCount() const { return ComboMontages.Num(); }
-
-    // Returns the index of InMontage in ComboMontages, or INDEX_NONE if not found.
     int32 FindComboMontageIndex(const UAnimMontage* InMontage) const;
 
     //--- Attack Montages -----------------------------------------------------
@@ -34,21 +32,16 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UAnimMontage> HeavyChargeMontage;
 
-    // Played on manual release.
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UAnimMontage> HeavyAttackMontage;
 
-    // Played on auto-release (max charge).
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UAnimMontage> MaxHeavyAttackMontage;
 
-    // Single forward roll — character is pre-rotated to dodge direction before play.
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UAnimMontage> DodgeMontage;
 
-    //--- Lock-on Directional Dodge Montages ----------------------------------
-    // Used when locked on. FL/FR are handled by rotating to input dir then playing F.
-    // All fall back to DodgeMontage if unassigned — dodge works before montages are set up.
+    //--- Lock-on Directional Dodge -------------------------------------------
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation|LockOnDodge")
     TObjectPtr<UAnimMontage> LockOnDodgeMontage_F;
@@ -65,7 +58,7 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation|LockOnDodge")
     TObjectPtr<UAnimMontage> LockOnDodgeMontage_BR;
 
-    //--- Guard Montages ------------------------------------------------------
+    //--- Guard ---------------------------------------------------------------
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UAnimMontage> GuardBreakMontage;
@@ -73,28 +66,16 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UAnimMontage> GuardHitMontage;
 
-    //--- Hit Reaction --------------------------------------------------------
+    //--- Groggy (player reaction to boss groggy phase) -----------------------
 
-    // Direction axis: -180 to 180. ABP samples at HitDirectionAngle during HitReaction state.
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|HitReaction")
-    TObjectPtr<UBlendSpace> StaggerBlendSpace;
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|HitReaction")
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UAnimMontage> GroggyMontage;
-
-    // Transitions to GetUpMontage on blend-out.
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|HitReaction")
-    TObjectPtr<UAnimMontage> KnockdownMontage;
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|HitReaction")
-    TObjectPtr<UAnimMontage> GetUpMontage;
 
     //--- Locomotion ----------------------------------------------------------
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Locomotion")
     TObjectPtr<UBlendSpace> LocomotionBS;
 
-    // Sprint state only — Default mode. No LockOn variant (LockOn caps at Jog).
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Locomotion")
     TObjectPtr<UBlendSpace> RunLocomotionBS;
 

@@ -5,6 +5,7 @@
 #include "RVEquipmentComponent.generated.h"
 
 class URVWeaponDataAsset;
+class URVCombatDataAsset;
 class UStaticMeshComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRVOnWeaponChanged, URVWeaponDataAsset*, NewWeaponData);
@@ -18,8 +19,7 @@ public:
 	URVEquipmentComponent();
 
 	URVWeaponDataAsset* GetCurrentWeaponData() const { return CurrentWeaponData; }
-
-	/** Returns the runtime weapon static mesh component. Null before BeginPlay. */
+	URVCombatDataAsset* GetCurrentCombatData() const;
 	UStaticMeshComponent* GetWeaponMeshComponent() const { return WeaponMeshComponent; }
 
 	void SetCurrentWeaponData(URVWeaponDataAsset* InWeaponData);
@@ -37,8 +37,6 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "RV|Equipment")
 	TObjectPtr<URVWeaponDataAsset> CurrentWeaponData;
 
-	// Runtime static mesh component for the equipped weapon.
-	// Created in BeginPlay, attached to the owner character's weapon_r socket.
 	UPROPERTY()
 	TObjectPtr<UStaticMeshComponent> WeaponMeshComponent;
 };

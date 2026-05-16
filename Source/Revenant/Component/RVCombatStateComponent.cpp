@@ -1,6 +1,5 @@
 #include "Component/RVCombatStateComponent.h"
-#include "Component/RVEquipmentComponent.h"
-#include "Data/RVWeaponDataAsset.h"
+#include "Data/RVCombatDataAsset.h"
 #include "Data/RVMontageStatData.h"
 #include "Data/RVAttackActionMultiplierRow.h"
 #include "Data/RVWeaponStatRow.h"
@@ -8,6 +7,7 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Animation/AnimInstance.h"
+#include "Components/MeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/OverlapResult.h"
 
@@ -23,12 +23,14 @@ void URVCombatStateComponent::BeginPlay()
 
 void URVCombatStateComponent::InitReferences(
     ACharacter* InOwnerCharacter,
-    URVEquipmentComponent* InEquipmentComponent,
+    URVCombatDataAsset* InCombatData,
+    UMeshComponent* InTraceMesh,
     UCharacterMovementComponent* InMovementComponent)
 {
-    OwnerCharacter     = InOwnerCharacter;
-    EquipmentComponent = InEquipmentComponent;
-    MovementComponent  = InMovementComponent;
+    OwnerCharacter    = InOwnerCharacter;
+    CombatData        = InCombatData;
+    TraceMesh         = InTraceMesh;
+    MovementComponent = InMovementComponent;
 }
 
 //--- State Mutators ----------------------------------------------------------
@@ -94,10 +96,9 @@ void URVCombatStateComponent::CloseHitWindow()
 
 void URVCombatStateComponent::PerformAttackTrace()
 {
-    URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-    if (!IsValid(WeaponData)) { return; }
+    if (!IsValid(CombatData)) { return; }
 
-    const FRVWeaponStatRow* WeaponStat = WeaponData->GetWeaponStatRow();
+    const FRVWeaponStatRow* WeaponStat = CombatData->GetWeaponStatRow();
 
     UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
     if (!IsValid(AnimInst)) { return; }
@@ -119,33 +120,29 @@ void URVCombatStateComponent::PerformAttackTrace()
     const float PoiseDamage = BasePoiseDamage * PoiseMult;
     const ERVHitType HitType = AttackStat ? AttackStat->HitType : ERVHitType::Normal;
 
-    // --- Socket source: weapon mesh ------------------------------------------
+    // --- Socket source -------------------------------------------------------
+    // Player: weapon StaticMeshComponent (WeaponRoot/WeaponTip on weapon mesh)
+    // Boss:   character SkeletalMeshComponent (WeaponRoot/WeaponTip on Sevarog skeleton)
 
-    UStaticMeshComponent* WeaponMesh = EquipmentComponent->GetWeaponMeshComponent();
-
-    // IsValid guard runs in all builds including Shipping.
-    // ensureMsgf fires a breakpoint in non-Shipping builds for early detection.
-    if (!IsValid(WeaponMesh) || !IsValid(WeaponMesh->GetStaticMesh()))
+    if (!IsValid(TraceMesh))
     {
         ensureMsgf(false,
-            TEXT("[%s] PerformAttackTrace: WeaponMeshComponent or StaticMesh is invalid"
-                 " — assign WeaponMesh in WeaponDataAsset"),
+            TEXT("[%s] PerformAttackTrace: TraceMesh is null — assign via GetWeaponTraceMesh()"),
             *GetNameSafe(OwnerCharacter));
         return;
     }
 
-    if (!WeaponMesh->DoesSocketExist(FName("WeaponRoot")) ||
-        !WeaponMesh->DoesSocketExist(FName("WeaponTip")))
+    if (!TraceMesh->DoesSocketExist(FName("WeaponRoot")) ||
+        !TraceMesh->DoesSocketExist(FName("WeaponTip")))
     {
         ensureMsgf(false,
-            TEXT("[%s] PerformAttackTrace: WeaponRoot or WeaponTip socket missing"
-                 " — add sockets to the weapon Static Mesh"),
+            TEXT("[%s] PerformAttackTrace: WeaponRoot or WeaponTip socket missing"),
             *GetNameSafe(OwnerCharacter));
         return;
     }
 
-    const FVector Root = WeaponMesh->GetSocketLocation(FName("WeaponRoot"));
-    const FVector Tip  = WeaponMesh->GetSocketLocation(FName("WeaponTip"));
+    const FVector Root = TraceMesh->GetSocketLocation(FName("WeaponRoot"));
+    const FVector Tip  = TraceMesh->GetSocketLocation(FName("WeaponTip"));
 
     const FVector Center     = (Root + Tip) * 0.5f;
     const float   HalfHeight = FVector::Dist(Root, Tip) * 0.5f;
@@ -167,8 +164,6 @@ void URVCombatStateComponent::PerformAttackTrace()
                      Rotation, FColor::Red, false, 1.f);
 #endif
 
-    // --- Damage application --------------------------------------------------
-
     for (const FOverlapResult& Overlap : Overlaps)
     {
         AActor* HitActor = Overlap.GetActor();
@@ -181,10 +176,10 @@ void URVCombatStateComponent::PerformAttackTrace()
         if (IRVDamageable* Target = Cast<IRVDamageable>(HitActor))
         {
             FRVHitInfo HitInfo;
-            HitInfo.Damage      = Damage;
-            HitInfo.PoiseDamage = PoiseDamage;
-            HitInfo.HitType     = HitType;
-            HitInfo.Instigator  = OwnerCharacter;
+            HitInfo.Damage       = Damage;
+            HitInfo.PoiseDamage  = PoiseDamage;
+            HitInfo.HitType      = HitType;
+            HitInfo.Instigator   = OwnerCharacter;
             HitInfo.HitDirection = (HitActor->GetActorLocation() - OwnerCharacter->GetActorLocation()).GetSafeNormal();
 
             Target->ApplyDamage(HitInfo);

@@ -1,4 +1,3 @@
-// Source/Revenant/Animation/RVAnimInstance.h
 #pragma once
 
 #include "CoreMinimal.h"

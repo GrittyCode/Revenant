@@ -7,10 +7,11 @@
 #include "RVCharacterBase.generated.h"
 
 class URVAttributeComponent;
-class URVEquipmentComponent;
 class URVCombatStateComponent;
 class URVHitReactionComponent;
 class URVCharacterDataAsset;
+class URVCombatDataAsset;
+class UMeshComponent;
 
 UCLASS()
 class REVENANT_API ARVCharacterBase : public ACharacter, public IRVCombatInterface, public IRVDamageable
@@ -20,36 +21,32 @@ class REVENANT_API ARVCharacterBase : public ACharacter, public IRVCombatInterfa
 public:
     ARVCharacterBase();
 
-    // --- IRVCombatInterface --------------------------------------------------
-
-    /** Delegates to URVCombatStateComponent::PerformAttackTrace(). */
     virtual void ActivateHitCheck() override;
-
-    // --- IRVDamageable -------------------------------------------------------
-
-    /**
-     * Routes incoming damage:
-     *   Invincible (i-frame) → blocked entirely
-     *   Otherwise           → HP damage via AttributeComponent,
-     *                         then hit reaction via HitReactionComponent
-     *
-     * Guard routing is handled by ARVCharacterPlayer::ApplyDamage override.
-     */
     virtual bool ApplyDamage(const FRVHitInfo& InHitInfo) override;
 
 protected:
     virtual void BeginPlay() override;
-
     virtual void Falling() override;
     virtual void Landed(const FHitResult& Hit) override;
+
+    /**
+     * Returns the URVCombatDataAsset for this character.
+     * Player: from currently equipped URVWeaponDataAsset.
+     * Boss:   from URVBossDataAsset.
+     */
+    virtual URVCombatDataAsset* GetCombatData() const { return nullptr; }
+
+    /**
+     * Returns the mesh that owns WeaponRoot / WeaponTip sockets for hit trace.
+     * Player: weapon StaticMeshComponent (set up by URVEquipmentComponent).
+     * Boss:   character SkeletalMeshComponent (sockets on Sevarog skeleton).
+     */
+    virtual UMeshComponent* GetWeaponTraceMesh() const { return GetMesh(); }
 
     // --- Components ----------------------------------------------------------
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
     TObjectPtr<URVAttributeComponent> AttributeComponent;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-    TObjectPtr<URVEquipmentComponent> EquipmentComponent;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
     TObjectPtr<URVCombatStateComponent> CombatStateComponent;

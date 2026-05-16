@@ -2,51 +2,40 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "Engine/DataTable.h"
 #include "RVWeaponDataAsset.generated.h"
 
-class URVWeaponAnimationDataAsset;
+class URVLocomotionAnimDataAsset;
+class URVCombatAnimDataAsset;
+class URVCombatDataAsset;
 struct FRVWeaponStatRow;
 
-/**
- * Layer 2 — Weapon Instance.
- * Represents one specific weapon. References an AnimationDataAsset for all
- * shared moveset data, owns its own stat row and mesh.
- */
 UCLASS(BlueprintType)
 class REVENANT_API URVWeaponDataAsset : public UPrimaryDataAsset
 {
     GENERATED_BODY()
 
 public:
-    //--- Animation Set Reference ---------------------------------------------
+    //--- Animation -----------------------------------------------------------
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
-    TObjectPtr<URVWeaponAnimationDataAsset> AnimationDataAsset;
+    TObjectPtr<URVLocomotionAnimDataAsset> LocomotionAnimData;
 
-    //--- Base Stats ----------------------------------------------------------
-    // Points to a row in DT_WeaponStats.
-    // Final hit values = WeaponStat.Base* x AttackStatRow.Multiplier.
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
+    TObjectPtr<URVCombatAnimDataAsset> CombatAnimData;
+
+    //--- Combat Data ---------------------------------------------------------
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Combat")
-    FDataTableRowHandle WeaponStatRowHandle;
-
-    const FRVWeaponStatRow* GetWeaponStatRow() const;
+    TObjectPtr<URVCombatDataAsset> CombatData;
 
     //--- Weapon Mesh ---------------------------------------------------------
-	
+
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Mesh")
-	TSoftObjectPtr<UStaticMesh> WeaponMesh;
-	
-	
-    //--- Transaform   ---------------------------------------------------------
-	
-	// Per-instance transform applied when this weapon is attached to weapon_r socket.
-	// Tune in editor per weapon mesh to align grip position and orientation.
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Transform")
-	FTransform WeaponAttachTransform;
-	
-	
+    TSoftObjectPtr<UStaticMesh> WeaponMesh;
+
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Transform")
+    FTransform WeaponAttachTransform;
+
     //--- Per-Instance Montage Overrides --------------------------------------
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Override|HeavyAttack",
@@ -77,15 +66,9 @@ public:
               meta = (EditCondition = "bOverrideDodgeMontage"))
     TObjectPtr<UAnimMontage> OverrideDodgeMontage;
 
-    //--- Getters (all route through AnimationDataAsset) ----------------------
+    //--- Getters -------------------------------------------------------------
 
-    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
-    UAnimMontage* GetComboMontage(int32 InIndex) const;
-
-    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
-    int32 GetMaxComboCount() const;
-
-    int32 FindComboMontageIndex(const UAnimMontage* InMontage) const;
+    const FRVWeaponStatRow* GetWeaponStatRow() const;
 
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UAnimMontage* GetHeavyChargeMontage() const;
@@ -96,7 +79,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UAnimMontage* GetDodgeMontage() const;
 
-    // Lock-on directional dodge getters — fall back to GetDodgeMontage() if unassigned.
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UAnimMontage* GetDodgeMontage_LockOn_F() const;
 
@@ -111,37 +93,4 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
     UAnimMontage* GetDodgeMontage_LockOn_BR() const;
-
-    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
-    UAnimMontage* GetGuardBreakMontage() const;
-
-    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
-    UAnimMontage* GetGuardHitMontage() const;
-
-    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
-    UAnimMontage* GetGroggyMontage() const;
-
-    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
-    UAnimMontage* GetKnockdownMontage() const;
-
-    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
-    UAnimMontage* GetGetUpMontage() const;
-
-    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
-    UBlendSpace* GetStaggerBlendSpace() const;
-
-    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
-    UBlendSpace* GetLocomotionBS() const;
-
-    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
-    UBlendSpace* GetRunLocomotionBS() const;
-
-    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
-    UBlendSpace* GetLockOnLocomotionBS() const;
-
-    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
-    UBlendSpace* GetGuardLocomotionBS() const;
-
-    UFUNCTION(BlueprintCallable, Category = "RV|WeaponData")
-    UBlendSpace* GetGuardLocomotionBS_LockOn() const;
 };

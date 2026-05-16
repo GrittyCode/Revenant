@@ -1,10 +1,9 @@
-// Source/Revenant/Component/RVComboComponent.cpp
 #include "Component/RVComboComponent.h"
 #include "Component/RVCombatStateComponent.h"
 #include "Component/RVAttributeComponent.h"
 #include "Component/RVEquipmentComponent.h"
 #include "Data/RVWeaponDataAsset.h"
-#include "Data/RVWeaponAnimationDataAsset.h"
+#include "Data/RVCombatAnimDataAsset.h"
 #include "Data/RVAttackActionMultiplierRow.h"
 #include "Data/RVWeaponStatRow.h"
 #include "Data/RVMontageStatData.h"
@@ -69,9 +68,9 @@ void URVComboComponent::TryChainNextCombo()
     if (!bHasComboInput) { EndCombo(); return; }
 
     const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-    if (!IsValid(WeaponData) || !IsValid(WeaponData->AnimationDataAsset)) { EndCombo(); return; }
+    if (!IsValid(WeaponData) || !IsValid(WeaponData->CombatAnimData)) { EndCombo(); return; }
 
-    URVWeaponAnimationDataAsset* AnimData = WeaponData->AnimationDataAsset;
+    URVCombatAnimDataAsset* AnimData = WeaponData->CombatAnimData;
     UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
     if (!IsValid(AnimInst)) { EndCombo(); return; }
 
@@ -95,9 +94,9 @@ void URVComboComponent::TryChainNextCombo()
 void URVComboComponent::StartCombo()
 {
     const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-    if (!IsValid(WeaponData) || !IsValid(WeaponData->AnimationDataAsset)) { return; }
+    if (!IsValid(WeaponData) || !IsValid(WeaponData->CombatAnimData)) { return; }
 
-    UAnimMontage* FirstMontage = WeaponData->AnimationDataAsset->GetComboMontage(0);
+    UAnimMontage* FirstMontage = WeaponData->CombatAnimData->GetComboMontage(0);
     if (!IsValid(FirstMontage)) { return; }
 
     if (!ConsumeComboStamina(FirstMontage, WeaponData)) { return; }

@@ -1,6 +1,6 @@
+// Source/Revenant/Character/Base/RVCharacterBase.cpp
 #include "Character/Base/RVCharacterBase.h"
 #include "Component/RVAttributeComponent.h"
-#include "Component/RVEquipmentComponent.h"
 #include "Component/RVCombatStateComponent.h"
 #include "Component/RVHitReactionComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -12,7 +12,6 @@ ARVCharacterBase::ARVCharacterBase()
     PrimaryActorTick.bCanEverTick = false;
 
     AttributeComponent   = CreateDefaultSubobject<URVAttributeComponent>  (TEXT("AttributeComponent"));
-    EquipmentComponent   = CreateDefaultSubobject<URVEquipmentComponent>   (TEXT("EquipmentComponent"));
     CombatStateComponent = CreateDefaultSubobject<URVCombatStateComponent> (TEXT("CombatStateComponent"));
     HitReactionComponent = CreateDefaultSubobject<URVHitReactionComponent> (TEXT("HitReactionComponent"));
 }
@@ -25,7 +24,6 @@ void ARVCharacterBase::BeginPlay()
     GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 
     ensureMsgf(IsValid(AttributeComponent),   TEXT("[%s] AttributeComponent missing"),   *GetName());
-    ensureMsgf(IsValid(EquipmentComponent),   TEXT("[%s] EquipmentComponent missing"),   *GetName());
     ensureMsgf(IsValid(CombatStateComponent), TEXT("[%s] CombatStateComponent missing"), *GetName());
     ensureMsgf(IsValid(HitReactionComponent), TEXT("[%s] HitReactionComponent missing"), *GetName());
 
@@ -35,21 +33,21 @@ void ARVCharacterBase::BeginPlay()
     }
 
     //--- Reference Injection (Composition Root) ------------------------------
+    // Virtual dispatch: Player returns EquipmentComponent data, Boss returns BossData.
+
+    URVCombatDataAsset* CombatData = GetCombatData();
+    UMeshComponent*     TraceMesh  = GetWeaponTraceMesh();
 
     UCharacterMovementComponent* MoveComp = GetCharacterMovement();
 
-    CombatStateComponent->InitReferences(this, EquipmentComponent, MoveComp);
-    HitReactionComponent->InitReferences(this, CombatStateComponent, AttributeComponent, EquipmentComponent, CharacterData);
+    CombatStateComponent->InitReferences(this, CombatData, TraceMesh, MoveComp);
+    HitReactionComponent->InitReferences(this, CombatStateComponent, AttributeComponent, CombatData, CharacterData);
 }
-
-//--- IRVCombatInterface ------------------------------------------------------
 
 void ARVCharacterBase::ActivateHitCheck()
 {
     CombatStateComponent->PerformAttackTrace();
 }
-
-//--- IRVDamageable -----------------------------------------------------------
 
 bool ARVCharacterBase::ApplyDamage(const FRVHitInfo& InHitInfo)
 {
@@ -58,13 +56,11 @@ bool ARVCharacterBase::ApplyDamage(const FRVHitInfo& InHitInfo)
     const bool bSurvived = AttributeComponent->ApplyDamage(InHitInfo.Instigator, InHitInfo.Damage);
 
     // HandleHit runs even on death — Knockdown montage serves as the death fall animation.
-    // TODO(Phase 5): guard with bSurvived once OnDeath handler (DisableInput, game result) is wired.
+    // TODO: guard with bSurvived once OnDeath handler is wired.
     HitReactionComponent->HandleHit(InHitInfo);
 
     return bSurvived;
 }
-
-//--- Movement ----------------------------------------------------------------
 
 void ARVCharacterBase::Falling()
 {

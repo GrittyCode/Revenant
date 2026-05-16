@@ -5,8 +5,9 @@
 #include "RVCombatStateComponent.generated.h"
 
 class ACharacter;
-class URVEquipmentComponent;
+class UMeshComponent;
 class UCharacterMovementComponent;
+class URVCombatDataAsset;
 
 UENUM(meta=(Bitflags))
 enum class ERVCombatState : uint16
@@ -48,8 +49,6 @@ public:
 
     //--- State Control -------------------------------------------------------
 
-    // Broadcasts OnForceEnd so all subscribed action components self-clean.
-    // HitReaction / Groggy / Knockdown are NOT cleared here.
     void ForceEndAllActions();
 
     //--- State Queries -------------------------------------------------------
@@ -79,8 +78,12 @@ public:
     //--- Reference Injection -------------------------------------------------
 
     void InitReferences(ACharacter* InOwnerCharacter,
-                        URVEquipmentComponent* InEquipmentComponent,
+                        URVCombatDataAsset* InCombatData,
+                        UMeshComponent* InTraceMesh,
                         UCharacterMovementComponent* InMovementComponent);
+
+    // Called on weapon swap — updates combat stats without re-initializing.
+    void SetCombatData(URVCombatDataAsset* InCombatData) { CombatData = InCombatData; }
 
     //--- Attack State Handlers -----------------------------------------------
 
@@ -94,8 +97,14 @@ private:
     UPROPERTY()
     TObjectPtr<ACharacter> OwnerCharacter;
 
+    // Stats source — player: from equipped URVWeaponDataAsset, boss: from URVBossDataAsset.
     UPROPERTY()
-    TObjectPtr<URVEquipmentComponent> EquipmentComponent;
+    TObjectPtr<URVCombatDataAsset> CombatData;
+
+    // Mesh that owns WeaponRoot / WeaponTip sockets.
+    // Player: weapon StaticMeshComponent, Boss: character SkeletalMeshComponent.
+    UPROPERTY()
+    TObjectPtr<UMeshComponent> TraceMesh;
 
     UPROPERTY()
     TObjectPtr<UCharacterMovementComponent> MovementComponent;

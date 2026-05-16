@@ -47,6 +47,7 @@ ARVCharacterPlayer::ARVCharacterPlayer()
 	DodgeComponent = CreateDefaultSubobject<URVDodgeComponent>(TEXT("DodgeComponent"));
 	GuardComponent = CreateDefaultSubobject<URVGuardComponent>(TEXT("GuardComponent"));
 	SprintComponent = CreateDefaultSubobject<URVSprintComponent>(TEXT("SprintComponent"));
+	EquipmentComponent   = CreateDefaultSubobject<URVEquipmentComponent>   (TEXT("EquipmentComponent"));
 }
 
 void ARVCharacterPlayer::BeginPlay()
@@ -93,6 +94,31 @@ void ARVCharacterPlayer::BeginPlay()
     CombatStateComponent->OnForceEnd.AddUObject(HeavyAttackComponent, &URVHeavyAttackComponent::ForceEndHeavyAttack);
     CombatStateComponent->OnForceEnd.AddUObject(DodgeComponent,       &URVDodgeComponent::ForceEndDodge);
     CombatStateComponent->OnForceEnd.AddUObject(GuardComponent,       &URVGuardComponent::ForceEndGuard);
+	
+	EquipmentComponent->OnWeaponChanged.AddDynamic(this, &ARVCharacterPlayer::OnWeaponChangedHandler);
+
+}
+
+
+// --- GetCombatData / GetWeaponTraceMesh ------------------------------------
+
+URVCombatDataAsset* ARVCharacterPlayer::GetCombatData() const
+{
+	const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
+	return IsValid(WeaponData) ? WeaponData->CombatData : nullptr;
+}
+
+UMeshComponent* ARVCharacterPlayer::GetWeaponTraceMesh() const
+{
+	return EquipmentComponent->GetWeaponMeshComponent();
+}
+
+void ARVCharacterPlayer::OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData)
+{
+	URVCombatDataAsset* NewCombatData = IsValid(NewWeaponData) ? NewWeaponData->CombatData : nullptr;
+	CombatStateComponent->SetCombatData(NewCombatData);
+	HitReactionComponent->SetCombatData(NewCombatData);
+	// TraceMesh stays the same — weapon mesh component is reused, only static mesh asset changes.
 }
 
 //--- IRVDamageable -----------------------------------------------------------

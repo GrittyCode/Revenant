@@ -4,6 +4,7 @@
 #include "Character/Base/RVCharacterBase.h"
 #include "RVCharacterPlayer.generated.h"
 
+class URVEquipmentComponent;
 class URVInputConfig;
 class UInputMappingContext;
 class USpringArmComponent;
@@ -15,6 +16,7 @@ class URVHeavyAttackComponent;
 class URVDodgeComponent;
 class URVGuardComponent;
 class URVSprintComponent;
+class URVCombatDataAsset;
 
 struct FInputActionValue;
 
@@ -33,6 +35,12 @@ public:
 
 protected:
     virtual void BeginPlay() override;
+	
+	virtual URVCombatDataAsset* GetCombatData() const override;
+	virtual UMeshComponent* GetWeaponTraceMesh() const override;
+
+	UFUNCTION()
+	void OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData);
 
     // --- Player-only Action Components ---------------------------------------
 
@@ -50,6 +58,9 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
     TObjectPtr<URVSprintComponent> SprintComponent;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+	TObjectPtr<URVEquipmentComponent> EquipmentComponent;
 
 private:
     // -- Input Handlers -------------------------------------------------------

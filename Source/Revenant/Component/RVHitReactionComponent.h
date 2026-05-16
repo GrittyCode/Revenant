@@ -8,7 +8,7 @@
 class ACharacter;
 class URVAttributeComponent;
 class URVCombatStateComponent;
-class URVEquipmentComponent;
+class URVCombatDataAsset;
 class URVCharacterDataAsset;
 class UAnimMontage;
 
@@ -22,14 +22,17 @@ public:
 
     void HandleHit(const FRVHitInfo& InHitInfo);
 
-    /** Guard break routes through here so recovery is montage-length-driven, not timer-driven. */
+    /** Guard break routes through here so recovery is montage-length-driven. */
     void TriggerStaggerWithMontage(UAnimMontage* InMontage);
 
     void InitReferences(ACharacter* InOwnerCharacter,
                         URVCombatStateComponent* InCombatStateComponent,
                         URVAttributeComponent* InAttributeComponent,
-                        URVEquipmentComponent* InEquipmentComponent,
+                        URVCombatDataAsset* InCombatData,
                         URVCharacterDataAsset* InCharacterData);
+
+    // Called on weapon swap — updates reaction animations without re-initializing.
+    void SetCombatData(URVCombatDataAsset* InCombatData) { CombatData = InCombatData; }
 
     // Snapshot set at stagger entry. URVAnimInstance polls this each frame.
     float GetStaggerDirection() const { return StaggerDirection; }
@@ -38,8 +41,6 @@ protected:
     virtual void BeginPlay() override;
 
 private:
-    //--- Cached References ---------------------------------------------------
-
     UPROPERTY()
     TObjectPtr<ACharacter> OwnerCharacter;
 
@@ -49,25 +50,18 @@ private:
     UPROPERTY()
     TObjectPtr<URVAttributeComponent> AttributeComponent;
 
+    // Reaction animations source — player: from URVWeaponDataAsset, boss: from URVBossDataAsset.
     UPROPERTY()
-    TObjectPtr<URVEquipmentComponent> EquipmentComponent;
+    TObjectPtr<URVCombatDataAsset> CombatData;
 
     UPROPERTY()
     TObjectPtr<URVCharacterDataAsset> CharacterData;
 
-    //--- State ---------------------------------------------------------------
-
     FTimerHandle StaggerHandle;
-
-    // Character-local hit angle (-180~180). Set by TriggerStagger(), read by URVAnimInstance.
     float StaggerDirection = 0.f;
-
-    //--- Reaction Triggers ---------------------------------------------------
 
     void TriggerStagger(const FVector& InHitDirection);
     void TriggerKnockdown(const FVector& InHitDirection);
-
-    //--- Callbacks -----------------------------------------------------------
 
     UFUNCTION()
     void OnStaggerEnd();

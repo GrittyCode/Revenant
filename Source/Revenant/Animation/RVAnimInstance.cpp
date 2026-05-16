@@ -1,4 +1,3 @@
-// Source/Revenant/Animation/RVAnimInstance.cpp
 #include "Animation/RVAnimInstance.h"
 #include "Component/RVComboComponent.h"
 #include "Component/RVCombatStateComponent.h"
@@ -7,6 +6,8 @@
 #include "Component/RVLockOnComponent.h"
 #include "Component/RVSprintComponent.h"
 #include "Data/RVWeaponDataAsset.h"
+#include "Data/RVLocomotionAnimDataAsset.h"
+#include "Data/RVCombatDataAsset.h"
 #include "KismetAnimationLibrary.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -63,16 +64,12 @@ void URVAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 
     if (!IsValid(OwnerCharacter)) { return; }
 
-    // --- Locomotion ----------------------------------------------------------
-
-    Speed = OwnerCharacter->GetVelocity().Size2D();
+    Speed           = OwnerCharacter->GetVelocity().Size2D();
     NormalizedSpeed = FMath::Clamp(Speed / MaxLocomotionSpeed, 0.f, 1.f);
 
     Direction = UKismetAnimationLibrary::CalculateDirection(
         OwnerCharacter->GetVelocity(),
         OwnerCharacter->GetActorRotation());
-
-    // --- State ---------------------------------------------------------------
 
     bIsInAir         = OwnerCharacter->GetCharacterMovement()->IsFalling();
     bIsAttacking     = ComboComponent->IsComboActive();
@@ -87,10 +84,21 @@ void URVAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 
 void URVAnimInstance::OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData)
 {
-    CachedLocomotionBS             = IsValid(NewWeaponData) ? NewWeaponData->GetLocomotionBS()             : nullptr;
-    CachedRunLocomotionBS          = IsValid(NewWeaponData) ? NewWeaponData->GetRunLocomotionBS()          : nullptr;
-    CachedLockOnLocomotionBS       = IsValid(NewWeaponData) ? NewWeaponData->GetLockOnLocomotionBS()       : nullptr;
-    CachedGuardLocomotionBS        = IsValid(NewWeaponData) ? NewWeaponData->GetGuardLocomotionBS()        : nullptr;
-    CachedGuardLocomotionBS_LockOn = IsValid(NewWeaponData) ? NewWeaponData->GetGuardLocomotionBS_LockOn() : nullptr;
-    CachedStaggerBlendSpace        = IsValid(NewWeaponData) ? NewWeaponData->GetStaggerBlendSpace()        : nullptr;
+    if (!IsValid(NewWeaponData))
+    {
+        CachedLocomotionBS             = nullptr;
+        CachedRunLocomotionBS          = nullptr;
+        CachedLockOnLocomotionBS       = nullptr;
+        CachedGuardLocomotionBS        = nullptr;
+        CachedGuardLocomotionBS_LockOn = nullptr;
+        CachedStaggerBlendSpace        = nullptr;
+        return;
+    }
+
+    CachedLocomotionBS             = NewWeaponData->LocomotionAnimData->LocomotionBS;
+    CachedRunLocomotionBS          = NewWeaponData->LocomotionAnimData->RunLocomotionBS;
+    CachedLockOnLocomotionBS       = NewWeaponData->LocomotionAnimData->LockOnLocomotionBS;
+    CachedGuardLocomotionBS        = NewWeaponData->LocomotionAnimData->GuardLocomotionBS;
+    CachedGuardLocomotionBS_LockOn = NewWeaponData->LocomotionAnimData->GuardLocomotionBS_LockOn;
+    CachedStaggerBlendSpace        = NewWeaponData->CombatData->StaggerBlendSpace;
 }
