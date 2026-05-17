@@ -1,10 +1,11 @@
 #include "Data/RVWeaponDataAsset.h"
-#include "Data/RVCombatAnimDataAsset.h"
-#include "Data/RVCombatDataAsset.h"
+#include "Data/RVPlayerCombatAnimDataAsset.h"
+#include "Data/RVWeaponStatRow.h"
 
 const FRVWeaponStatRow* URVWeaponDataAsset::GetWeaponStatRow() const
 {
-    return CombatData->GetWeaponStatRow();
+    if (WeaponStatRowHandle.IsNull()) { return nullptr; }
+    return WeaponStatRowHandle.GetRow<FRVWeaponStatRow>(TEXT("URVWeaponDataAsset::GetWeaponStatRow"));
 }
 
 UAnimMontage* URVWeaponDataAsset::GetHeavyChargeMontage() const

@@ -10,13 +10,13 @@ struct REVENANT_API FRVWeaponStatRow : public FTableRowBase
 	GENERATED_BODY()
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	float BaseDamage;
+	float BaseDamage = 0.f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	float BasePoiseDamage;
+	float BasePoiseDamage = 0.f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	float BaseStaminaCost;
+	float BaseStaminaCost = 0.f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	float AttackRadius = 40.f;

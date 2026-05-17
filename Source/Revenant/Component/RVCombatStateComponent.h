@@ -7,7 +7,6 @@
 class ACharacter;
 class UMeshComponent;
 class UCharacterMovementComponent;
-class URVCombatDataAsset;
 
 UENUM(meta=(Bitflags))
 enum class ERVCombatState : uint16
@@ -78,12 +77,14 @@ public:
     //--- Reference Injection -------------------------------------------------
 
     void InitReferences(ACharacter* InOwnerCharacter,
-                        URVCombatDataAsset* InCombatData,
                         UMeshComponent* InTraceMesh,
                         UCharacterMovementComponent* InMovementComponent);
 
-    // Called on weapon swap — updates combat stats without re-initializing.
-    void SetCombatData(URVCombatDataAsset* InCombatData) { CombatData = InCombatData; }
+    /**
+     * Injects attack base stats from the current weapon (player) or enemy stat row (boss).
+     * Called by ARVCharacterPlayer::OnWeaponChangedHandler and ARVBossCharacter::BeginPlay.
+     */
+    void SetCombatStat(float InBaseDamage, float InBasePoiseDamage, float InAttackRadius);
 
     //--- Attack State Handlers -----------------------------------------------
 
@@ -97,12 +98,6 @@ private:
     UPROPERTY()
     TObjectPtr<ACharacter> OwnerCharacter;
 
-    // Stats source — player: from equipped URVWeaponDataAsset, boss: from URVBossDataAsset.
-    UPROPERTY()
-    TObjectPtr<URVCombatDataAsset> CombatData;
-
-    // Mesh that owns WeaponRoot / WeaponTip sockets.
-    // Player: weapon StaticMeshComponent, Boss: character SkeletalMeshComponent.
     UPROPERTY()
     TObjectPtr<UMeshComponent> TraceMesh;
 
@@ -111,6 +106,12 @@ private:
 
     ERVCombatState CurrentStates = ERVCombatState::None;
     bool bIsInvincible = false;
+
+    // Cached attack base stats. Set via SetCombatStat().
+    // Player: updated on weapon swap. Boss: set once in BeginPlay.
+    float CachedBaseDamage      = 0.f;
+    float CachedBasePoiseDamage = 0.f;
+    float CachedAttackRadius    = 40.f;
 
     TSet<TWeakObjectPtr<AActor>> HitActors;
 };

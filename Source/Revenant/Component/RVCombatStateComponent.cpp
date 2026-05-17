@@ -1,8 +1,6 @@
 #include "Component/RVCombatStateComponent.h"
-#include "Data/RVCombatDataAsset.h"
 #include "Data/RVMontageStatData.h"
 #include "Data/RVAttackActionMultiplierRow.h"
-#include "Data/RVWeaponStatRow.h"
 #include "Interface/RVDamageable.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -23,14 +21,22 @@ void URVCombatStateComponent::BeginPlay()
 
 void URVCombatStateComponent::InitReferences(
     ACharacter* InOwnerCharacter,
-    URVCombatDataAsset* InCombatData,
     UMeshComponent* InTraceMesh,
     UCharacterMovementComponent* InMovementComponent)
 {
     OwnerCharacter    = InOwnerCharacter;
-    CombatData        = InCombatData;
     TraceMesh         = InTraceMesh;
     MovementComponent = InMovementComponent;
+}
+
+void URVCombatStateComponent::SetCombatStat(
+    float InBaseDamage,
+    float InBasePoiseDamage,
+    float InAttackRadius)
+{
+    CachedBaseDamage      = InBaseDamage;
+    CachedBasePoiseDamage = InBasePoiseDamage;
+    CachedAttackRadius    = InAttackRadius;
 }
 
 //--- State Mutators ----------------------------------------------------------
@@ -96,10 +102,6 @@ void URVCombatStateComponent::CloseHitWindow()
 
 void URVCombatStateComponent::PerformAttackTrace()
 {
-    if (!IsValid(CombatData)) { return; }
-
-    const FRVWeaponStatRow* WeaponStat = CombatData->GetWeaponStatRow();
-
     UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
     if (!IsValid(AnimInst)) { return; }
 
@@ -110,19 +112,12 @@ void URVCombatStateComponent::PerformAttackTrace()
 
     const FRVAttackActionMultiplierRow* AttackStat = StatData ? StatData->GetStatRow() : nullptr;
 
-    const float BaseDamage      = WeaponStat ? WeaponStat->BaseDamage      : 0.f;
-    const float BasePoiseDamage = WeaponStat ? WeaponStat->BasePoiseDamage  : 0.f;
-    const float DmgMult         = AttackStat ? AttackStat->DamageMultiplier      : 1.f;
-    const float PoiseMult       = AttackStat ? AttackStat->PoiseDamageMultiplier : 1.f;
-    const float AttackRadius    = WeaponStat ? WeaponStat->AttackRadius     : 40.f;
-
-    const float Damage      = BaseDamage      * DmgMult;
-    const float PoiseDamage = BasePoiseDamage * PoiseMult;
+    const float DmgMult   = AttackStat ? AttackStat->DamageMultiplier      : 1.f;
+    const float PoiseMult = AttackStat ? AttackStat->PoiseDamageMultiplier : 1.f;
     const ERVHitType HitType = AttackStat ? AttackStat->HitType : ERVHitType::Normal;
 
-    // --- Socket source -------------------------------------------------------
-    // Player: weapon StaticMeshComponent (WeaponRoot/WeaponTip on weapon mesh)
-    // Boss:   character SkeletalMeshComponent (WeaponRoot/WeaponTip on Sevarog skeleton)
+    const float Damage      = CachedBaseDamage      * DmgMult;
+    const float PoiseDamage = CachedBasePoiseDamage * PoiseMult;
 
     if (!IsValid(TraceMesh))
     {
@@ -155,12 +150,12 @@ void URVCombatStateComponent::PerformAttackTrace()
     // TODO: replace ECC_Pawn with project-specific channel once RVCollision.h is defined
     GetWorld()->OverlapMultiByChannel(
         Overlaps, Center, Rotation, ECC_Pawn,
-        FCollisionShape::MakeCapsule(AttackRadius, HalfHeight),
+        FCollisionShape::MakeCapsule(CachedAttackRadius, HalfHeight),
         Params
     );
 
 #if !UE_BUILD_SHIPPING
-    DrawDebugCapsule(GetWorld(), Center, HalfHeight, AttackRadius,
+    DrawDebugCapsule(GetWorld(), Center, HalfHeight, CachedAttackRadius,
                      Rotation, FColor::Red, false, 1.f);
 #endif
 

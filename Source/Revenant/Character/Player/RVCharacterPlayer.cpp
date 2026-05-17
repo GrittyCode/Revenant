@@ -1,6 +1,3 @@
-
-
-// Source/Revenant/Character/Player/RVCharacterPlayer.cpp
 #include "Character/Player/RVCharacterPlayer.h"
 #include "Camera/CameraComponent.h"
 #include "Component/RVCombatStateComponent.h"
@@ -14,7 +11,6 @@
 #include "Component/RVHitReactionComponent.h"
 #include "Component/RVLockOnComponent.h"
 #include "Data/RVWeaponDataAsset.h"
-#include "Data/RVCharacterDataAsset.h"
 #include "Interface/RVDamageable.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -22,6 +18,7 @@
 #include "Input/RVInputConfig.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/PlayerCameraManager.h"
+#include "Data/RVWeaponStatRow.h"
 
 ARVCharacterPlayer::ARVCharacterPlayer()
 {
@@ -96,16 +93,17 @@ void ARVCharacterPlayer::BeginPlay()
     CombatStateComponent->OnForceEnd.AddUObject(GuardComponent,       &URVGuardComponent::ForceEndGuard);
 	
 	EquipmentComponent->OnWeaponChanged.AddDynamic(this, &ARVCharacterPlayer::OnWeaponChangedHandler);
+	OnWeaponChangedHandler(EquipmentComponent->GetCurrentWeaponData());
 
 }
 
 
-// --- GetCombatData / GetWeaponTraceMesh ------------------------------------
+// --- GetHitReactionAnim / GetWeaponTraceMesh ------------------------------------
 
-URVCombatDataAsset* ARVCharacterPlayer::GetCombatData() const
+URVHitReactionAnimDataAsset* ARVCharacterPlayer::GetHitReactionAnimData() const
 {
 	const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-	return IsValid(WeaponData) ? WeaponData->CombatData : nullptr;
+	return IsValid(WeaponData) ? WeaponData->HitReactionAnimData : nullptr;
 }
 
 UMeshComponent* ARVCharacterPlayer::GetWeaponTraceMesh() const
@@ -115,9 +113,19 @@ UMeshComponent* ARVCharacterPlayer::GetWeaponTraceMesh() const
 
 void ARVCharacterPlayer::OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData)
 {
-	URVCombatDataAsset* NewCombatData = IsValid(NewWeaponData) ? NewWeaponData->CombatData : nullptr;
-	CombatStateComponent->SetCombatData(NewCombatData);
-	HitReactionComponent->SetCombatData(NewCombatData);
+	// Hit reaction animations (stagger BS, knockdown, getup)
+	URVHitReactionAnimDataAsset* NewCombatData = IsValid(NewWeaponData) ? NewWeaponData->HitReactionAnimData : nullptr;
+	HitReactionComponent->SetHitReactionAnimData(NewCombatData);
+
+	// Attack base stats cache in CombatStateComponent
+	const FRVWeaponStatRow* WeaponStat = IsValid(NewWeaponData) ? NewWeaponData->GetWeaponStatRow() : nullptr;
+	if (WeaponStat)
+	{
+		CombatStateComponent->SetCombatStat(
+			WeaponStat->BaseDamage,
+			WeaponStat->BasePoiseDamage,
+			WeaponStat->AttackRadius);
+	}
 	// TraceMesh stays the same — weapon mesh component is reused, only static mesh asset changes.
 }
 

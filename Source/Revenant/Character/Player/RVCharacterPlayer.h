@@ -16,7 +16,7 @@ class URVHeavyAttackComponent;
 class URVDodgeComponent;
 class URVGuardComponent;
 class URVSprintComponent;
-class URVCombatDataAsset;
+class URVHitReactionAnimDataAsset;
 
 struct FInputActionValue;
 
@@ -36,7 +36,7 @@ public:
 protected:
     virtual void BeginPlay() override;
 	
-	virtual URVCombatDataAsset* GetCombatData() const override;
+	virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const override;
 	virtual UMeshComponent* GetWeaponTraceMesh() const override;
 
 	UFUNCTION()

@@ -1,8 +1,7 @@
 #include "Component/RVHitReactionComponent.h"
 #include "Component/RVCombatStateComponent.h"
 #include "Component/RVAttributeComponent.h"
-#include "Data/RVCombatDataAsset.h"
-#include "Data/RVCharacterDataAsset.h"
+#include "Data/RVHitReactionAnimDataAsset.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimInstance.h"
 #include "GameFramework/Character.h"
@@ -22,14 +21,14 @@ void URVHitReactionComponent::InitReferences(
     ACharacter* InOwnerCharacter,
     URVCombatStateComponent* InCombatStateComponent,
     URVAttributeComponent* InAttributeComponent,
-    URVCombatDataAsset* InCombatData,
-    URVCharacterDataAsset* InCharacterData)
+    URVHitReactionAnimDataAsset* InHitReactionAnimData,
+    float InStaggerDuration)
 {
     OwnerCharacter       = InOwnerCharacter;
     CombatStateComponent = InCombatStateComponent;
     AttributeComponent   = InAttributeComponent;
-    CombatData           = InCombatData;
-    CharacterData        = InCharacterData;
+    HitReactionAnimData  = InHitReactionAnimData;
+    StaggerDuration      = InStaggerDuration;
 }
 
 //--- Main Entry Point --------------------------------------------------------
@@ -88,21 +87,20 @@ void URVHitReactionComponent::TriggerStagger(const FVector& InHitDirection)
 
     CombatStateComponent->AddState(ERVCombatState::HitReaction);
 
-    const float Duration = IsValid(CharacterData) ? CharacterData->StaggerDuration : 0.5f;
     GetWorld()->GetTimerManager().SetTimer(
         StaggerHandle,
         this,
         &URVHitReactionComponent::OnStaggerEnd,
-        Duration,
+        StaggerDuration,
         false
     );
 }
 
 void URVHitReactionComponent::TriggerKnockdown(const FVector& InHitDirection)
 {
-    if (!IsValid(CombatData)) { return; }
+    if (!IsValid(HitReactionAnimData)) { return; }
 
-    UAnimMontage* KnockdownMontage = CombatData->KnockdownMontage;
+    UAnimMontage* KnockdownMontage = HitReactionAnimData->KnockdownMontage;
     if (!IsValid(KnockdownMontage)) { return; }
 
     UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
@@ -132,9 +130,9 @@ void URVHitReactionComponent::OnStaggerMontageBlendingOut(UAnimMontage* /*Montag
 
 void URVHitReactionComponent::OnKnockdownMontageBlendingOut(UAnimMontage* /*Montage*/, bool /*bInterrupted*/)
 {
-    if (!IsValid(CombatData)) { return; }
+    if (!IsValid(HitReactionAnimData)) { return; }
 
-    UAnimMontage* GetUpMontage = CombatData->GetUpMontage;
+    UAnimMontage* GetUpMontage = HitReactionAnimData->GetUpMontage;
     if (!IsValid(GetUpMontage)) { return; }
 
     UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();

@@ -48,10 +48,11 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "RV|Attribute")
     FRVOnPoiseDepleted OnPoiseDepleted;
 
-    // ─── Init ────────────────────────────────────────────────────────────────
+	// ─── Init ────────────────────────────────────────────────────────────────────
 
-    /** Called by ARVCharacterBase::BeginPlay after CharacterData is assigned. */
-    void InitFromDataAsset(URVCharacterDataAsset* InData);
+	void InitFromDataAsset(URVCharacterDataAsset* InData);
+
+	void InitFromValues(float InMaxHP, float InMaxPoise);
 
     // ─── HP ──────────────────────────────────────────────────────────────────
 

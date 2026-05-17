@@ -1,13 +1,13 @@
-#include "Data/RVCombatAnimDataAsset.h"
+#include "Data/RVPlayerCombatAnimDataAsset.h"
 #include "Animation/AnimMontage.h"
 
-UAnimMontage* URVCombatAnimDataAsset::GetComboMontage(int32 InIndex) const
+UAnimMontage* URVPlayerCombatAnimDataAsset::GetComboMontage(int32 InIndex) const
 {
 	if (!ComboMontages.IsValidIndex(InIndex)) { return nullptr; }
 	return ComboMontages[InIndex].Get();
 }
 
-int32 URVCombatAnimDataAsset::FindComboMontageIndex(const UAnimMontage* InMontage) const
+int32 URVPlayerCombatAnimDataAsset::FindComboMontageIndex(const UAnimMontage* InMontage) const
 {
 	for (int32 i = 0; i < ComboMontages.Num(); ++i)
 	{

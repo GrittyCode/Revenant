@@ -3,7 +3,7 @@
 #include "Component/RVAttributeComponent.h"
 #include "Component/RVEquipmentComponent.h"
 #include "Data/RVWeaponDataAsset.h"
-#include "Data/RVCombatAnimDataAsset.h"
+#include "Data/RVPlayerCombatAnimDataAsset.h"
 #include "GameFramework/Character.h"
 
 URVGuardComponent::URVGuardComponent()

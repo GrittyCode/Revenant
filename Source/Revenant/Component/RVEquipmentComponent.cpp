@@ -2,8 +2,8 @@
 #include "Component/RVEquipmentComponent.h"
 #include "Data/RVWeaponDataAsset.h"
 #include "Data/RVLocomotionAnimDataAsset.h"
-#include "Data/RVCombatAnimDataAsset.h"
-#include "Data/RVCombatDataAsset.h"
+#include "Data/RVPlayerCombatAnimDataAsset.h"
+#include "Data/RVHitReactionAnimDataAsset.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/Character.h"
 
@@ -31,9 +31,9 @@ void URVEquipmentComponent::BeginPlay()
     SetCurrentWeaponData(DefaultWeaponData);
 }
 
-URVCombatDataAsset* URVEquipmentComponent::GetCurrentCombatData() const
+URVHitReactionAnimDataAsset* URVEquipmentComponent::GetCurrentHitReactionAnimData() const
 {
-    return IsValid(CurrentWeaponData) ? CurrentWeaponData->CombatData : nullptr;
+    return IsValid(CurrentWeaponData) ? CurrentWeaponData->HitReactionAnimData : nullptr;
 }
 
 void URVEquipmentComponent::SetCurrentWeaponData(URVWeaponDataAsset* InWeaponData)
@@ -43,10 +43,10 @@ void URVEquipmentComponent::SetCurrentWeaponData(URVWeaponDataAsset* InWeaponDat
         *GetNameSafe(GetOwner()), *GetNameSafe(InWeaponData));
 
     ensureMsgf(!IsValid(InWeaponData) || IsValid(InWeaponData->CombatAnimData),
-        TEXT("[%s] WeaponDataAsset '%s' has no CombatAnimData assigned"),
+        TEXT("[%s] WeaponDataAsset '%s' has no HitReactionAnimData assigned"),
         *GetNameSafe(GetOwner()), *GetNameSafe(InWeaponData));
 
-    ensureMsgf(!IsValid(InWeaponData) || IsValid(InWeaponData->CombatData),
+    ensureMsgf(!IsValid(InWeaponData) || IsValid(InWeaponData->HitReactionAnimData),
         TEXT("[%s] WeaponDataAsset '%s' has no CombatData assigned"),
         *GetNameSafe(GetOwner()), *GetNameSafe(InWeaponData));
 

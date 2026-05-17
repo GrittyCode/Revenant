@@ -27,21 +27,27 @@ void ARVCharacterBase::BeginPlay()
     ensureMsgf(IsValid(CombatStateComponent), TEXT("[%s] CombatStateComponent missing"), *GetName());
     ensureMsgf(IsValid(HitReactionComponent), TEXT("[%s] HitReactionComponent missing"), *GetName());
 
+    // Player: CharacterData assigned in BP → initializes HP/Stamina/Poise.
+    // Boss: CharacterData is null → skipped here, initialized from DT_EnemyStats in ARVBossCharacter::BeginPlay.
     if (IsValid(CharacterData))
     {
         AttributeComponent->InitFromDataAsset(CharacterData);
     }
 
     //--- Reference Injection (Composition Root) ------------------------------
-    // Virtual dispatch: Player returns EquipmentComponent data, Boss returns BossData.
 
-    URVCombatDataAsset* CombatData = GetCombatData();
+    URVHitReactionAnimDataAsset* HitReactionAnimData = GetHitReactionAnimData();
     UMeshComponent*     TraceMesh  = GetWeaponTraceMesh();
-
     UCharacterMovementComponent* MoveComp = GetCharacterMovement();
 
-    CombatStateComponent->InitReferences(this, CombatData, TraceMesh, MoveComp);
-    HitReactionComponent->InitReferences(this, CombatStateComponent, AttributeComponent, CombatData, CharacterData);
+    // CombatStat (BaseDamage, BasePoiseDamage, AttackRadius) is injected separately:
+    //   Player → ARVCharacterPlayer::OnWeaponChangedHandler (on weapon swap + initial call)
+    //   Boss   → ARVBossCharacter::BeginPlay (from DT_EnemyStats row)
+    CombatStateComponent->InitReferences(this, TraceMesh, MoveComp);
+
+    // StaggerDuration: player uses CharacterData value, boss uses DT_EnemyStats (overrides after Super).
+    const float StaggerDuration = IsValid(CharacterData) ? CharacterData->StaggerDuration : 0.5f;
+    HitReactionComponent->InitReferences(this, CombatStateComponent, AttributeComponent, HitReactionAnimData, StaggerDuration);
 }
 
 void ARVCharacterBase::ActivateHitCheck()

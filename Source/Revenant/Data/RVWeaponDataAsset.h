@@ -1,12 +1,14 @@
+// Source/Revenant/Data/RVWeaponDataAsset.h
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "Engine/DataTable.h"
 #include "RVWeaponDataAsset.generated.h"
 
 class URVLocomotionAnimDataAsset;
-class URVCombatAnimDataAsset;
-class URVCombatDataAsset;
+class URVPlayerCombatAnimDataAsset;
+class URVHitReactionAnimDataAsset;
 struct FRVWeaponStatRow;
 
 UCLASS(BlueprintType)
@@ -15,27 +17,33 @@ class REVENANT_API URVWeaponDataAsset : public UPrimaryDataAsset
     GENERATED_BODY()
 
 public:
+	
+	// -- Stat ----------------------------------------------------------------
+	
+	// Points to a row in DT_WeaponStats.
+	// Final hit values = WeaponStat.Base* × DT_AttackStats.Multiplier (via URVMontageStatData).
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Stat")
+	FDataTableRowHandle WeaponStatRowHandle;
+
+	//--- Weapon Mesh ---------------------------------------------------------
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Mesh")
+	TSoftObjectPtr<UStaticMesh> WeaponMesh;
+
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Transform")
+	FTransform WeaponAttachTransform;
+	
     //--- Animation -----------------------------------------------------------
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<URVLocomotionAnimDataAsset> LocomotionAnimData;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
-    TObjectPtr<URVCombatAnimDataAsset> CombatAnimData;
-
-    //--- Combat Data ---------------------------------------------------------
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Combat")
-    TObjectPtr<URVCombatDataAsset> CombatData;
-
-    //--- Weapon Mesh ---------------------------------------------------------
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Mesh")
-    TSoftObjectPtr<UStaticMesh> WeaponMesh;
-
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Transform")
-    FTransform WeaponAttachTransform;
-
+    TObjectPtr<URVPlayerCombatAnimDataAsset> CombatAnimData;
+	
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
+    TObjectPtr<URVHitReactionAnimDataAsset> HitReactionAnimData;
+	
     //--- Per-Instance Montage Overrides --------------------------------------
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Override|HeavyAttack",

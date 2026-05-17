@@ -3,7 +3,7 @@
 #include "Component/RVAttributeComponent.h"
 #include "Component/RVEquipmentComponent.h"
 #include "Data/RVWeaponDataAsset.h"
-#include "Data/RVCombatAnimDataAsset.h"
+#include "Data/RVPlayerCombatAnimDataAsset.h"
 #include "Data/RVAttackActionMultiplierRow.h"
 #include "Data/RVWeaponStatRow.h"
 #include "Data/RVMontageStatData.h"
@@ -70,7 +70,7 @@ void URVComboComponent::TryChainNextCombo()
     const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
     if (!IsValid(WeaponData) || !IsValid(WeaponData->CombatAnimData)) { EndCombo(); return; }
 
-    URVCombatAnimDataAsset* AnimData = WeaponData->CombatAnimData;
+    URVPlayerCombatAnimDataAsset* AnimData = WeaponData->CombatAnimData;
     UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
     if (!IsValid(AnimInst)) { EndCombo(); return; }
 

@@ -7,7 +7,7 @@
 #include "Component/RVSprintComponent.h"
 #include "Data/RVWeaponDataAsset.h"
 #include "Data/RVLocomotionAnimDataAsset.h"
-#include "Data/RVCombatDataAsset.h"
+#include "Data/RVHitReactionAnimDataAsset.h"
 #include "KismetAnimationLibrary.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -100,5 +100,5 @@ void URVAnimInstance::OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData)
     CachedLockOnLocomotionBS       = NewWeaponData->LocomotionAnimData->LockOnLocomotionBS;
     CachedGuardLocomotionBS        = NewWeaponData->LocomotionAnimData->GuardLocomotionBS;
     CachedGuardLocomotionBS_LockOn = NewWeaponData->LocomotionAnimData->GuardLocomotionBS_LockOn;
-    CachedStaggerBlendSpace        = NewWeaponData->CombatData->StaggerBlendSpace;
+    CachedStaggerBlendSpace        = NewWeaponData->HitReactionAnimData->StaggerBlendSpace;
 }

@@ -62,7 +62,7 @@ protected:
 
     // Sevarog's SkeletalMeshComponent owns WeaponRoot / WeaponTip sockets.
     // Base GetWeaponTraceMesh() already returns GetMesh() — no override needed.
-    virtual URVCombatDataAsset* GetCombatData() const override;
+    virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const override;
 
     UPROPERTY(EditDefaultsOnly, Category = "RV|Boss")
     TObjectPtr<URVBossDataAsset> BossData;

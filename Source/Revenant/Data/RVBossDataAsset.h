@@ -1,15 +1,16 @@
+// Source/Revenant/Data/RVBossDataAsset.h
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "Engine/DataTable.h"
 #include "RVBossDataAsset.generated.h"
 
 class URVLocomotionAnimDataAsset;
-class URVCombatDataAsset;
+class URVHitReactionAnimDataAsset;
 class UAnimMontage;
+struct FRVEnemyStatRow;
 
-// Per-phase attack montage pool. StateTree task picks randomly from Montages.
-// Add as many montages as needed per phase — no fixed cap.
 USTRUCT(BlueprintType)
 struct FRVBossPhaseAttacks
 {
@@ -30,15 +31,21 @@ public:
     UPROPERTY(EditDefaultsOnly, Category = "RV|Boss")
     FText BossName;
 
+    //--- Enemy Stats ---------------------------------------------------------
+    // All numeric tuning lives in DT_EnemyStats.
+    // Designers edit the CSV — no DataAsset changes needed for balance work.
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Boss|Stats")
+    FDataTableRowHandle EnemyStatRowHandle;
+
+    const FRVEnemyStatRow* GetEnemyStatRow() const;
+
     //--- Locomotion ----------------------------------------------------------
-    // Same class as player — URVAnimInstance reads LocomotionBS from here
-    // if the boss ever uses the same ABP locomotion path.
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<URVLocomotionAnimDataAsset> LocomotionAnimData;
 
     //--- Phase Thresholds ----------------------------------------------------
-    // HP ratio (0.0 ~ 1.0). Transition fires when HP falls below the value.
 
     UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Phase",
               meta = (ClampMin = "0.0", ClampMax = "1.0"))
@@ -49,8 +56,6 @@ public:
     float Phase3Threshold = 0.35f;
 
     //--- Phase Attack Sets ---------------------------------------------------
-    // ExecutePhaseAttack() picks a random montage from the current phase pool.
-    // Add or remove montages freely — no code change required.
 
     UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Attacks")
     FRVBossPhaseAttacks Phase1Attacks;
@@ -68,16 +73,10 @@ public:
 
     UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Groggy")
     float GroggyDuration = 5.f;
-
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Groggy")
-    TObjectPtr<UAnimMontage> GroggyStartMontage;
-
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Groggy")
-    TObjectPtr<UAnimMontage> GroggyEndMontage;
-
+	
     //--- Combat Data ---------------------------------------------------------
-    // Attack stats (DT row) + hit reaction animations (Knockdown, GetUp, StaggerBS).
+    // Hit reaction animations (StaggerBS, KnockdownMontage, GetUpMontage).
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Combat")
-    TObjectPtr<URVCombatDataAsset> CombatData;
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Hit")
+    TObjectPtr<URVHitReactionAnimDataAsset> HitReactionAnimData;
 };

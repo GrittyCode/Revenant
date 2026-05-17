@@ -3,13 +3,13 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "RVCombatAnimDataAsset.generated.h"
+#include "RVPlayerCombatAnimDataAsset.generated.h"
 
 class UAnimMontage;
 
 
 UCLASS(BlueprintType)
-class REVENANT_API URVCombatAnimDataAsset : public UPrimaryDataAsset
+class REVENANT_API URVPlayerCombatAnimDataAsset : public UPrimaryDataAsset
 {
     GENERATED_BODY()
 

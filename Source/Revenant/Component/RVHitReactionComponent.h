@@ -8,8 +8,7 @@
 class ACharacter;
 class URVAttributeComponent;
 class URVCombatStateComponent;
-class URVCombatDataAsset;
-class URVCharacterDataAsset;
+class URVHitReactionAnimDataAsset;
 class UAnimMontage;
 
 UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
@@ -28,13 +27,11 @@ public:
     void InitReferences(ACharacter* InOwnerCharacter,
                         URVCombatStateComponent* InCombatStateComponent,
                         URVAttributeComponent* InAttributeComponent,
-                        URVCombatDataAsset* InCombatData,
-                        URVCharacterDataAsset* InCharacterData);
+                        URVHitReactionAnimDataAsset* InHitReactionAnimData,
+                        float InStaggerDuration);
 
-    // Called on weapon swap — updates reaction animations without re-initializing.
-    void SetCombatData(URVCombatDataAsset* InCombatData) { CombatData = InCombatData; }
-
-    // Snapshot set at stagger entry. URVAnimInstance polls this each frame.
+    void SetHitReactionAnimData(URVHitReactionAnimDataAsset* InHitReactionAnimData) { HitReactionAnimData = InHitReactionAnimData; }
+    void SetStaggerDuration(float InDuration) { StaggerDuration = InDuration; }
     float GetStaggerDirection() const { return StaggerDirection; }
 
 protected:
@@ -50,15 +47,12 @@ private:
     UPROPERTY()
     TObjectPtr<URVAttributeComponent> AttributeComponent;
 
-    // Reaction animations source — player: from URVWeaponDataAsset, boss: from URVBossDataAsset.
     UPROPERTY()
-    TObjectPtr<URVCombatDataAsset> CombatData;
-
-    UPROPERTY()
-    TObjectPtr<URVCharacterDataAsset> CharacterData;
+    TObjectPtr<URVHitReactionAnimDataAsset> HitReactionAnimData;
 
     FTimerHandle StaggerHandle;
     float StaggerDirection = 0.f;
+    float StaggerDuration  = 0.5f;
 
     void TriggerStagger(const FVector& InHitDirection);
     void TriggerKnockdown(const FVector& InHitDirection);

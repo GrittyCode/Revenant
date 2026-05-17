@@ -32,6 +32,14 @@ void URVAttributeComponent::InitFromDataAsset(URVCharacterDataAsset* InData)
     CurrentPoise   = MaxPoise;
 }
 
+void URVAttributeComponent::InitFromValues(float InMaxHP, float InMaxPoise)
+{
+	MaxHealth    = InMaxHP;
+	CurrentHealth = MaxHealth;
+	MaxPoise     = InMaxPoise;
+	CurrentPoise  = MaxPoise;
+}
+
 // ─── HP ──────────────────────────────────────────────────────────────────────
 
 bool URVAttributeComponent::ApplyDamage(AActor* InInstigator, float InDamageAmount)

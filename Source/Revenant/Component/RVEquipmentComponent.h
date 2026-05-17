@@ -5,7 +5,7 @@
 #include "RVEquipmentComponent.generated.h"
 
 class URVWeaponDataAsset;
-class URVCombatDataAsset;
+class URVHitReactionAnimDataAsset;
 class UStaticMeshComponent;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRVOnWeaponChanged, URVWeaponDataAsset*, NewWeaponData);
@@ -19,7 +19,7 @@ public:
 	URVEquipmentComponent();
 
 	URVWeaponDataAsset* GetCurrentWeaponData() const { return CurrentWeaponData; }
-	URVCombatDataAsset* GetCurrentCombatData() const;
+	URVHitReactionAnimDataAsset* GetCurrentHitReactionAnimData() const;
 	UStaticMeshComponent* GetWeaponMeshComponent() const { return WeaponMeshComponent; }
 
 	void SetCurrentWeaponData(URVWeaponDataAsset* InWeaponData);

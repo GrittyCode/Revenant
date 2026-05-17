@@ -10,7 +10,7 @@ class URVAttributeComponent;
 class URVCombatStateComponent;
 class URVHitReactionComponent;
 class URVCharacterDataAsset;
-class URVCombatDataAsset;
+class URVHitReactionAnimDataAsset;
 class UMeshComponent;
 
 UCLASS()
@@ -29,15 +29,10 @@ protected:
     virtual void Falling() override;
     virtual void Landed(const FHitResult& Hit) override;
 
-    /**
-     * Returns the URVCombatDataAsset for this character.
-     * Player: from currently equipped URVWeaponDataAsset.
-     * Boss:   from URVBossDataAsset.
-     */
-    virtual URVCombatDataAsset* GetCombatData() const { return nullptr; }
+
+    virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const { return nullptr; }
 
     /**
-     * Returns the mesh that owns WeaponRoot / WeaponTip sockets for hit trace.
      * Player: weapon StaticMeshComponent (set up by URVEquipmentComponent).
      * Boss:   character SkeletalMeshComponent (sockets on Sevarog skeleton).
      */
