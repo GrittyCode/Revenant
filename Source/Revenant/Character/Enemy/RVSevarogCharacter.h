@@ -1,3 +1,4 @@
+// Source/Revenant/Character/Enemy/RVSevarogCharacter.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -14,10 +15,8 @@ class REVENANT_API ARVSevarogCharacter : public ARVBossCharacter
 	GENERATED_BODY()
 
 public:
-	// --- StateTree task interface --------------------------------------------
-
 	// Channel Soul_Siphon — heals if not interrupted.
-	// StateTree task binds OnSoulSiphonCompleted to detect completion.
+	// StateTree task polls IsAttacking() == false to detect completion.
 	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
 	void ExecuteSoulSiphon();
 
@@ -34,10 +33,12 @@ public:
 protected:
 	virtual void BeginPlay() override;
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss")
-	TObjectPtr<URVSevarogDataAsset> SevarogData;
-
 private:
+	// Derived from BossData in BeginPlay — not an editor slot.
+	// BossData (inherited) must be assigned as URVSevarogDataAsset in the editor.
+	UPROPERTY()
+	TObjectPtr<URVSevarogDataAsset> SevarogData = nullptr;
+
 	// Called by AnimNotify_SpawnGroundField at the key frame of SubjugationMontage.
 	void SpawnGroundField();
 };

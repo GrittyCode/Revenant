@@ -1,3 +1,4 @@
+// Source/Revenant/Character/Enemy/RVSevarogCharacter.cpp
 #include "Character/Enemy/RVSevarogCharacter.h"
 #include "Animation/AnimInstance.h"
 #include "Component/RVAttributeComponent.h"
@@ -6,10 +7,13 @@
 
 void ARVSevarogCharacter::BeginPlay()
 {
-	Super::BeginPlay();
+	Super::BeginPlay(); // BossData validated here
 
+	// BossData is guaranteed valid by Super::BeginPlay().
+	// Cast to the Sevarog-specific subtype to access SoulSiphon / Subjugation fields.
+	SevarogData = Cast<URVSevarogDataAsset>(BossData);
 	ensureMsgf(IsValid(SevarogData),
-	           TEXT("[%s] SevarogData not assigned"), *GetNameSafe(this));
+	           TEXT("[%s] BossData must be URVSevarogDataAsset"), *GetNameSafe(this));
 }
 
 //--- Soul Siphon -------------------------------------------------------------

@@ -23,6 +23,9 @@ public:
 
     virtual void ActivateHitCheck() override;
     virtual bool ApplyDamage(const FRVHitInfo& InHitInfo) override;
+	
+	UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
+	float GetHealthRatio() const;
 
 protected:
     virtual void BeginPlay() override;

@@ -68,6 +68,11 @@ bool ARVCharacterBase::ApplyDamage(const FRVHitInfo& InHitInfo)
     return bSurvived;
 }
 
+float ARVCharacterBase::GetHealthRatio() const
+{
+	return AttributeComponent->GetHealthPercent();
+}
+
 void ARVCharacterBase::Falling()
 {
     Super::Falling();
