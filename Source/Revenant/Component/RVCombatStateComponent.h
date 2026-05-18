@@ -38,7 +38,7 @@ public:
     //--- Delegates -----------------------------------------------------------
 
     FRVOnCombatStateChanged OnStateChanged;
-    FRVOnForceEnd OnForceEnd;
+    FRVOnForceEnd           OnForceEnd;
 
     //--- Attack Trace --------------------------------------------------------
 

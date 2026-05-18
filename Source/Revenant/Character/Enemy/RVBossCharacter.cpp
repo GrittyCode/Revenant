@@ -29,19 +29,12 @@ void ARVBossCharacter::BeginPlay()
 	const FRVEnemyStatRow* EnemyStat = BossData->GetEnemyStatRow();
 	if (ensureMsgf(EnemyStat, TEXT("[%s] EnemyStatRow resolve failed — check DT_EnemyStats row name"), *GetNameSafe(this)))
 	{
-		// Attribute values from DT_EnemyStats
 		AttributeComponent->InitFromValues(EnemyStat->MaxHP, EnemyStat->MaxPoise);
-
-		// Movement speed from DT_EnemyStats
 		GetCharacterMovement()->MaxWalkSpeed = EnemyStat->MoveSpeed;
-
-		// Inject attack stats into CombatStateComponent
 		CombatStateComponent->SetCombatStat(
 			EnemyStat->BaseDamage,
 			EnemyStat->BasePoiseDamage,
 			EnemyStat->AttackRadius);
-
-		// Override stagger duration set by ARVCharacterBase::BeginPlay fallback
 		HitReactionComponent->SetStaggerDuration(EnemyStat->StaggerDuration);
 	}
 
@@ -54,29 +47,7 @@ URVHitReactionAnimDataAsset* ARVBossCharacter::GetHitReactionAnimData() const
 	return IsValid(BossData) ? BossData->HitReactionAnimData : nullptr;
 }
 
-//--- StateTree Task Interface ------------------------------------------------
-
-void ARVBossCharacter::ExecuteBossAttack(UAnimMontage* InAttackMontage)
-{
-	if (!IsValid(InAttackMontage)) { return; }
-	if (bIsGroggy) { return; }
-	if (IsAttacking()) { return; }
-
-	UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
-	if (!IsValid(AnimInst)) { return; }
-
-	CombatStateComponent->AddState(ERVCombatState::Attacking);
-	AnimInst->Montage_Play(InAttackMontage);
-
-	FOnMontageBlendingOutStarted BlendOutDelegate;
-	BlendOutDelegate.BindUObject(this, &ARVBossCharacter::OnAttackMontageBlendingOut);
-	AnimInst->Montage_SetBlendingOutDelegate(BlendOutDelegate, InAttackMontage);
-}
-
-void ARVBossCharacter::OnAttackMontageBlendingOut(UAnimMontage* /*InMontage*/, bool /*bInterrupted*/)
-{
-	CombatStateComponent->RemoveState(ERVCombatState::Attacking);
-}
+//--- Phase Attack ------------------------------------------------------------
 
 void ARVBossCharacter::ExecutePhaseAttack()
 {
@@ -87,18 +58,55 @@ void ARVBossCharacter::ExecutePhaseAttack()
 
 	switch (CurrentPhase)
 	{
-	case ERVBossPhase::Phase1: PhaseAttacks = &BossData->Phase1Attacks;
-		break;
-	case ERVBossPhase::Phase2: PhaseAttacks = &BossData->Phase2Attacks;
-		break;
-	case ERVBossPhase::Phase3: PhaseAttacks = &BossData->Phase3Attacks;
-		break;
+	case ERVBossPhase::Phase1: PhaseAttacks = &BossData->Phase1Attacks; break;
+	case ERVBossPhase::Phase2: PhaseAttacks = &BossData->Phase2Attacks; break;
+	case ERVBossPhase::Phase3: PhaseAttacks = &BossData->Phase3Attacks; break;
 	}
 
-	if (!PhaseAttacks || PhaseAttacks->Montages.IsEmpty()) { return; }
+	if (!PhaseAttacks || PhaseAttacks->Patterns.IsEmpty()) { return; }
 
-	const int32 Index = FMath::RandRange(0, PhaseAttacks->Montages.Num() - 1);
-	ExecuteBossAttack(PhaseAttacks->Montages[Index]);
+	const int32 PatternIndex = FMath::RandRange(0, PhaseAttacks->Patterns.Num() - 1);
+	const FRVBossAttackPattern& Pattern = PhaseAttacks->Patterns[PatternIndex];
+
+	if (Pattern.ComboMontages.IsEmpty()) { return; }
+
+	ActiveComboMontages = Pattern.ComboMontages;
+	ActiveComboIndex = 0;
+
+	PlayComboMontageAt(0);
+}
+
+void ARVBossCharacter::PlayComboMontageAt(int32 InIndex)
+{
+	UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
+	if (!IsValid(AnimInst)) { return; }
+
+	UAnimMontage* Montage = ActiveComboMontages[InIndex];
+	if (!IsValid(Montage)) { return; }
+
+	CombatStateComponent->AddState(ERVCombatState::Attacking);
+	AnimInst->Montage_Play(Montage);
+
+	FOnMontageBlendingOutStarted BlendOutDelegate;
+	BlendOutDelegate.BindUObject(this, &ARVBossCharacter::OnAttackMontageBlendingOut);
+	AnimInst->Montage_SetBlendingOutDelegate(BlendOutDelegate, Montage);
+}
+
+void ARVBossCharacter::OnAttackMontageBlendingOut(UAnimMontage* /*InMontage*/, bool bInterrupted)
+{
+	CombatStateComponent->RemoveState(ERVCombatState::Attacking);
+
+	// Chain continues only if uninterrupted and more hits remain in the pattern.
+	if (!bInterrupted && ActiveComboIndex + 1 < ActiveComboMontages.Num())
+	{
+		++ActiveComboIndex;
+		PlayComboMontageAt(ActiveComboIndex);
+	}
+	else
+	{
+		ActiveComboMontages.Empty();
+		ActiveComboIndex = 0;
+	}
 }
 
 bool ARVBossCharacter::IsAttacking() const
@@ -113,6 +121,10 @@ void ARVBossCharacter::StartGroggy()
 	if (bIsGroggy) { return; }
 	bIsGroggy = true;
 	CurrentPoiseDepletionCount = 0;
+
+	// Interrupt any active combo chain.
+	ActiveComboMontages.Empty();
+	ActiveComboIndex = 0;
 
 	CombatStateComponent->AddState(ERVCombatState::Groggy);
 	OnBossGroggyStarted.Broadcast();
