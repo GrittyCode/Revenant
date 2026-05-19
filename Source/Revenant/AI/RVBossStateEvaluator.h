@@ -1,4 +1,3 @@
-// Source/Revenant/AI/RVBossStateEvaluator.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -39,24 +38,26 @@ struct FRVBossStateEvaluatorInstanceData
 	UPROPERTY(EditAnywhere, Category = Output)
 	float BossHealthRatio = 1.f;
 
-	// True while boss is in the gap-close rush approach.
 	UPROPERTY(EditAnywhere, Category = Output)
 	bool bIsRushing = false;
 
-	// True for RushCooldown seconds after the previous rush ended.
-	// STT_Rush entry condition: DistToPlayer > RushTriggerRange AND bIsRushOnCooldown == false.
 	UPROPERTY(EditAnywhere, Category = Output)
 	bool bIsRushOnCooldown = false;
 
-	// True for AttackCooldownDuration seconds after any attack montage ends.
-	// Drives the Backpedal state — boss retreats until this clears.
 	UPROPERTY(EditAnywhere, Category = Output)
 	bool bIsAttackOnCooldown = false;
 
-	// True for SoulSiphonCooldown seconds after Soul_Siphon finishes (interrupted or not).
-	// Prevents immediate Soul_Siphon re-entry after interruption.
 	UPROPERTY(EditAnywhere, Category = Output)
 	bool bIsSoulSiphonOnCooldown = false;
+
+	UPROPERTY(EditAnywhere, Category = Output)
+	bool bIsSubjugationOnCooldown = false;
+
+	UPROPERTY(EditAnywhere, Category = Output)
+	bool bJustRushed = false;
+
+	UPROPERTY(EditAnywhere, Category = Output)
+	float AttackRange = 300.f;
 };
 
 USTRUCT(meta = (DisplayName = "RV Boss State Evaluator"))

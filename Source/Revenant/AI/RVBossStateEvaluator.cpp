@@ -2,14 +2,13 @@
 #include "AI/RVAIController.h"
 #include "Character/Enemy/RVSevarogCharacter.h"
 #include "StateTreeExecutionContext.h"
+#include "Data/RVSevarogDataAsset.h"
 
 void FRVBossStateEvaluator::TreeStart(FStateTreeExecutionContext& Context) const
 {
 	FInstanceDataType& Data = Context.GetInstanceData(*this);
 
-	// UStateTreeAIComponent passes *GetOwner() (the AIController) as context owner.
 	Data.CachedAIController = Cast<ARVAIController>(Context.GetOwner());
-
 	ensureMsgf(IsValid(Data.CachedAIController),
 		TEXT("[FRVBossStateEvaluator] Context owner is not ARVAIController"));
 
@@ -26,14 +25,16 @@ void FRVBossStateEvaluator::Tick(FStateTreeExecutionContext& Context, const floa
 
 	if (!IsValid(Data.BossCharacter) || !IsValid(Data.CachedAIController)) { return; }
 
-	Data.bIsGroggy              = Data.BossCharacter->IsGroggy();
-	Data.bIsAttacking           = Data.BossCharacter->IsAttacking();
-	Data.CurrentPhase           = Data.BossCharacter->GetCurrentPhase();
-	Data.BossHealthRatio        = Data.BossCharacter->GetHealthRatio();
-	Data.bIsRushing             = Data.BossCharacter->IsRushing();
-	Data.bIsAttackOnCooldown    = Data.BossCharacter->IsAttackOnCooldown();
-	Data.bIsRushOnCooldown      = Data.BossCharacter->IsRushOnCooldown();
+	Data.bIsGroggy               = Data.BossCharacter->IsGroggy();
+	Data.bIsAttacking            = Data.BossCharacter->IsAttacking();
+	Data.CurrentPhase            = Data.BossCharacter->GetCurrentPhase();
+	Data.BossHealthRatio         = Data.BossCharacter->GetHealthRatio();
+	Data.bIsRushing              = Data.BossCharacter->IsRushing();
+	Data.bJustRushed             = Data.BossCharacter->IsJustRushed();
+	Data.bIsAttackOnCooldown     = Data.BossCharacter->IsAttackOnCooldown();
+	Data.bIsRushOnCooldown       = Data.BossCharacter->IsRushOnCooldown();
 	Data.bIsSoulSiphonOnCooldown = Data.BossCharacter->IsSoulSiphonOnCooldown();
+	Data.bIsSubjugationOnCooldown = Data.BossCharacter->IsSubjugationOnCooldown();
 
 	Data.PlayerPawn = Data.CachedAIController->GetPlayerPawn();
 
@@ -42,4 +43,7 @@ void FRVBossStateEvaluator::Tick(FStateTreeExecutionContext& Context, const floa
 			Data.BossCharacter->GetActorLocation(),
 			Data.PlayerPawn->GetActorLocation())
 		: 0.f;
+
+	const URVSevarogDataAsset* SevarogData = Data.BossCharacter->GetSevarogData();
+	Data.AttackRange = IsValid(SevarogData) ? SevarogData->AttackRange : 300.f;
 }

@@ -15,11 +15,8 @@ enum class ERVBossPhase : uint8
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRVOnBossPhaseChanged, ERVBossPhase, NewPhase);
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnBossGroggyStarted);
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnBossGroggyEnded);
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRVOnSoulSiphonCompleted, bool, bHealed);
 
 UCLASS()
@@ -32,23 +29,19 @@ public:
 
 	// --- StateTree task interface --------------------------------------------
 
-	// Selects a random pattern from the current phase and starts the combo chain.
 	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
 	void ExecutePhaseAttack();
 
-	// Plays the rush arrival slam montage (SevarogData->RushAttackMontage).
-	// Phase-independent — same attack fires regardless of current phase.
-	// Called by STT_Rush after EndRush() on arrival.
 	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
 	void ExecuteRushAttack();
 
-	// Channel Soul_Siphon — heals if not interrupted.
 	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
 	void ExecuteSoulSiphon();
 
-	// Summon ground field via AnimNotify_SpawnGroundField mid-montage.
 	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
 	void ExecuteSubjugation();
+
+	void ForceEndCurrentAction();
 
 	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
 	void StartGroggy();
@@ -58,26 +51,11 @@ public:
 
 	// --- Rush ----------------------------------------------------------------
 
-	// Sets bIsRushing = true and overrides MaxWalkSpeed with RushSpeed.
-	// AnimInstance switches to RunLocomotionBS while this is true.
 	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
 	void StartRush();
 
-	// Restores MaxWalkSpeed to the DT_EnemyStats value and clears bIsRushing.
-	// Records LastRushEndTime for cooldown tracking.
 	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
 	void EndRush();
-
-	// --- Backpedal -----------------------------------------------------------
-
-	// Disables orient-to-movement so the boss can face the player while retreating.
-	// Caller (STT_Backpedal) is responsible for focus and MoveToLocation calls.
-	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
-	void StartBackpedal();
-
-	// Restores orient-to-movement and clears controller-desired-rotation.
-	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
-	void EndBackpedal();
 
 	// --- State queries -------------------------------------------------------
 
@@ -93,6 +71,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
 	bool IsRushing() const { return bIsRushing; }
 
+	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
+	bool IsJustRushed() const { return bJustRushed; }
+
 	// --- Cooldown queries ----------------------------------------------------
 
 	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
@@ -104,7 +85,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
 	bool IsSoulSiphonOnCooldown() const;
 
-	// Called by URVSevarogAnimInstance to cache BlendSpaces at init.
+	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
+	bool IsSubjugationOnCooldown() const;
+
+	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
 	const URVSevarogDataAsset* GetSevarogData() const { return SevarogData; }
 
 	// --- Delegates -----------------------------------------------------------
@@ -118,8 +102,6 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "RV|Boss")
 	FRVOnBossGroggyEnded OnBossGroggyEnded;
 
-	// Fired when the Soul_Siphon montage finishes (interrupted or not).
-	// bHealed == true only when the montage completed uninterrupted.
 	UPROPERTY(BlueprintAssignable, Category = "RV|Boss")
 	FRVOnSoulSiphonCompleted OnSoulSiphonCompleted;
 
@@ -132,31 +114,37 @@ protected:
 	TObjectPtr<URVSevarogDataAsset> SevarogData;
 
 private:
-	ERVBossPhase CurrentPhase = ERVBossPhase::Phase1;
-	bool bIsGroggy             = false;
-	bool bIsRushing            = false;
-	int32 CurrentPoiseDepletionCount = 0;
+	ERVBossPhase CurrentPhase               = ERVBossPhase::Phase1;
+	bool         bIsGroggy                  = false;
+	bool         bIsRushing                 = false;
+	bool         bJustRushed                = false;
+	int32        CurrentPoiseDepletionCount = 0;
 
-	// Cached from DT_EnemyStats at BeginPlay — restored by EndRush().
-	float NormalWalkSpeed = 400.f;
+	float NormalWalkSpeed     = 400.f;
 
-	// Timestamps for cooldown tracking. Updated in montage blend-out callbacks.
-	float LastAttackEndTime    = -999.f;
-	float LastRushEndTime      = -999.f;
-	float LastSoulSiphonTime   = -999.f;
+	float LastAttackEndTime   = -BIG_NUMBER;
+	float LastRushEndTime     = -BIG_NUMBER;
+	float LastSoulSiphonTime  = -BIG_NUMBER;
+	float LastSubjugationTime = -BIG_NUMBER;
 
 	FTimerHandle GroggyTimerHandle;
 
-	// Active combo chain state.
-	// Populated by ExecutePhaseAttack/ExecuteRushAttack; advanced by OnAttackMontageBlendingOut.
 	TArray<TObjectPtr<UAnimMontage>> ActiveComboMontages;
 	int32 ActiveComboIndex = 0;
 
 	void StartComboChain(const TArray<TObjectPtr<UAnimMontage>>& InMontages);
 	void PlayComboMontageAt(int32 InIndex);
+	float GetAttackCooldown() const;
+	void SetBossPhase(ERVBossPhase InNewPhase);
+
+	UFUNCTION()
 	void OnAttackMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
 
-	void SetBossPhase(ERVBossPhase InNewPhase);
+	UFUNCTION()
+	void OnSoulSiphonMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
+
+	UFUNCTION()
+	void OnSubjugationMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
 
 	UFUNCTION()
 	void CheckPhaseTransition(float InNewHealth, float InDelta);
@@ -164,6 +152,5 @@ private:
 	UFUNCTION()
 	void OnPoiseDepleted();
 
-	// Called by AnimNotify_SpawnGroundField at the key frame of SubjugationMontage.
 	void SpawnGroundField();
 };

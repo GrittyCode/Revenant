@@ -20,14 +20,15 @@ void ARVSevarogCharacter::BeginPlay()
 	Super::BeginPlay();
 
 	ensureMsgf(IsValid(SevarogData),
-	           TEXT("[%s] SevarogData not assigned"), *GetNameSafe(this));
+		TEXT("[%s] SevarogData not assigned"), *GetNameSafe(this));
 	ensureMsgf(IsValid(SevarogData->HitReactionAnimData),
-	           TEXT("[%s] SevarogData.HitReactionAnimData not assigned"), *GetNameSafe(this));
+		TEXT("[%s] SevarogData.HitReactionAnimData not assigned"), *GetNameSafe(this));
 	ensureMsgf(!SevarogData->EnemyStatRowHandle.IsNull(),
-	           TEXT("[%s] SevarogData.EnemyStatRowHandle not assigned"), *GetNameSafe(this));
+		TEXT("[%s] SevarogData.EnemyStatRowHandle not assigned"), *GetNameSafe(this));
 
 	const FRVEnemyStatRow* EnemyStat = SevarogData->GetEnemyStatRow();
-	if (ensureMsgf(EnemyStat, TEXT("[%s] EnemyStatRow resolve failed — check DT_EnemyStats row name"), *GetNameSafe(this)))
+	if (ensureMsgf(EnemyStat,
+		TEXT("[%s] EnemyStatRow resolve failed — check DT_EnemyStats row name"), *GetNameSafe(this)))
 	{
 		AttributeComponent->InitFromValues(EnemyStat->MaxHP, EnemyStat->MaxPoise);
 
@@ -81,7 +82,6 @@ void ARVSevarogCharacter::OnAttackMontageBlendingOut(UAnimMontage* /*InMontage*/
 {
 	CombatStateComponent->RemoveState(ERVCombatState::Attacking);
 
-	// Chain continues only if uninterrupted and more hits remain in the pattern.
 	if (!bInterrupted && ActiveComboIndex + 1 < ActiveComboMontages.Num())
 	{
 		++ActiveComboIndex;
@@ -90,22 +90,46 @@ void ARVSevarogCharacter::OnAttackMontageBlendingOut(UAnimMontage* /*InMontage*/
 	else
 	{
 		ActiveComboMontages.Empty();
-		ActiveComboIndex = 0;
-
-		// Record attack end time for cooldown tracking regardless of interruption.
+		ActiveComboIndex  = 0;
 		LastAttackEndTime = GetWorld()->GetTimeSeconds();
 	}
+}
+
+//--- ForceEnd ----------------------------------------------------------------
+
+void ARVSevarogCharacter::ForceEndCurrentAction()
+{
+	ActiveComboMontages.Empty();
+	ActiveComboIndex = 0;
+
+	UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
+	if (IsValid(AnimInst))
+	{
+		AnimInst->Montage_Stop(0.2f);
+	}
+
+	CombatStateComponent->RemoveState(ERVCombatState::Attacking);
+	LastAttackEndTime = GetWorld()->GetTimeSeconds();
 }
 
 //--- Phase Attack ------------------------------------------------------------
 
 void ARVSevarogCharacter::ExecutePhaseAttack()
 {
-	if (bIsGroggy)    { return; }
+	if (bIsGroggy)     { return; }
 	if (IsAttacking()) { return; }
 
-	const FRVBossPhaseAttacks* PhaseAttacks = nullptr;
+	const bool bWasJustRushed = bJustRushed;
+	bJustRushed = false;
 
+	if (bWasJustRushed && !SevarogData->RushFollowupAttacks.Patterns.IsEmpty())
+	{
+		const int32 Index = FMath::RandRange(0, SevarogData->RushFollowupAttacks.Patterns.Num() - 1);
+		StartComboChain(SevarogData->RushFollowupAttacks.Patterns[Index].ComboMontages);
+		return;
+	}
+
+	const FRVBossPhaseAttacks* PhaseAttacks = nullptr;
 	switch (CurrentPhase)
 	{
 	case ERVBossPhase::Phase1: PhaseAttacks = &SevarogData->Phase1Attacks; break;
@@ -115,18 +139,16 @@ void ARVSevarogCharacter::ExecutePhaseAttack()
 
 	if (!PhaseAttacks || PhaseAttacks->Patterns.IsEmpty()) { return; }
 
-	const int32 PatternIndex = FMath::RandRange(0, PhaseAttacks->Patterns.Num() - 1);
-	StartComboChain(PhaseAttacks->Patterns[PatternIndex].ComboMontages);
+	const int32 Index = FMath::RandRange(0, PhaseAttacks->Patterns.Num() - 1);
+	StartComboChain(PhaseAttacks->Patterns[Index].ComboMontages);
 }
 
 void ARVSevarogCharacter::ExecuteRushAttack()
 {
-	if (bIsGroggy)    { return; }
+	if (bIsGroggy)     { return; }
 	if (IsAttacking()) { return; }
 	if (!IsValid(SevarogData->RushAttackMontage)) { return; }
 
-	// Single montage — wrap in an array so StartComboChain handles
-	// state management and LastAttackEndTime update uniformly.
 	StartComboChain({ SevarogData->RushAttackMontage });
 }
 
@@ -140,12 +162,14 @@ bool ARVSevarogCharacter::IsAttacking() const
 void ARVSevarogCharacter::StartGroggy()
 {
 	if (bIsGroggy) { return; }
-	bIsGroggy = true;
+	bIsGroggy   = true;
+	bJustRushed = false;
 	CurrentPoiseDepletionCount = 0;
 
-	// Interrupt any active combo chain.
-	ActiveComboMontages.Empty();
-	ActiveComboIndex = 0;
+	if (IsAttacking())
+	{
+		ForceEndCurrentAction();
+	}
 
 	CombatStateComponent->AddState(ERVCombatState::Groggy);
 	OnBossGroggyStarted.Broadcast();
@@ -161,8 +185,7 @@ void ARVSevarogCharacter::StartGroggy()
 		this,
 		&ARVSevarogCharacter::EndGroggy,
 		SevarogData->GroggyDuration,
-		false
-	);
+		false);
 }
 
 void ARVSevarogCharacter::EndGroggy()
@@ -191,40 +214,49 @@ void ARVSevarogCharacter::StartRush()
 
 void ARVSevarogCharacter::EndRush()
 {
-	bIsRushing = false;
+	bIsRushing  = false;
+	bJustRushed = true;
 	GetCharacterMovement()->MaxWalkSpeed = NormalWalkSpeed;
 	LastRushEndTime = GetWorld()->GetTimeSeconds();
 }
 
-//--- Backpedal ---------------------------------------------------------------
-
-void ARVSevarogCharacter::StartBackpedal()
-{
-	GetCharacterMovement()->bOrientRotationToMovement = false;
-	GetCharacterMovement()->bUseControllerDesiredRotation = true;
-}
-
-void ARVSevarogCharacter::EndBackpedal()
-{
-	GetCharacterMovement()->bOrientRotationToMovement = true;
-	GetCharacterMovement()->bUseControllerDesiredRotation = false;
-}
-
 //--- Cooldown queries --------------------------------------------------------
+
+float ARVSevarogCharacter::GetAttackCooldown() const
+{
+	if (!IsValid(SevarogData)) { return 0.f; }
+
+	switch (CurrentPhase)
+	{
+	case ERVBossPhase::Phase1: return SevarogData->Phase1AttackCooldown;
+	case ERVBossPhase::Phase2: return SevarogData->Phase2AttackCooldown;
+	case ERVBossPhase::Phase3: return SevarogData->Phase3AttackCooldown;
+	}
+	return SevarogData->Phase1AttackCooldown;
+}
 
 bool ARVSevarogCharacter::IsAttackOnCooldown() const
 {
-	return GetWorld()->GetTimeSeconds() - LastAttackEndTime < SevarogData->AttackCooldownDuration;
+	if (!IsValid(SevarogData)) { return false; }
+	return GetWorld()->GetTimeSeconds() - LastAttackEndTime < GetAttackCooldown();
 }
 
 bool ARVSevarogCharacter::IsRushOnCooldown() const
 {
+	if (!IsValid(SevarogData)) { return false; }
 	return GetWorld()->GetTimeSeconds() - LastRushEndTime < SevarogData->RushCooldown;
 }
 
 bool ARVSevarogCharacter::IsSoulSiphonOnCooldown() const
 {
+	if (!IsValid(SevarogData)) { return false; }
 	return GetWorld()->GetTimeSeconds() - LastSoulSiphonTime < SevarogData->SoulSiphonCooldown;
+}
+
+bool ARVSevarogCharacter::IsSubjugationOnCooldown() const
+{
+	if (!IsValid(SevarogData)) { return false; }
+	return GetWorld()->GetTimeSeconds() - LastSubjugationTime < SevarogData->SubjugationCooldown;
 }
 
 //--- Phase Transition --------------------------------------------------------
@@ -277,23 +309,23 @@ void ARVSevarogCharacter::ExecuteSoulSiphon()
 	CombatStateComponent->AddState(ERVCombatState::Attacking);
 	AnimInst->Montage_Play(SevarogData->SoulSiphonMontage);
 
-	// Heal only if the montage completes without interruption.
-	// Record LastSoulSiphonTime regardless — prevents retry spam on interrupt.
 	FOnMontageBlendingOutStarted BlendOutDelegate;
-	BlendOutDelegate.BindLambda([this](UAnimMontage* /*Montage*/, bool bInterrupted)
-	{
-		CombatStateComponent->RemoveState(ERVCombatState::Attacking);
-		LastAttackEndTime  = GetWorld()->GetTimeSeconds();
-		LastSoulSiphonTime = GetWorld()->GetTimeSeconds();
-
-		const bool bHealed = !bInterrupted;
-		if (bHealed)
-		{
-			AttributeComponent->ApplyHealing(SevarogData->SoulSiphonHealAmount);
-		}
-		OnSoulSiphonCompleted.Broadcast(bHealed);
-	});
+	BlendOutDelegate.BindUObject(this, &ARVSevarogCharacter::OnSoulSiphonMontageBlendingOut);
 	AnimInst->Montage_SetBlendingOutDelegate(BlendOutDelegate, SevarogData->SoulSiphonMontage);
+}
+
+void ARVSevarogCharacter::OnSoulSiphonMontageBlendingOut(UAnimMontage* /*InMontage*/, bool bInterrupted)
+{
+	CombatStateComponent->RemoveState(ERVCombatState::Attacking);
+	LastAttackEndTime  = GetWorld()->GetTimeSeconds();
+	LastSoulSiphonTime = GetWorld()->GetTimeSeconds();
+
+	const bool bHealed = !bInterrupted;
+	if (bHealed)
+	{
+		AttributeComponent->ApplyHealing(SevarogData->SoulSiphonHealAmount);
+	}
+	OnSoulSiphonCompleted.Broadcast(bHealed);
 }
 
 //--- Subjugation -------------------------------------------------------------
@@ -311,12 +343,15 @@ void ARVSevarogCharacter::ExecuteSubjugation()
 	AnimInst->Montage_Play(SevarogData->SubjugationMontage);
 
 	FOnMontageBlendingOutStarted BlendOutDelegate;
-	BlendOutDelegate.BindLambda([this](UAnimMontage* /*Montage*/, bool /*bInterrupted*/)
-	{
-		CombatStateComponent->RemoveState(ERVCombatState::Attacking);
-		LastAttackEndTime = GetWorld()->GetTimeSeconds();
-	});
+	BlendOutDelegate.BindUObject(this, &ARVSevarogCharacter::OnSubjugationMontageBlendingOut);
 	AnimInst->Montage_SetBlendingOutDelegate(BlendOutDelegate, SevarogData->SubjugationMontage);
+}
+
+void ARVSevarogCharacter::OnSubjugationMontageBlendingOut(UAnimMontage* /*InMontage*/, bool /*bInterrupted*/)
+{
+	CombatStateComponent->RemoveState(ERVCombatState::Attacking);
+	LastAttackEndTime   = GetWorld()->GetTimeSeconds();
+	LastSubjugationTime = GetWorld()->GetTimeSeconds();
 }
 
 void ARVSevarogCharacter::SpawnGroundField()
