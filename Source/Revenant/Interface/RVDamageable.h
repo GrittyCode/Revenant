@@ -15,8 +15,6 @@ enum class ERVHitType : uint8
 {
 	Normal = 0,
 	Heavy  = 1,
-	Grab   = 2,
-	Smash  = 3,
 };
 
 /**

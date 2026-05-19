@@ -1,4 +1,3 @@
-// Source/Revenant/AI/RVAIController.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -6,7 +5,7 @@
 #include "RVAIController.generated.h"
 
 class UStateTreeAIComponent;
-class ARVBossCharacter;
+class ARVSevarogCharacter;
 
 /**
  * ARVAIController
@@ -28,9 +27,9 @@ class REVENANT_API ARVAIController : public AAIController
 public:
 	ARVAIController();
 
-	/** Returns the possessed ARVBossCharacter. Null if not yet possessed. */
+	/** Returns the possessed ARVSevarogCharacter. Null if not yet possessed. */
 	UFUNCTION(BlueprintCallable, Category = "RV|AI")
-	ARVBossCharacter* GetBossCharacter() const;
+	ARVSevarogCharacter* GetBossCharacter() const;
 
 	/** Returns the first player pawn in the world. Used as move and focus target. */
 	UFUNCTION(BlueprintCallable, Category = "RV|AI")

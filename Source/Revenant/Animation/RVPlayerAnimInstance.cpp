@@ -1,4 +1,4 @@
-#include "Animation/RVAnimInstance.h"
+#include "Animation/RVPlayerAnimInstance.h"
 #include "Component/RVComboComponent.h"
 #include "Component/RVCombatStateComponent.h"
 #include "Component/RVEquipmentComponent.h"
@@ -12,7 +12,7 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
-void URVAnimInstance::NativeInitializeAnimation()
+void URVPlayerAnimInstance::NativeInitializeAnimation()
 {
     Super::NativeInitializeAnimation();
 
@@ -41,24 +41,24 @@ void URVAnimInstance::NativeInitializeAnimation()
     if (IsValid(EquipmentComponent))
     {
         EquipmentComponent->OnWeaponChanged.AddDynamic(
-            this, &URVAnimInstance::OnWeaponChangedHandler);
+            this, &URVPlayerAnimInstance::OnWeaponChangedHandler);
 
         OnWeaponChangedHandler(EquipmentComponent->GetCurrentWeaponData());
     }
 }
 
-void URVAnimInstance::NativeUninitializeAnimation()
+void URVPlayerAnimInstance::NativeUninitializeAnimation()
 {
     if (IsValid(EquipmentComponent))
     {
         EquipmentComponent->OnWeaponChanged.RemoveDynamic(
-            this, &URVAnimInstance::OnWeaponChangedHandler);
+            this, &URVPlayerAnimInstance::OnWeaponChangedHandler);
     }
 
     Super::NativeUninitializeAnimation();
 }
 
-void URVAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
+void URVPlayerAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
     Super::NativeUpdateAnimation(DeltaSeconds);
 
@@ -82,7 +82,7 @@ void URVAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
     StaggerDirection = HitReactionComponent->GetStaggerDirection();
 }
 
-void URVAnimInstance::OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData)
+void URVPlayerAnimInstance::OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData)
 {
     if (!IsValid(NewWeaponData))
     {

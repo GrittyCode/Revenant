@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Animation/AnimInstance.h"
-#include "RVAnimInstance.generated.h"
+#include "RVPlayerAnimInstance.generated.h"
 
 class URVEquipmentComponent;
 class URVComboComponent;
@@ -14,7 +14,7 @@ class URVWeaponDataAsset;
 class UBlendSpace;
 
 UCLASS()
-class REVENANT_API URVAnimInstance : public UAnimInstance
+class REVENANT_API URVPlayerAnimInstance : public UAnimInstance
 {
     GENERATED_BODY()
 

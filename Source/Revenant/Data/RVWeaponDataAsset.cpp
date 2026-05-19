@@ -4,61 +4,43 @@
 
 const FRVWeaponStatRow* URVWeaponDataAsset::GetWeaponStatRow() const
 {
-    if (WeaponStatRowHandle.IsNull()) { return nullptr; }
-    return WeaponStatRowHandle.GetRow<FRVWeaponStatRow>(TEXT("URVWeaponDataAsset::GetWeaponStatRow"));
+	if (WeaponStatRowHandle.IsNull()) { return nullptr; }
+	return WeaponStatRowHandle.GetRow<FRVWeaponStatRow>(TEXT("URVWeaponDataAsset::GetWeaponStatRow"));
 }
 
 UAnimMontage* URVWeaponDataAsset::GetHeavyChargeMontage() const
 {
-    if (bOverrideHeavyChargeMontage && IsValid(OverrideHeavyChargeMontage))
-    {
-        return OverrideHeavyChargeMontage;
-    }
-    return CombatAnimData->HeavyChargeMontage;
+	if (bOverrideHeavyChargeMontage && IsValid(OverrideHeavyChargeMontage))
+	{
+		return OverrideHeavyChargeMontage;
+	}
+	return CombatAnimData->HeavyChargeMontage;
 }
 
 UAnimMontage* URVWeaponDataAsset::GetHeavyAttackMontage(bool bIsMax) const
 {
-    if (bOverrideHeavyAttackMontage)
-    {
-        return bIsMax ? OverrideMaxHeavyAttackMontage : OverrideHeavyAttackMontage;
-    }
-    return bIsMax ? CombatAnimData->MaxHeavyAttackMontage
-                  : CombatAnimData->HeavyAttackMontage;
+	if (bOverrideHeavyAttackMontage)
+	{
+		return bIsMax ? OverrideMaxHeavyAttackMontage : OverrideHeavyAttackMontage;
+	}
+	return bIsMax ? CombatAnimData->MaxHeavyAttackMontage
+	              : CombatAnimData->HeavyAttackMontage;
 }
 
 UAnimMontage* URVWeaponDataAsset::GetDodgeMontage() const
 {
-    if (bOverrideDodgeMontage && IsValid(OverrideDodgeMontage)) { return OverrideDodgeMontage; }
-    return CombatAnimData->DodgeMontage;
+	if (bOverrideDodgeMontage && IsValid(OverrideDodgeMontage)) { return OverrideDodgeMontage; }
+	return CombatAnimData->DodgeMontage;
 }
 
-UAnimMontage* URVWeaponDataAsset::GetDodgeMontage_LockOn_F() const
+UAnimMontage* URVWeaponDataAsset::GetLockOnDodgeMontage(ERVDodgeDirection InDirection) const
 {
-    return IsValid(CombatAnimData->LockOnDodgeMontage_F)
-        ? CombatAnimData->LockOnDodgeMontage_F.Get() : GetDodgeMontage();
-}
+	if (!IsValid(CombatAnimData)) { return GetDodgeMontage(); }
 
-UAnimMontage* URVWeaponDataAsset::GetDodgeMontage_LockOn_L() const
-{
-    return IsValid(CombatAnimData->LockOnDodgeMontage_L)
-        ? CombatAnimData->LockOnDodgeMontage_L.Get() : GetDodgeMontage();
-}
-
-UAnimMontage* URVWeaponDataAsset::GetDodgeMontage_LockOn_R() const
-{
-    return IsValid(CombatAnimData->LockOnDodgeMontage_R)
-        ? CombatAnimData->LockOnDodgeMontage_R.Get() : GetDodgeMontage();
-}
-
-UAnimMontage* URVWeaponDataAsset::GetDodgeMontage_LockOn_BL() const
-{
-    return IsValid(CombatAnimData->LockOnDodgeMontage_BL)
-        ? CombatAnimData->LockOnDodgeMontage_BL.Get() : GetDodgeMontage();
-}
-
-UAnimMontage* URVWeaponDataAsset::GetDodgeMontage_LockOn_BR() const
-{
-    return IsValid(CombatAnimData->LockOnDodgeMontage_BR)
-        ? CombatAnimData->LockOnDodgeMontage_BR.Get() : GetDodgeMontage();
+	const TObjectPtr<UAnimMontage>* Found = CombatAnimData->LockOnDodgeMontages.Find(InDirection);
+	if (Found && IsValid(*Found))
+	{
+		return Found->Get();
+	}
+	return GetDodgeMontage();
 }

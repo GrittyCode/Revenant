@@ -18,17 +18,25 @@ class REVENANT_API URVEquipmentComponent : public UActorComponent
 public:
 	URVEquipmentComponent();
 
-	URVWeaponDataAsset* GetCurrentWeaponData() const { return CurrentWeaponData; }
+	URVWeaponDataAsset*          GetCurrentWeaponData()         const { return CurrentWeaponData; }
 	URVHitReactionAnimDataAsset* GetCurrentHitReactionAnimData() const;
-	UStaticMeshComponent* GetWeaponMeshComponent() const { return WeaponMeshComponent; }
+	UStaticMeshComponent*        GetWeaponMeshComponent()        const { return WeaponMeshComponent; }
 
 	void SetCurrentWeaponData(URVWeaponDataAsset* InWeaponData);
+
+	// Toggles between WeaponDataSlotA and WeaponDataSlotB.
+	// Gate checks (combat state) are the caller's responsibility before calling this.
+	void SwapWeapon();
 
 	UPROPERTY(BlueprintAssignable, Category = "RV|Equipment")
 	FRVOnWeaponChanged OnWeaponChanged;
 
+	// Slot A is the default starting weapon (equipped in BeginPlay).
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Equipment")
-	TObjectPtr<URVWeaponDataAsset> DefaultWeaponData;
+	TObjectPtr<URVWeaponDataAsset> WeaponDataSlotA;
+
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Equipment")
+	TObjectPtr<URVWeaponDataAsset> WeaponDataSlotB;
 
 protected:
 	virtual void BeginPlay() override;
@@ -39,4 +47,6 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UStaticMeshComponent> WeaponMeshComponent;
+
+	bool bIsSlotA = true;
 };

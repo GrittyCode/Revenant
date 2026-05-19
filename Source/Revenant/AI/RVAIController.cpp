@@ -1,5 +1,5 @@
 #include "AI/RVAIController.h"
-#include "Character/Enemy/RVBossCharacter.h"
+#include "Character/Enemy/RVSevarogCharacter.h"
 #include "Components/StateTreeAIComponent.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -12,8 +12,8 @@ void ARVAIController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
 
-	ensureMsgf(IsValid(Cast<ARVBossCharacter>(InPawn)),
-		TEXT("[%s] ARVAIController possessed a non-boss pawn"), *GetNameSafe(this));
+	ensureMsgf(IsValid(Cast<ARVSevarogCharacter>(InPawn)),
+		TEXT("[%s] ARVAIController possessed a non-Sevarog pawn"), *GetNameSafe(this));
 
 	StateTreeAIComponent->StartLogic();
 }
@@ -24,9 +24,9 @@ void ARVAIController::OnUnPossess()
 	Super::OnUnPossess();
 }
 
-ARVBossCharacter* ARVAIController::GetBossCharacter() const
+ARVSevarogCharacter* ARVAIController::GetBossCharacter() const
 {
-	return Cast<ARVBossCharacter>(GetPawn());
+	return Cast<ARVSevarogCharacter>(GetPawn());
 }
 
 APawn* ARVAIController::GetPlayerPawn() const

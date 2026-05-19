@@ -9,63 +9,63 @@
 
 ARVCharacterBase::ARVCharacterBase()
 {
-    PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick = false;
 
-    AttributeComponent   = CreateDefaultSubobject<URVAttributeComponent>  (TEXT("AttributeComponent"));
-    CombatStateComponent = CreateDefaultSubobject<URVCombatStateComponent> (TEXT("CombatStateComponent"));
-    HitReactionComponent = CreateDefaultSubobject<URVHitReactionComponent> (TEXT("HitReactionComponent"));
+	AttributeComponent   = CreateDefaultSubobject<URVAttributeComponent>  (TEXT("AttributeComponent"));
+	CombatStateComponent = CreateDefaultSubobject<URVCombatStateComponent> (TEXT("CombatStateComponent"));
+	HitReactionComponent = CreateDefaultSubobject<URVHitReactionComponent> (TEXT("HitReactionComponent"));
 }
 
 void ARVCharacterBase::BeginPlay()
 {
-    Super::BeginPlay();
+	Super::BeginPlay();
 
-    GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
-    GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
+	GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 
-    ensureMsgf(IsValid(AttributeComponent),   TEXT("[%s] AttributeComponent missing"),   *GetName());
-    ensureMsgf(IsValid(CombatStateComponent), TEXT("[%s] CombatStateComponent missing"), *GetName());
-    ensureMsgf(IsValid(HitReactionComponent), TEXT("[%s] HitReactionComponent missing"), *GetName());
+	ensureMsgf(IsValid(AttributeComponent),   TEXT("[%s] AttributeComponent missing"),   *GetName());
+	ensureMsgf(IsValid(CombatStateComponent), TEXT("[%s] CombatStateComponent missing"), *GetName());
+	ensureMsgf(IsValid(HitReactionComponent), TEXT("[%s] HitReactionComponent missing"), *GetName());
 
-    // Player: CharacterData assigned in BP → initializes HP/Stamina/Poise.
-    // Boss: CharacterData is null → skipped here, initialized from DT_EnemyStats in ARVBossCharacter::BeginPlay.
-    if (IsValid(CharacterData))
-    {
-        AttributeComponent->InitFromDataAsset(CharacterData);
-    }
+	// Player: CharacterData assigned in BP → initializes HP/Stamina/Poise.
+	// Boss: CharacterData is null → skipped here, initialized from DT_EnemyStats in ARVSevarogCharacter::BeginPlay.
+	if (IsValid(CharacterData))
+	{
+		AttributeComponent->InitFromDataAsset(CharacterData);
+	}
 
-    //--- Reference Injection (Composition Root) ------------------------------
+	//--- Reference Injection (Composition Root) ------------------------------
 
-    URVHitReactionAnimDataAsset* HitReactionAnimData = GetHitReactionAnimData();
-    UMeshComponent*     TraceMesh  = GetWeaponTraceMesh();
-    UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	URVHitReactionAnimDataAsset* HitReactionAnimData = GetHitReactionAnimData();
+	UMeshComponent*              TraceMesh           = GetWeaponTraceMesh();
+	UCharacterMovementComponent* MoveComp            = GetCharacterMovement();
 
-    // CombatStat (BaseDamage, BasePoiseDamage, AttackRadius) is injected separately:
-    //   Player → ARVCharacterPlayer::OnWeaponChangedHandler (on weapon swap + initial call)
-    //   Boss   → ARVBossCharacter::BeginPlay (from DT_EnemyStats row)
-    CombatStateComponent->InitReferences(this, TraceMesh, MoveComp);
+	// CombatStat (BaseDamage, BasePoiseDamage, AttackRadius) is injected separately:
+	//   Player → ARVCharacterPlayer::OnWeaponChangedHandler (on weapon swap + initial call)
+	//   Boss   → ARVSevarogCharacter::BeginPlay (from DT_EnemyStats row)
+	CombatStateComponent->InitReferences(this, TraceMesh, MoveComp);
 
-    // StaggerDuration: player uses CharacterData value, boss uses DT_EnemyStats (overrides after Super).
-    const float StaggerDuration = IsValid(CharacterData) ? CharacterData->StaggerDuration : 0.5f;
-    HitReactionComponent->InitReferences(this, CombatStateComponent, AttributeComponent, HitReactionAnimData, StaggerDuration);
+	// StaggerDuration: player uses CharacterData value; boss uses DT_EnemyStats (overrides after Super).
+	const float StaggerDuration = IsValid(CharacterData) ? CharacterData->StaggerDuration : 0.5f;
+	HitReactionComponent->InitReferences(this, CombatStateComponent, AttributeComponent, HitReactionAnimData, StaggerDuration);
 }
 
 void ARVCharacterBase::ActivateHitCheck()
 {
-    CombatStateComponent->PerformAttackTrace();
+	CombatStateComponent->PerformAttackTrace();
 }
 
 bool ARVCharacterBase::ApplyDamage(const FRVHitInfo& InHitInfo)
 {
-    if (CombatStateComponent->IsInvincible()) { return false; }
+	if (CombatStateComponent->IsInvincible()) { return false; }
 
-    const bool bSurvived = AttributeComponent->ApplyDamage(InHitInfo.Instigator, InHitInfo.Damage);
+	const bool bSurvived = AttributeComponent->ApplyDamage(InHitInfo.Instigator, InHitInfo.Damage);
 
-    // HandleHit runs even on death — Knockdown montage serves as the death fall animation.
-    // TODO: guard with bSurvived once OnDeath handler is wired.
-    HitReactionComponent->HandleHit(InHitInfo);
+	// HandleHit runs even on death — Knockdown montage serves as the death fall animation.
+	// TODO: guard with bSurvived once OnDeath handler is wired.
+	HitReactionComponent->HandleHit(InHitInfo);
 
-    return bSurvived;
+	return bSurvived;
 }
 
 float ARVCharacterBase::GetHealthRatio() const
@@ -75,15 +75,15 @@ float ARVCharacterBase::GetHealthRatio() const
 
 void ARVCharacterBase::Falling()
 {
-    Super::Falling();
+	Super::Falling();
 
-    UCharacterMovementComponent* MoveComp = GetCharacterMovement();
-    OriginalRotationRate   = MoveComp->RotationRate;
-    MoveComp->RotationRate = AirRotationRate;
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	OriginalRotationRate   = MoveComp->RotationRate;
+	MoveComp->RotationRate = AirRotationRate;
 }
 
 void ARVCharacterBase::Landed(const FHitResult& Hit)
 {
-    Super::Landed(Hit);
-    GetCharacterMovement()->RotationRate = OriginalRotationRate;
+	Super::Landed(Hit);
+	GetCharacterMovement()->RotationRate = OriginalRotationRate;
 }

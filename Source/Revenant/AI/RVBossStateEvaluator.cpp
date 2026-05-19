@@ -9,10 +9,10 @@ void FRVBossStateEvaluator::TreeStart(FStateTreeExecutionContext& Context) const
 
 	// UStateTreeAIComponent passes *GetOwner() (the AIController) as context owner.
 	Data.CachedAIController = Cast<ARVAIController>(Context.GetOwner());
-	
+
 	ensureMsgf(IsValid(Data.CachedAIController),
 		TEXT("[FRVBossStateEvaluator] Context owner is not ARVAIController"));
-	
+
 	if (!IsValid(Data.CachedAIController)) { return; }
 
 	Data.BossCharacter = Cast<ARVSevarogCharacter>(Data.CachedAIController->GetPawn());
@@ -26,10 +26,14 @@ void FRVBossStateEvaluator::Tick(FStateTreeExecutionContext& Context, const floa
 
 	if (!IsValid(Data.BossCharacter) || !IsValid(Data.CachedAIController)) { return; }
 
-	Data.bIsGroggy       = Data.BossCharacter->IsGroggy();
-	Data.bIsAttacking    = Data.BossCharacter->IsAttacking();
-	Data.CurrentPhase    = Data.BossCharacter->GetCurrentPhase();
-	Data.BossHealthRatio = Data.BossCharacter->GetHealthRatio();
+	Data.bIsGroggy              = Data.BossCharacter->IsGroggy();
+	Data.bIsAttacking           = Data.BossCharacter->IsAttacking();
+	Data.CurrentPhase           = Data.BossCharacter->GetCurrentPhase();
+	Data.BossHealthRatio        = Data.BossCharacter->GetHealthRatio();
+	Data.bIsRushing             = Data.BossCharacter->IsRushing();
+	Data.bIsAttackOnCooldown    = Data.BossCharacter->IsAttackOnCooldown();
+	Data.bIsRushOnCooldown      = Data.BossCharacter->IsRushOnCooldown();
+	Data.bIsSoulSiphonOnCooldown = Data.BossCharacter->IsSoulSiphonOnCooldown();
 
 	Data.PlayerPawn = Data.CachedAIController->GetPlayerPawn();
 
