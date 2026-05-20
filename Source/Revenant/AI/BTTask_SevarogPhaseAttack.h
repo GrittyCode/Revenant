@@ -1,0 +1,18 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "BehaviorTree/BTTaskNode.h"
+#include "BTTask_SevarogPhaseAttack.generated.h"
+
+UCLASS()
+class REVENANT_API UBTTask_SevarogPhaseAttack : public UBTTaskNode
+{
+	GENERATED_BODY()
+
+public:
+	UBTTask_SevarogPhaseAttack();
+
+protected:
+	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+	virtual void OnTaskFinished(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTNodeResult::Type TaskResult) override;
+};

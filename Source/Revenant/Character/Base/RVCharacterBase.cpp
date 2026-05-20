@@ -1,4 +1,3 @@
-// Source/Revenant/Character/Base/RVCharacterBase.cpp
 #include "Character/Base/RVCharacterBase.h"
 #include "Component/RVAttributeComponent.h"
 #include "Component/RVCombatStateComponent.h"
@@ -10,6 +9,14 @@
 ARVCharacterBase::ARVCharacterBase()
 {
 	PrimaryActorTick.bCanEverTick = false;
+
+	bUseControllerRotationPitch = false;
+	bUseControllerRotationYaw   = false;
+	bUseControllerRotationRoll  = false;
+
+	UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	MoveComp->bOrientRotationToMovement = true;
+	MoveComp->RotationRate = FRotator(0.f, 500.f, 0.f);
 
 	AttributeComponent   = CreateDefaultSubobject<URVAttributeComponent>  (TEXT("AttributeComponent"));
 	CombatStateComponent = CreateDefaultSubobject<URVCombatStateComponent> (TEXT("CombatStateComponent"));

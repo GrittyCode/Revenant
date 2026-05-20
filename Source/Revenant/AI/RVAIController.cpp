@@ -1,11 +1,11 @@
 #include "AI/RVAIController.h"
+#include "BehaviorTree/BehaviorTree.h"
+#include "BrainComponent.h"
 #include "Character/Enemy/RVSevarogCharacter.h"
-#include "Components/StateTreeAIComponent.h"
 #include "Kismet/GameplayStatics.h"
 
 ARVAIController::ARVAIController()
 {
-	StateTreeAIComponent = CreateDefaultSubobject<UStateTreeAIComponent>(TEXT("StateTreeAIComponent"));
 }
 
 void ARVAIController::OnPossess(APawn* InPawn)
@@ -15,13 +15,22 @@ void ARVAIController::OnPossess(APawn* InPawn)
 	ensureMsgf(IsValid(Cast<ARVSevarogCharacter>(InPawn)),
 		TEXT("[%s] ARVAIController possessed a non-Sevarog pawn"), *GetNameSafe(this));
 
-	StateTreeAIComponent->StartLogic();
+	if (IsValid(BehaviorTreeAsset))
+	{
+		// RunBehaviorTree calls UseBlackboard internally with the BT asset's embedded blackboard.
+		RunBehaviorTree(BehaviorTreeAsset);
+	}
 }
 
 void ARVAIController::OnUnPossess()
 {
-	StateTreeAIComponent->StopLogic(TEXT("UnPossess"));
 	Super::OnUnPossess();
+
+	if (UBrainComponent* Brain = GetBrainComponent())
+	{
+		Brain->StopLogic(TEXT("Unpossessed"));
+	}
+	StopMovement();
 }
 
 ARVSevarogCharacter* ARVAIController::GetBossCharacter() const
@@ -38,7 +47,6 @@ void ARVAIController::SetFocusToPlayer()
 {
 	APawn* Player = GetPlayerPawn();
 	if (!IsValid(Player)) { return; }
-
 	SetFocus(Player);
 }
 

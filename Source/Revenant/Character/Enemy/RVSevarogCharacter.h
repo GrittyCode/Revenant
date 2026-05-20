@@ -11,13 +11,14 @@ enum class ERVBossPhase : uint8
 {
 	Phase1 UMETA(DisplayName = "Phase 1"),
 	Phase2 UMETA(DisplayName = "Phase 2"),
-	Phase3 UMETA(DisplayName = "Phase 3"),
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRVOnBossPhaseChanged, ERVBossPhase, NewPhase);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnBossGroggyStarted);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnBossGroggyEnded);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRVOnSoulSiphonCompleted, bool, bHealed);
+
+// Non-dynamic — supports AddWeakLambda binding from BT tasks.
+DECLARE_MULTICAST_DELEGATE(FRVOnBossAttackFinished);
 
 UCLASS()
 class REVENANT_API ARVSevarogCharacter : public ARVCharacterBase
@@ -27,35 +28,44 @@ class REVENANT_API ARVSevarogCharacter : public ARVCharacterBase
 public:
 	ARVSevarogCharacter();
 
-	// --- StateTree task interface --------------------------------------------
+	void RotateToFacePlayer();
 
-	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
-	void ExecutePhaseAttack();
+	// --- BT task interface ---------------------------------------------------
 
-	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
-	void ExecuteRushAttack();
+	/** Returns false if preconditions fail (groggy, already attacking, empty pattern set). */
+	bool ExecutePhaseAttack();
 
-	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
-	void ExecuteSoulSiphon();
+	/** Returns false if preconditions fail or RushAttackMontage is unassigned. */
+	bool ExecuteRushAttack();
 
-	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
-	void ExecuteSubjugation();
+	/** Returns false if preconditions fail or SoulSiphonMontage is unassigned. */
+	bool ExecuteSoulSiphon();
+
+	/** Returns false if preconditions fail or SubjugationMontage is unassigned. */
+	bool ExecuteSubjugation();
 
 	void ForceEndCurrentAction();
 
-	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
 	void StartGroggy();
-
-	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
 	void EndGroggy();
 
 	// --- Rush ----------------------------------------------------------------
 
-	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
 	void StartRush();
-
-	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
 	void EndRush();
+
+	// --- Combo chain (called from AnimNotify_BossComboChain) -----------------
+
+	/**
+	 * Called by AnimNotify_BossComboChain placed at the start of the Return2Idle section.
+	 * If more combo hits are queued, stops the current montage and plays the next one.
+	 * If this is the last hit, does nothing — Return2Idle plays and BlendingOut cleans up.
+	 */
+	void TryChainCombo();
+
+	// --- Subjugation blast (called from AnimNotify_SubjugationBlast) ---------
+
+	void SpawnSubjugationBlast();
 
 	// --- State queries -------------------------------------------------------
 
@@ -72,23 +82,6 @@ public:
 	bool IsRushing() const { return bIsRushing; }
 
 	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
-	bool IsJustRushed() const { return bJustRushed; }
-
-	// --- Cooldown queries ----------------------------------------------------
-
-	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
-	bool IsAttackOnCooldown() const;
-
-	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
-	bool IsRushOnCooldown() const;
-
-	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
-	bool IsSoulSiphonOnCooldown() const;
-
-	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
-	bool IsSubjugationOnCooldown() const;
-
-	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
 	const URVSevarogDataAsset* GetSevarogData() const { return SevarogData; }
 
 	// --- Delegates -----------------------------------------------------------
@@ -102,8 +95,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "RV|Boss")
 	FRVOnBossGroggyEnded OnBossGroggyEnded;
 
-	UPROPERTY(BlueprintAssignable, Category = "RV|Boss")
-	FRVOnSoulSiphonCompleted OnSoulSiphonCompleted;
+	// Fired when any attack action finishes naturally (phase attack, soul siphon, subjugation).
+	// BT tasks bind via AddWeakLambda and call FinishLatentTask from here instead of polling TickTask.
+	FRVOnBossAttackFinished OnAttackFinished;
 
 protected:
 	virtual void BeginPlay() override;
@@ -117,15 +111,10 @@ private:
 	ERVBossPhase CurrentPhase               = ERVBossPhase::Phase1;
 	bool         bIsGroggy                  = false;
 	bool         bIsRushing                 = false;
-	bool         bJustRushed                = false;
+	bool         bIsComboChaining           = false;
 	int32        CurrentPoiseDepletionCount = 0;
 
-	float NormalWalkSpeed     = 400.f;
-
-	float LastAttackEndTime   = -BIG_NUMBER;
-	float LastRushEndTime     = -BIG_NUMBER;
-	float LastSoulSiphonTime  = -BIG_NUMBER;
-	float LastSubjugationTime = -BIG_NUMBER;
+	float NormalWalkSpeed = 400.f;
 
 	FTimerHandle GroggyTimerHandle;
 
@@ -134,23 +123,18 @@ private:
 
 	void StartComboChain(const TArray<TObjectPtr<UAnimMontage>>& InMontages);
 	void PlayComboMontageAt(int32 InIndex);
-	float GetAttackCooldown() const;
+
+	int32 SelectWeightedPattern(const TArray<struct FRVBossAttackPattern>& InPatterns) const;
+
 	void SetBossPhase(ERVBossPhase InNewPhase);
 
-	UFUNCTION()
-	void OnAttackMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
+	UFUNCTION() void OnAttackMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
+	UFUNCTION() void OnSoulSiphonBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
+	UFUNCTION() void OnSubjugationMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
 
-	UFUNCTION()
-	void OnSoulSiphonMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
+	UFUNCTION() void OnStunStartMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
+	UFUNCTION() void OnStunEndMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
 
-	UFUNCTION()
-	void OnSubjugationMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
-
-	UFUNCTION()
-	void CheckPhaseTransition(float InNewHealth, float InDelta);
-
-	UFUNCTION()
-	void OnPoiseDepleted();
-
-	void SpawnGroundField();
+	UFUNCTION() void CheckPhaseTransition(float InNewHealth, float InDelta);
+	UFUNCTION() void OnPoiseDepleted();
 };

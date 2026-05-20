@@ -24,9 +24,13 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Hit")
 	TObjectPtr<UAnimMontage> GetUpMontage;
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Hit")
-	TObjectPtr<UAnimMontage> GroggyStartMontage;
+	// Boss-only groggy — 3-stage: Start → Loop (driven by GroggyDuration timer) → End
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Hit|Groggy")
+	TObjectPtr<UAnimMontage> GroggyStunStartMontage;
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Hit")
-	TObjectPtr<UAnimMontage> GroggyEndMontage;
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Hit|Groggy")
+	TObjectPtr<UAnimMontage> GroggyStunLoopMontage;
+
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Hit|Groggy")
+	TObjectPtr<UAnimMontage> GroggyStunEndMontage;
 };

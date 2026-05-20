@@ -1,0 +1,53 @@
+#include "AI/BTTask_SevarogPhaseAttack.h"
+#include "AI/RVAIController.h"
+#include "Character/Enemy/RVSevarogCharacter.h"
+
+UBTTask_SevarogPhaseAttack::UBTTask_SevarogPhaseAttack()
+{
+	NodeName            = TEXT("Sevarog Phase Attack");
+	bNotifyTaskFinished = true;
+}
+
+EBTNodeResult::Type UBTTask_SevarogPhaseAttack::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
+{
+	ARVAIController* Controller = Cast<ARVAIController>(OwnerComp.GetAIOwner());
+	if (!IsValid(Controller)) { return EBTNodeResult::Failed; }
+
+	ARVSevarogCharacter* Boss = Controller->GetBossCharacter();
+	if (!IsValid(Boss)) { return EBTNodeResult::Failed; }
+
+	Boss->RotateToFacePlayer();
+	if (!Boss->ExecutePhaseAttack()) { return EBTNodeResult::Failed; }
+
+	TWeakObjectPtr<UBehaviorTreeComponent>  BTCompWeak(& OwnerComp);
+	TWeakObjectPtr<ARVSevarogCharacter>     BossWeak(Boss);
+
+	Boss->OnAttackFinished.AddWeakLambda(this, [BTCompWeak, BossWeak, this]()
+	{
+		// Unregister before finishing — prevents stale binding if a new attack starts
+		// before the previous blend-out fully completes.
+		if (BossWeak.IsValid()) { BossWeak->OnAttackFinished.RemoveAll(this); }
+		if (BTCompWeak.IsValid()) { FinishLatentTask(*BTCompWeak.Get(), EBTNodeResult::Succeeded); }
+	});
+
+	return EBTNodeResult::InProgress;
+}
+
+void UBTTask_SevarogPhaseAttack::OnTaskFinished(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTNodeResult::Type TaskResult)
+{
+	Super::OnTaskFinished(OwnerComp, NodeMemory, TaskResult);
+
+	ARVAIController* Controller = Cast<ARVAIController>(OwnerComp.GetAIOwner());
+	if (!IsValid(Controller)) { return; }
+
+	ARVSevarogCharacter* Boss = Controller->GetBossCharacter();
+	if (!IsValid(Boss)) { return; }
+
+	// RemoveAll covers the abort path — prevents the lambda from firing after task exit.
+	Boss->OnAttackFinished.RemoveAll(this);
+
+	if (Boss->IsAttacking())
+	{
+		Boss->ForceEndCurrentAction();
+	}
+}

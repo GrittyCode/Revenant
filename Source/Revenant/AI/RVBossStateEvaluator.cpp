@@ -30,11 +30,6 @@ void FRVBossStateEvaluator::Tick(FStateTreeExecutionContext& Context, const floa
 	Data.CurrentPhase            = Data.BossCharacter->GetCurrentPhase();
 	Data.BossHealthRatio         = Data.BossCharacter->GetHealthRatio();
 	Data.bIsRushing              = Data.BossCharacter->IsRushing();
-	Data.bJustRushed             = Data.BossCharacter->IsJustRushed();
-	Data.bIsAttackOnCooldown     = Data.BossCharacter->IsAttackOnCooldown();
-	Data.bIsRushOnCooldown       = Data.BossCharacter->IsRushOnCooldown();
-	Data.bIsSoulSiphonOnCooldown = Data.BossCharacter->IsSoulSiphonOnCooldown();
-	Data.bIsSubjugationOnCooldown = Data.BossCharacter->IsSubjugationOnCooldown();
 
 	Data.PlayerPawn = Data.CachedAIController->GetPlayerPawn();
 
@@ -45,5 +40,5 @@ void FRVBossStateEvaluator::Tick(FStateTreeExecutionContext& Context, const floa
 		: 0.f;
 
 	const URVSevarogDataAsset* SevarogData = Data.BossCharacter->GetSevarogData();
-	Data.AttackRange = IsValid(SevarogData) ? SevarogData->AttackRange : 300.f;
+	Data.AttackRange = IsValid(SevarogData) ? SevarogData->AttackRadius : 300.f;
 }

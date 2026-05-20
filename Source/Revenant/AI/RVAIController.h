@@ -4,21 +4,9 @@
 #include "AIController.h"
 #include "RVAIController.generated.h"
 
-class UStateTreeAIComponent;
+class UBehaviorTree;
 class ARVSevarogCharacter;
 
-/**
- * ARVAIController
- *
- * Boss AI controller. Owns UStateTreeAIComponent — behavior logic is authored
- * in a Blueprint StateTree asset (ST_BossAI). C++ provides the frame and
- * helper accessors used by StateTree tasks.
- *
- * StateTree task authors call:
- *   GetBossCharacter()      — to read boss state (IsAttacking, IsGroggy, Phase)
- *   GetPlayerPawn()         — to get the player as a move/focus target
- *   SetFocusToPlayer()      — to make the boss face the player
- */
 UCLASS()
 class REVENANT_API ARVAIController : public AAIController
 {
@@ -35,7 +23,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "RV|AI")
 	APawn* GetPlayerPawn() const;
 
-	/** Sets the controller focus to the player pawn so the boss rotates toward them. */
+	/** Rotates the boss to face the player via controller focus. */
 	UFUNCTION(BlueprintCallable, Category = "RV|AI")
 	void SetFocusToPlayer();
 
@@ -47,7 +35,8 @@ protected:
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void OnUnPossess() override;
 
-private:
-	UPROPERTY(VisibleAnywhere, Category = "RV|AI")
-	TObjectPtr<UStateTreeAIComponent> StateTreeAIComponent;
+protected:
+	// RunBehaviorTree handles blackboard initialization internally via the BT asset.
+	UPROPERTY(EditDefaultsOnly)
+	TObjectPtr<UBehaviorTree> BehaviorTreeAsset;
 };
