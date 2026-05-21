@@ -11,6 +11,18 @@ UBTTask_SevarogRush::UBTTask_SevarogRush()
 	bNotifyTaskFinished = true;
 }
 
+void UBTTask_SevarogRush::SubscribeAttackFinished(UBehaviorTreeComponent& OwnerComp, ARVSevarogCharacter* InBoss)
+{
+	TWeakObjectPtr<UBehaviorTreeComponent> BTWeak(&OwnerComp);
+	TWeakObjectPtr<ARVSevarogCharacter>    BossWeak(InBoss);
+
+	InBoss->OnAttackFinished.AddWeakLambda(this, [BTWeak, BossWeak, this]()
+	{
+		if (BossWeak.IsValid()) { BossWeak->OnAttackFinished.RemoveAll(this); }
+		if (BTWeak.IsValid())   { FinishLatentTask(*BTWeak.Get(), EBTNodeResult::Succeeded); }
+	});
+}
+
 EBTNodeResult::Type UBTTask_SevarogRush::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
 	FRVRushMemory* Memory = CastInstanceNodeMemory<FRVRushMemory>(NodeMemory);
@@ -41,20 +53,12 @@ EBTNodeResult::Type UBTTask_SevarogRush::ExecuteTask(UBehaviorTreeComponent& Own
 
 	if (MoveResult.Code == EPathFollowingRequestResult::AlreadyAtGoal)
 	{
-		// Already in attack range — skip rush movement, go straight to attack.
 		Boss->EndRush();
 		Boss->RotateToFacePlayer(Player);
 		if (!Boss->ExecuteRushAttack()) { return EBTNodeResult::Failed; }
 
 		Memory->bAttackLaunched = true;
-
-		TWeakObjectPtr<UBehaviorTreeComponent> BTWeak(&OwnerComp);
-		TWeakObjectPtr<ARVSevarogCharacter>    BossWeak(Boss);
-		Boss->OnAttackFinished.AddWeakLambda(this, [BTWeak, BossWeak, this]()
-		{
-			if (BossWeak.IsValid()) { BossWeak->OnAttackFinished.RemoveAll(this); }
-			if (BTWeak.IsValid())   { FinishLatentTask(*BTWeak.Get(), EBTNodeResult::Succeeded); }
-		});
+		SubscribeAttackFinished(OwnerComp, Boss);
 	}
 
 	return EBTNodeResult::InProgress;
@@ -90,14 +94,7 @@ void UBTTask_SevarogRush::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* Nod
 		}
 
 		Memory->bAttackLaunched = true;
-
-		TWeakObjectPtr<UBehaviorTreeComponent> BTWeak(&OwnerComp);
-		TWeakObjectPtr<ARVSevarogCharacter>    BossWeak(Boss);
-		Boss->OnAttackFinished.AddWeakLambda(this, [BTWeak, BossWeak, this]()
-		{
-			if (BossWeak.IsValid()) { BossWeak->OnAttackFinished.RemoveAll(this); }
-			if (BTWeak.IsValid())   { FinishLatentTask(*BTWeak.Get(), EBTNodeResult::Succeeded); }
-		});
+		SubscribeAttackFinished(OwnerComp, Boss);
 	}
 }
 

@@ -1,3 +1,4 @@
+// Source/Revenant/Component/RVHitReactionComponent.cpp
 #include "Component/RVHitReactionComponent.h"
 #include "Component/RVCombatStateComponent.h"
 #include "Component/RVAttributeComponent.h"
@@ -35,7 +36,9 @@ void URVHitReactionComponent::InitReferences(
 
 void URVHitReactionComponent::HandleHit(const FRVHitInfo& InHitInfo)
 {
-    if (CombatStateComponent->IsInState(ERVCombatState::Knockdown | ERVCombatState::HitReaction))
+    // Knockdown blocks all further hit processing.
+    // HitReaction (stagger) does not — a hit while staggering escalates to knockdown.
+    if (CombatStateComponent->HasState(ERVCombatState::Knockdown))
     {
         return;
     }
@@ -43,15 +46,28 @@ void URVHitReactionComponent::HandleHit(const FRVHitInfo& InHitInfo)
     const bool bPoiseDepleted = AttributeComponent->ApplyPoiseDamage(InHitInfo.PoiseDamage);
     if (!bPoiseDepleted) { return; }
 
+    const bool bShouldKnockdown = InHitInfo.HitType != ERVHitType::Normal
+                                || !CombatStateComponent->IsGrounded()
+                                || CombatStateComponent->HasState(ERVCombatState::HitReaction);
+
+    // capability check after poise damage — poise must accumulate even when reactions are disabled
+    const ERVHitReactCapability Required = bShouldKnockdown
+        ? ERVHitReactCapability::Knockdown
+        : ERVHitReactCapability::Stagger;
+
+    if (!CanHitReact(Required)) { return; }
+
     CombatStateComponent->ForceEndAllActions();
     AttributeComponent->ResetPoise();
 
-    const bool bShouldKnockdown = InHitInfo.HitType != ERVHitType::Normal
-                                || !CombatStateComponent->IsGrounded()
-                                || CombatStateComponent->IsInState(ERVCombatState::HitReaction);
-
     if (bShouldKnockdown)
     {
+        // clear active stagger before entering knockdown
+        if (CombatStateComponent->HasState(ERVCombatState::HitReaction))
+        {
+            GetWorld()->GetTimerManager().ClearTimer(StaggerHandle);
+            CombatStateComponent->RemoveState(ERVCombatState::HitReaction);
+        }
         TriggerKnockdown(InHitInfo.HitDirection);
     }
     else
@@ -76,6 +92,68 @@ void URVHitReactionComponent::TriggerStaggerWithMontage(UAnimMontage* InMontage)
     FOnMontageBlendingOutStarted BlendingOutDelegate;
     BlendingOutDelegate.BindUObject(this, &URVHitReactionComponent::OnStaggerMontageBlendingOut);
     AnimInst->Montage_SetBlendingOutDelegate(BlendingOutDelegate, InMontage);
+}
+
+//--- Groggy ------------------------------------------------------------------
+
+void URVHitReactionComponent::TriggerGroggy(float InGroggyDuration)
+{
+    if (!IsValid(HitReactionAnimData)) { return; }
+
+    UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
+    if (!IsValid(AnimInst)) { return; }
+
+    GroggyDuration = InGroggyDuration;
+
+    UAnimMontage* StartMontage = HitReactionAnimData->GroggyStunStartMontage;
+    if (!IsValid(StartMontage))
+    {
+        // no start montage — go straight to loop
+        UAnimMontage* LoopMontage = HitReactionAnimData->GroggyStunLoopMontage;
+        if (IsValid(LoopMontage)) { AnimInst->Montage_Play(LoopMontage); }
+        GetWorld()->GetTimerManager().SetTimer(
+            GroggyTimerHandle, this, &URVHitReactionComponent::EndGroggy, GroggyDuration, false);
+        return;
+    }
+
+    AnimInst->Montage_Play(StartMontage);
+
+    FOnMontageBlendingOutStarted BlendOutDelegate;
+    BlendOutDelegate.BindUObject(this, &URVHitReactionComponent::OnGroggyStartMontageBlendingOut);
+    AnimInst->Montage_SetBlendingOutDelegate(BlendOutDelegate, StartMontage);
+}
+
+void URVHitReactionComponent::EndGroggy()
+{
+    GetWorld()->GetTimerManager().ClearTimer(GroggyTimerHandle);
+
+    if (!IsValid(HitReactionAnimData)) { return; }
+
+    UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
+    if (!IsValid(AnimInst)) { return; }
+
+    UAnimMontage* LoopMontage = HitReactionAnimData->GroggyStunLoopMontage;
+    if (IsValid(LoopMontage)) { AnimInst->Montage_Stop(0.2f, LoopMontage); }
+
+    UAnimMontage* EndMontage = HitReactionAnimData->GroggyStunEndMontage;
+    if (!IsValid(EndMontage))
+    {
+        // no end montage — complete immediately
+        OnGroggySequenceCompleted.Broadcast();
+        return;
+    }
+
+    AnimInst->Montage_Play(EndMontage);
+
+    FOnMontageBlendingOutStarted BlendOutDelegate;
+    BlendOutDelegate.BindUObject(this, &URVHitReactionComponent::OnGroggyEndMontageBlendingOut);
+    AnimInst->Montage_SetBlendingOutDelegate(BlendOutDelegate, EndMontage);
+}
+
+void URVHitReactionComponent::AbortGroggy()
+{
+    GetWorld()->GetTimerManager().ClearTimer(GroggyTimerHandle);
+    // montage is stopped by the caller (e.g. OnDeath stops all montages before playing DeathMontage)
 }
 
 //--- Reaction Triggers -------------------------------------------------------
@@ -148,4 +226,27 @@ void URVHitReactionComponent::OnKnockdownMontageBlendingOut(UAnimMontage* /*Mont
 void URVHitReactionComponent::OnGetUpMontageBlendingOut(UAnimMontage* /*Montage*/, bool /*bInterrupted*/)
 {
     CombatStateComponent->RemoveState(ERVCombatState::Knockdown);
+}
+
+void URVHitReactionComponent::OnGroggyStartMontageBlendingOut(UAnimMontage* /*Montage*/, bool bInterrupted)
+{
+    if (bInterrupted) { return; }
+
+    if (!IsValid(HitReactionAnimData)) { return; }
+
+    UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
+    if (!IsValid(AnimInst)) { return; }
+
+    UAnimMontage* LoopMontage = HitReactionAnimData->GroggyStunLoopMontage;
+    if (!IsValid(LoopMontage)) { return; }
+
+    AnimInst->Montage_Play(LoopMontage);
+
+    GetWorld()->GetTimerManager().SetTimer(
+        GroggyTimerHandle, this, &URVHitReactionComponent::EndGroggy, GroggyDuration, false);
+}
+
+void URVHitReactionComponent::OnGroggyEndMontageBlendingOut(UAnimMontage* /*Montage*/, bool /*bInterrupted*/)
+{
+    OnGroggySequenceCompleted.Broadcast();
 }

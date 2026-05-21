@@ -1,4 +1,3 @@
-// Source/Revenant/Data/RVSevarogDataAsset.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -14,141 +13,135 @@ struct FRVEnemyStatRow;
 USTRUCT(BlueprintType)
 struct FRVBossAttackPattern
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	TArray<TObjectPtr<UAnimMontage>> ComboMontages;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+    TArray<TObjectPtr<UAnimMontage>> ComboMontages;
 
-	// Higher weight = more frequent selection. Minimum effective value is 1.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (ClampMin = "1"))
-	int32 Weight = 1;
+    // Higher weight = more frequent selection. Minimum effective value is 1.
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (ClampMin = "1"))
+    int32 Weight = 1;
 };
 
 USTRUCT(BlueprintType)
 struct FRVBossPhaseAttacks
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	TArray<FRVBossAttackPattern> Patterns;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+    TArray<FRVBossAttackPattern> Patterns;
 };
 
 UCLASS()
 class REVENANT_API URVSevarogDataAsset : public UPrimaryDataAsset
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	//--- Identity ------------------------------------------------------------
+    //--- Identity ------------------------------------------------------------
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss")
-	FText BossName;
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss")
+    FText BossName;
 
-	//--- Enemy Stats ---------------------------------------------------------
+    //--- Enemy Stats ---------------------------------------------------------
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Boss|Stats")
-	FDataTableRowHandle EnemyStatRowHandle;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Boss|Stats")
+    FDataTableRowHandle EnemyStatRowHandle;
 
-	const FRVEnemyStatRow* GetEnemyStatRow() const;
+    const FRVEnemyStatRow* GetEnemyStatRow() const;
 
-	//--- Phase Thresholds ----------------------------------------------------
+    //--- Phase Thresholds ----------------------------------------------------
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Phase",
-		meta = (ClampMin = "0.0", ClampMax = "1.0"))
-	float Phase2Threshold = 0.50f;
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Phase",
+        meta = (ClampMin = "0.0", ClampMax = "1.0"))
+    float Phase2Threshold = 0.50f;
 
-	//--- Phase Attack Sets ---------------------------------------------------
+    //--- Phase Attack Sets ---------------------------------------------------
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Attacks")
-	FRVBossPhaseAttacks Phase1Attacks;
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Attacks")
+    FRVBossPhaseAttacks Phase1Attacks;
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Attacks")
-	FRVBossPhaseAttacks Phase2Attacks;
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Attacks")
+    FRVBossPhaseAttacks Phase2Attacks;
 
-	//--- Attack Range --------------------------------------------------------
+    //--- Attack Range --------------------------------------------------------
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Boss|Combat",
-		meta = (ClampMin = "0.0"))
-	float MeleeEngagementRange = 250.f;
-	
-	//--- Combo Rotation ------------------------------------------------------
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Boss|Combat",
+        meta = (ClampMin = "0.0"))
+    float MeleeEngagementRange = 250.f;
 
-	// Maximum yaw correction applied per combo hit to face the player.
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Combat",
-		meta = (ClampMin = "0.0", ClampMax = "180.0"))
-	float MaxComboTurnDegrees = 60.f;
+    //--- Combo Rotation ------------------------------------------------------
 
-	//--- Groggy --------------------------------------------------------------
+    // Maximum yaw correction applied per combo hit to face the player.
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Combat",
+        meta = (ClampMin = "0.0", ClampMax = "180.0"))
+    float MaxComboTurnDegrees = 60.f;
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Groggy")
-	int32 GroggyPoiseDepletionCount = 3;
+    //--- Groggy --------------------------------------------------------------
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Groggy")
-	float GroggyDuration = 4.f;
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Groggy")
+    int32 GroggyPoiseDepletionCount = 3;
 
-	//--- Movement ----------------------------------------------------------------
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Groggy")
+    float GroggyDuration = 4.f;
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Movement",
-	meta = (ClampMin = "0.0"))
-	float ArrivalRange = 200.f;
+    //--- Movement ------------------------------------------------------------
 
-	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Boss|Movement",
-		meta = (ClampMin = "0.0"))
-	float RushTriggerRadius = 700.f;
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Movement",
+        meta = (ClampMin = "0.0"))
+    float ArrivalRange = 200.f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Boss|Movement",
-		meta = (ClampMin = "0.0"))
-	float RushSpeed = 700.f;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Boss|Movement",
+        meta = (ClampMin = "0.0"))
+    float RushTriggerRadius = 700.f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Boss|Movement",
-		meta = (ClampMin = "0.0"))
-	float RushCooldown = 5.f;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Boss|Movement",
+        meta = (ClampMin = "0.0"))
+    float RushSpeed = 700.f;
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Movement")
-	TObjectPtr<UAnimMontage> RushAttackMontage;
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Boss|Movement",
+        meta = (ClampMin = "0.0"))
+    float RushCooldown = 5.f;
 
-	//--- Animation Assets ----------------------------------------------------
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Movement")
+    TObjectPtr<UAnimMontage> RushAttackMontage;
 
-	// Single 1D BlendSpace (Speed axis: 0 = Idle → NormalWalkSpeed = Walk → RushSpeed = Rush).
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|AnimationAsset")
-	TObjectPtr<UBlendSpace> LocomotionBS;
+    //--- Animation Assets ----------------------------------------------------
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|AnimationAsset")
-	TObjectPtr<URVHitReactionAnimDataAsset> HitReactionAnimData;
-	
-	UAnimMontage* GetGroggyStunStartMontage() const;
-	UAnimMontage* GetGroggyStunLoopMontage() const;
-	UAnimMontage* GetGroggyStunEndMontage() const;
-	
-	
-	//--- Soul Siphon ---------------------------------------------------------
+    // Single 1D BlendSpace (Speed axis: 0 = Idle → NormalWalkSpeed = Walk → RushSpeed = Rush).
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|AnimationAsset")
+    TObjectPtr<UBlendSpace> LocomotionBS;
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|SoulSiphon")
-	TObjectPtr<UAnimMontage> SoulSiphonMontage;
+    UPROPERTY(EditDefaultsOnly, Category = "RV|AnimationAsset")
+    TObjectPtr<URVHitReactionAnimDataAsset> HitReactionAnimData;
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|SoulSiphon",
-		meta = (ClampMin = "0.0"))
-	float SoulSiphonCooldown = 20.f;
+    //--- Soul Siphon ---------------------------------------------------------
 
-	//--- Subjugation ---------------------------------------------------------
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|SoulSiphon")
+    TObjectPtr<UAnimMontage> SoulSiphonMontage;
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Subjugation")
-	TObjectPtr<UAnimMontage> SubjugationMontage;
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|SoulSiphon",
+        meta = (ClampMin = "0.0"))
+    float SoulSiphonCooldown = 20.f;
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Subjugation",
-		meta = (ClampMin = "0.0"))
-	float SubjugationBlastRadius = 400.f;
+    //--- Subjugation ---------------------------------------------------------
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Subjugation",
-		meta = (ClampMin = "0.0"))
-	float SubjugationBlastDamage = 60.f;
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Subjugation")
+    TObjectPtr<UAnimMontage> SubjugationMontage;
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Subjugation",
-		meta = (ClampMin = "0.0"))
-	float SubjugationBlastPoiseDamage = 40.f;
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Subjugation",
+        meta = (ClampMin = "0.0"))
+    float SubjugationBlastRadius = 400.f;
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Subjugation",
-		meta = (ClampMin = "0.0"))
-	float SubjugationCooldown = 30.f;
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Subjugation",
+        meta = (ClampMin = "0.0"))
+    float SubjugationBlastDamage = 60.f;
+
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Subjugation",
+        meta = (ClampMin = "0.0"))
+    float SubjugationBlastPoiseDamage = 40.f;
+
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Subjugation",
+        meta = (ClampMin = "0.0"))
+    float SubjugationCooldown = 30.f;
 };

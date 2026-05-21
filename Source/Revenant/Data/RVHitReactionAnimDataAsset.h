@@ -1,4 +1,3 @@
-// Source/Revenant/Data/RVHitReactionAnimDataAsset.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -29,13 +28,14 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Hit")
 	TObjectPtr<UAnimMontage> DeathMontage;
 
-	// Boss-only groggy — 3-stage: Start → Loop (driven by GroggyDuration timer) → End
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Hit|Groggy")
+	// 3-stage groggy sequence: Start → Loop (held for GroggyDuration) → End.
+	// Leave unassigned for non-boss characters.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Groggy")
 	TObjectPtr<UAnimMontage> GroggyStunStartMontage;
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Hit|Groggy")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Groggy")
 	TObjectPtr<UAnimMontage> GroggyStunLoopMontage;
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Hit|Groggy")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Groggy")
 	TObjectPtr<UAnimMontage> GroggyStunEndMontage;
 };

@@ -1,3 +1,4 @@
+// Source/Revenant/Component/RVCombatStateComponent.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -21,7 +22,6 @@ enum class ERVCombatState : uint16
     Groggy         = 1 << 6,
     Knockdown      = 1 << 7,
 };
-
 ENUM_CLASS_FLAGS(ERVCombatState);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FRVOnCombatStateChanged, ERVCombatState);
@@ -67,7 +67,7 @@ public:
 
     //--- State Mutators ------------------------------------------------------
 
-	FORCEINLINE void AddState(ERVCombatState InState) { CurrentStates |= InState; OnStateChanged.Broadcast(CurrentStates);}
+    FORCEINLINE void AddState(ERVCombatState InState) { CurrentStates |= InState; OnStateChanged.Broadcast(CurrentStates); }
     FORCEINLINE void RemoveState(ERVCombatState InState) { CurrentStates &= ~InState; OnStateChanged.Broadcast(CurrentStates); }
     FORCEINLINE bool HasState(ERVCombatState InState) const { return (CurrentStates & InState) != ERVCombatState::None; }
 
@@ -104,7 +104,7 @@ private:
     TObjectPtr<UCharacterMovementComponent> MovementComponent;
 
     ERVCombatState CurrentStates = ERVCombatState::None;
-    bool bIsInvincible = false;
+    bool           bIsInvincible = false;
 
     // Cached attack base stats. Set via SetCombatStat().
     // Player: updated on weapon swap. Boss: set once in BeginPlay.

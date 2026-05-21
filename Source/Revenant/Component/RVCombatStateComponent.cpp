@@ -168,7 +168,7 @@ void URVCombatStateComponent::PerformAttackTrace()
             HitInfo.PoiseDamage  = PoiseDamage;
             HitInfo.HitType      = HitType;
             HitInfo.Instigator   = OwnerCharacter;
-            HitInfo.HitDirection = (HitActor->GetActorLocation() - OwnerCharacter->GetActorLocation()).GetSafeNormal();
+            HitInfo.HitDirection = (OwnerCharacter->GetActorLocation() - HitActor->GetActorLocation()).GetSafeNormal();
 
             Target->ApplyDamage(HitInfo);
         }

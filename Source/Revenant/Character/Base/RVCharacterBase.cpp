@@ -18,6 +18,8 @@ ARVCharacterBase::ARVCharacterBase()
 	MoveComp->bOrientRotationToMovement = true;
 	MoveComp->RotationRate = FRotator(0.f, 500.f, 0.f);
 
+	
+	GetCapsuleComponent()->CanCharacterStepUpOn = ECB_No;
 	AttributeComponent   = CreateDefaultSubobject<URVAttributeComponent>  (TEXT("AttributeComponent"));
 	CombatStateComponent = CreateDefaultSubobject<URVCombatStateComponent> (TEXT("CombatStateComponent"));
 	HitReactionComponent = CreateDefaultSubobject<URVHitReactionComponent> (TEXT("HitReactionComponent"));

@@ -19,53 +19,50 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FRVOnGuardBreakTriggered, UAnimMontage* /*Gu
 UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
 class REVENANT_API URVGuardComponent : public UActorComponent
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    URVGuardComponent();
+	URVGuardComponent();
 
-    void StartGuard();
-    void EndGuard();
-    void HandleGuardHit(float InDamageAmount);
+	void StartGuard();
+	void EndGuard();
+	void HandleGuardHit(float InDamageAmount);
 
-    /** Called via CombatStateComponent::OnForceEnd. */
-    void ForceEndGuard();
+	/**
+	 * Subscribed to URVAttributeComponent::OnStaminaDepleted.
+	 * Interprets depletion as guard break only when Guarding state is active.
+	 * Broadcasts OnGuardBreakTriggered so HitReactionComponent handles recovery
+	 * through the HitReaction path — no separate GuardBroken state needed.
+	 */
+	UFUNCTION()
+	void OnStaminaDepletedHandler();
 
-    /**
-     * Subscribed to URVAttributeComponent::OnStaminaDepleted.
-     * Interprets depletion as guard break only when Guarding state is active.
-     * Broadcasts OnGuardBreakTriggered so HitReactionComponent handles recovery
-     * through the HitReaction path — no separate GuardBroken state needed.
-     */
-    UFUNCTION()
-    void OnStaminaDepletedHandler();
+	void InitReferences(ACharacter* InOwnerCharacter,
+	                    URVCombatStateComponent* InCombatStateComponent,
+	                    URVAttributeComponent* InAttributeComponent,
+	                    URVEquipmentComponent* InEquipmentComponent);
 
-    void InitReferences(ACharacter* InOwnerCharacter,
-                        URVCombatStateComponent* InCombatStateComponent,
-                        URVAttributeComponent* InAttributeComponent,
-                        URVEquipmentComponent* InEquipmentComponent);
-
-    /**
-     * Fired when guard break triggers.
-     * Wired by ARVCharacterBase::BeginPlay:
-     *   GuardComponent->OnGuardBreakTriggered.AddUObject(
-     *       HitReactionComponent, &URVHitReactionComponent::TriggerStaggerWithMontage)
-     */
-    FRVOnGuardBreakTriggered OnGuardBreakTriggered;
+	/**
+	 * Fired when guard break triggers.
+	 * Wired by ARVCharacterPlayer::BeginPlay:
+	 *   GuardComponent->OnGuardBreakTriggered.AddUObject(
+	 *       HitReactionComponent, &URVHitReactionComponent::TriggerStaggerWithMontage)
+	 */
+	FRVOnGuardBreakTriggered OnGuardBreakTriggered;
 
 protected:
-    virtual void BeginPlay() override;
+	virtual void BeginPlay() override;
 
 private:
-    UPROPERTY()
-    TObjectPtr<ACharacter> OwnerCharacter;
+	UPROPERTY()
+	TObjectPtr<ACharacter> OwnerCharacter;
 
-    UPROPERTY()
-    TObjectPtr<URVCombatStateComponent> CombatStateComponent;
+	UPROPERTY()
+	TObjectPtr<URVCombatStateComponent> CombatStateComponent;
 
-    UPROPERTY()
-    TObjectPtr<URVAttributeComponent> AttributeComponent;
+	UPROPERTY()
+	TObjectPtr<URVAttributeComponent> AttributeComponent;
 
-    UPROPERTY()
-    TObjectPtr<URVEquipmentComponent> EquipmentComponent;
+	UPROPERTY()
+	TObjectPtr<URVEquipmentComponent> EquipmentComponent;
 };

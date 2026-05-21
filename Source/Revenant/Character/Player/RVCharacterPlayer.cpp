@@ -92,7 +92,8 @@ void ARVCharacterPlayer::BeginPlay()
 
 	CombatStateComponent->OnForceEnd.AddUObject(HeavyAttackComponent, &URVHeavyAttackComponent::ForceEndHeavyAttack);
 	CombatStateComponent->OnForceEnd.AddUObject(DodgeComponent,       &URVDodgeComponent::ForceEndDodge);
-	CombatStateComponent->OnForceEnd.AddUObject(GuardComponent,       &URVGuardComponent::ForceEndGuard);
+	// ForceEndGuard removed — EndGuard covers the same behavior and is the single guard-clear path.
+	CombatStateComponent->OnForceEnd.AddUObject(GuardComponent,       &URVGuardComponent::EndGuard);
 
 	EquipmentComponent->OnWeaponChanged.AddDynamic(this, &ARVCharacterPlayer::OnWeaponChangedHandler);
 	OnWeaponChangedHandler(EquipmentComponent->GetCurrentWeaponData());
@@ -132,7 +133,7 @@ bool ARVCharacterPlayer::ApplyDamage(const FRVHitInfo& InHitInfo)
 {
 	if (CombatStateComponent->IsInvincible()) { return false; }
 
-	if (CombatStateComponent->IsInState(ERVCombatState::Guarding))
+	if (CombatStateComponent->HasState(ERVCombatState::Guarding))
 	{
 		GuardComponent->HandleGuardHit(InHitInfo.Damage);
 		return true;
@@ -149,7 +150,7 @@ void ARVCharacterPlayer::Tick(float DeltaTime)
 
 	if (LockOnComponent->IsLockedOn()) { return; }
 
-	if (CombatStateComponent->IsInState(ERVCombatState::Attacking | ERVCombatState::HeavyCharging | ERVCombatState::HeavyAttacking))
+	if (CombatStateComponent->HasState(ERVCombatState::Attacking | ERVCombatState::HeavyCharging | ERVCombatState::HeavyAttacking))
 	{
 		// AttackStartYaw captured at input — hold that direction for the entire combo
 		const FRotator CurrentRot = GetActorRotation();
@@ -190,10 +191,9 @@ void ARVCharacterPlayer::OnDeath()
 
 	URVHitReactionAnimDataAsset* HitReactionData = GetHitReactionAnimData();
 	UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
-	
+
 	AnimInst->Montage_Stop(0.1f);
 	AnimInst->Montage_Play(HitReactionData->DeathMontage);
-	
 }
 
 //--- Input Setup -------------------------------------------------------------
@@ -237,7 +237,7 @@ void ARVCharacterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 
 void ARVCharacterPlayer::InputMove(const FInputActionValue& Value)
 {
-	if (CombatStateComponent->IsInState(ERVCombatState::HitReaction)) { return; }
+	if (CombatStateComponent->HasState(ERVCombatState::HitReaction)) { return; }
 
 	const FVector2D Axis = Value.Get<FVector2D>();
 	const FRotator YawOnly(0.f, GetControlRotation().Yaw, 0.f);
@@ -294,7 +294,7 @@ void ARVCharacterPlayer::InputDodge(const FInputActionValue& Value)
 	}
 	DodgeDir = DodgeDir.GetSafeNormal();
 
-	if (CombatStateComponent->IsInState(ERVCombatState::Guarding))
+	if (CombatStateComponent->HasState(ERVCombatState::Guarding))
 	{
 		GuardComponent->EndGuard();
 	}

@@ -1,11 +1,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "BehaviorTree/BTTaskNode.h"
+#include "AI/BTTask_SevarogAttackBase.h"
 #include "BTTask_SevarogSubjugation.generated.h"
 
 UCLASS()
-class REVENANT_API UBTTask_SevarogSubjugation : public UBTTaskNode
+class REVENANT_API UBTTask_SevarogSubjugation : public UBTTask_SevarogAttackBase
 {
 	GENERATED_BODY()
 
@@ -13,6 +13,5 @@ public:
 	UBTTask_SevarogSubjugation();
 
 protected:
-	virtual EBTNodeResult::Type ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
-	virtual void OnTaskFinished(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTNodeResult::Type TaskResult) override;
+	virtual bool LaunchAttack(ARVSevarogCharacter* InBoss) override;
 };

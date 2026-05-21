@@ -20,12 +20,14 @@ void URVEquipmentComponent::BeginPlay()
 		TEXT("[%s] EquipmentComponent owner must be ACharacter"), *GetNameSafe(GetOwner()));
 
 	WeaponMeshComponent = NewObject<UStaticMeshComponent>(GetOwner(), TEXT("WeaponMeshComponent"));
+	WeaponMeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	WeaponMeshComponent->RegisterComponent();
 	WeaponMeshComponent->AttachToComponent(
 		OwnerCharacter->GetMesh(),
 		FAttachmentTransformRules::SnapToTargetNotIncludingScale,
 		FName("weapon_r")
 	);
+	
 
 	// SlotA is the default starting weapon.
 	SetCurrentWeaponData(WeaponDataSlotA);
@@ -69,6 +71,7 @@ void URVEquipmentComponent::SetCurrentWeaponData(URVWeaponDataAsset* InWeaponDat
 		{
 			NewMesh = InWeaponData->WeaponMesh.LoadSynchronous();
 		}
+		
 		WeaponMeshComponent->SetStaticMesh(NewMesh);
 
 		if (IsValid(InWeaponData))
