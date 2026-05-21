@@ -1,3 +1,4 @@
+// Source/Revenant/Data/RVHitReactionAnimDataAsset.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -23,6 +24,10 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Hit")
 	TObjectPtr<UAnimMontage> GetUpMontage;
+
+	// Played when HP reaches 0. Leave unassigned for player (death handled via UI/input disable only).
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Hit")
+	TObjectPtr<UAnimMontage> DeathMontage;
 
 	// Boss-only groggy — 3-stage: Start → Loop (driven by GroggyDuration timer) → End
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Hit|Groggy")

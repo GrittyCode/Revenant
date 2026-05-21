@@ -35,6 +35,10 @@ protected:
 
 	virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const { return nullptr; }
 
+	// Subclasses override to implement entity-specific death behavior.
+	UFUNCTION()
+	virtual void OnDeath();
+	
 	/**
 	 * Player: weapon StaticMeshComponent (set up by URVEquipmentComponent).
 	 * Boss:   character SkeletalMeshComponent (sockets on Sevarog skeleton).
@@ -61,6 +65,7 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Movement")
 	FRotator AirRotationRate = FRotator(0.f, 0.f, 0.f);
+	
 
 private:
 	FRotator OriginalRotationRate;

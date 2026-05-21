@@ -1,12 +1,9 @@
-// Source/Revenant/Animation/RVSevarogAnimInstance.cpp
 #include "Animation/RVSevarogAnimInstance.h"
 #include "Character/Enemy/RVSevarogCharacter.h"
 #include "Component/RVCombatStateComponent.h"
 #include "Component/RVHitReactionComponent.h"
 #include "Data/RVSevarogDataAsset.h"
-#include "Data/RVLocomotionAnimDataAsset.h"
 #include "Data/RVHitReactionAnimDataAsset.h"
-#include "KismetAnimationLibrary.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 void URVSevarogAnimInstance::NativeInitializeAnimation()
@@ -29,11 +26,8 @@ void URVSevarogAnimInstance::NativeInitializeAnimation()
 	const URVSevarogDataAsset* Data = OwnerSevarog->GetSevarogData();
 	if (!IsValid(Data)) { return; }
 
-	if (IsValid(Data->LocomotionAnimData))
-	{
-		CachedLocomotionBS    = Data->LocomotionAnimData->LocomotionBS;
-		CachedRunLocomotionBS = Data->LocomotionAnimData->RunLocomotionBS;
-	}
+	// Single 1D BS — direct field access, no LocomotionAnimData wrapper.
+	CachedLocomotionBS = Data->LocomotionBS;
 
 	if (IsValid(Data->HitReactionAnimData))
 	{
@@ -48,16 +42,16 @@ void URVSevarogAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	if (!IsValid(OwnerSevarog)) { return; }
 	if (!IsValid(CombatStateComponent) || !IsValid(HitReactionComponent)) { return; }
 
-	Direction = UKismetAnimationLibrary::CalculateDirection(
-		OwnerSevarog->GetVelocity(),
-		OwnerSevarog->GetActorRotation());
+	// Speed drives the 1D LocomotionBS.
+	// CharacterMovement.MaxWalkSpeed switches between normal and rush values —
+	// the BS samples the correct pose automatically without a separate bIsRushing flag.
+	Speed = OwnerSevarog->GetCharacterMovement()->Velocity.Size();
 
 	bIsInAir         = OwnerSevarog->GetCharacterMovement()->IsFalling();
 	bIsAttacking     = CombatStateComponent->HasState(ERVCombatState::Attacking);
 	bIsInHitReaction = CombatStateComponent->IsInState(ERVCombatState::HitReaction);
 	bIsKnockedDown   = CombatStateComponent->IsInState(ERVCombatState::Knockdown);
 	bIsGroggy        = OwnerSevarog->IsGroggy();
-	bIsRushing       = OwnerSevarog->IsRushing();
 
 	StaggerDirection = HitReactionComponent->GetStaggerDirection();
 }

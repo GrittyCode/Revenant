@@ -36,6 +36,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void OnDeath() override;
 
 	virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const override;
 	virtual UMeshComponent* GetWeaponTraceMesh() const override;
@@ -62,6 +63,7 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
 	TObjectPtr<URVEquipmentComponent> EquipmentComponent;
+	
 
 private:
 	// -- Input Handlers -------------------------------------------------------
@@ -89,7 +91,7 @@ private:
 	// Snaps rotation to target (lock-on) or freezes current yaw (default).
 	// Called at attack start to prevent mid-combo camera steering.
 	void SnapToAttackDirection();
-
+	
 	float AttackStartYaw = 0.f;
 
 	// -- Input Config ---------------------------------------------------------

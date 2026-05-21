@@ -16,7 +16,7 @@ EBTNodeResult::Type UBTTask_SevarogSubjugation::ExecuteTask(UBehaviorTreeCompone
 	ARVSevarogCharacter* Boss = Controller->GetBossCharacter();
 	if (!IsValid(Boss)) { return EBTNodeResult::Failed; }
 
-	Boss->RotateToFacePlayer();
+	Boss->RotateToFacePlayer(Controller->GetPlayerPawn());
 	if (!Boss->ExecuteSubjugation()) { return EBTNodeResult::Failed; }
 
 	TWeakObjectPtr<UBehaviorTreeComponent> BTCompWeak(&OwnerComp);
@@ -43,8 +43,5 @@ void UBTTask_SevarogSubjugation::OnTaskFinished(UBehaviorTreeComponent& OwnerCom
 
 	Boss->OnAttackFinished.RemoveAll(this);
 
-	if (Boss->IsAttacking())
-	{
-		Boss->ForceEndCurrentAction();
-	}
+	if (Boss->IsAttacking()) { Boss->ForceEndCurrentAction(); }
 }

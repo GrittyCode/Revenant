@@ -47,14 +47,14 @@ void ARVCharacterBase::BeginPlay()
 	UMeshComponent*              TraceMesh           = GetWeaponTraceMesh();
 	UCharacterMovementComponent* MoveComp            = GetCharacterMovement();
 
-	// CombatStat (BaseDamage, BasePoiseDamage, AttackRadius) is injected separately:
-	//   Player → ARVCharacterPlayer::OnWeaponChangedHandler (on weapon swap + initial call)
-	//   Boss   → ARVSevarogCharacter::BeginPlay (from DT_EnemyStats row)
 	CombatStateComponent->InitReferences(this, TraceMesh, MoveComp);
 
 	// StaggerDuration: player uses CharacterData value; boss uses DT_EnemyStats (overrides after Super).
 	const float StaggerDuration = IsValid(CharacterData) ? CharacterData->StaggerDuration : 0.5f;
 	HitReactionComponent->InitReferences(this, CombatStateComponent, AttributeComponent, HitReactionAnimData, StaggerDuration);
+	
+	
+	AttributeComponent->OnDeath.AddDynamic(this, &ARVCharacterBase::OnDeath);
 }
 
 void ARVCharacterBase::ActivateHitCheck()
@@ -68,9 +68,12 @@ bool ARVCharacterBase::ApplyDamage(const FRVHitInfo& InHitInfo)
 
 	const bool bSurvived = AttributeComponent->ApplyDamage(InHitInfo.Instigator, InHitInfo.Damage);
 
-	// HandleHit runs even on death — Knockdown montage serves as the death fall animation.
-	// TODO: guard with bSurvived once OnDeath handler is wired.
-	HitReactionComponent->HandleHit(InHitInfo);
+	// On death: URVAttributeComponent broadcasts OnDeath.
+	// ARVSevarogCharacter::OnBossDeath / ARVCharacterPlayer::OnPlayerDeath handle cleanup.
+	if (bSurvived)
+	{
+		HitReactionComponent->HandleHit(InHitInfo);
+	}
 
 	return bSurvived;
 }
@@ -93,4 +96,9 @@ void ARVCharacterBase::Landed(const FHitResult& Hit)
 {
 	Super::Landed(Hit);
 	GetCharacterMovement()->RotationRate = OriginalRotationRate;
+}
+
+
+void ARVCharacterBase::OnDeath()
+{
 }

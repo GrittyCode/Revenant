@@ -6,8 +6,8 @@
 
 UBTTask_SevarogRush::UBTTask_SevarogRush()
 {
-	NodeName = TEXT("Sevarog Rush");
-	bNotifyTick = true;
+	NodeName            = TEXT("Sevarog Rush");
+	bNotifyTick         = true;
 	bNotifyTaskFinished = true;
 }
 
@@ -19,12 +19,44 @@ EBTNodeResult::Type UBTTask_SevarogRush::ExecuteTask(UBehaviorTreeComponent& Own
 	ARVAIController* Controller = Cast<ARVAIController>(OwnerComp.GetAIOwner());
 	if (!IsValid(Controller)) { return EBTNodeResult::Failed; }
 
-	ARVSevarogCharacter* Boss = Controller->GetBossCharacter();
-	APawn* Player = Controller->GetPlayerPawn();
+	ARVSevarogCharacter* Boss   = Controller->GetBossCharacter();
+	APawn*               Player = Controller->GetPlayerPawn();
 	if (!IsValid(Boss) || !IsValid(Player)) { return EBTNodeResult::Failed; }
 
+	const float ArrivalRadius = Boss->GetSevarogData()->ArrivalRange;
+
 	Boss->StartRush();
-	Controller->MoveToActor(Player, Boss->GetSevarogData()->AttackRadius * 0.5f);
+
+	FAIMoveRequest MoveReq(Player);
+	MoveReq.SetAcceptanceRadius(ArrivalRadius * 0.5f);
+	MoveReq.SetCanStrafe(false);
+
+	const FPathFollowingRequestResult MoveResult = Controller->MoveTo(MoveReq);
+
+	if (MoveResult.Code == EPathFollowingRequestResult::Failed)
+	{
+		Boss->EndRush();
+		return EBTNodeResult::Failed;
+	}
+
+	if (MoveResult.Code == EPathFollowingRequestResult::AlreadyAtGoal)
+	{
+		// Already in attack range — skip rush movement, go straight to attack.
+		Boss->EndRush();
+		Boss->RotateToFacePlayer(Player);
+		if (!Boss->ExecuteRushAttack()) { return EBTNodeResult::Failed; }
+
+		Memory->bAttackLaunched = true;
+
+		TWeakObjectPtr<UBehaviorTreeComponent> BTWeak(&OwnerComp);
+		TWeakObjectPtr<ARVSevarogCharacter>    BossWeak(Boss);
+		Boss->OnAttackFinished.AddWeakLambda(this, [BTWeak, BossWeak, this]()
+		{
+			if (BossWeak.IsValid()) { BossWeak->OnAttackFinished.RemoveAll(this); }
+			if (BTWeak.IsValid())   { FinishLatentTask(*BTWeak.Get(), EBTNodeResult::Succeeded); }
+		});
+	}
+
 	return EBTNodeResult::InProgress;
 }
 
@@ -32,51 +64,40 @@ void UBTTask_SevarogRush::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* Nod
 {
 	FRVRushMemory* Memory = CastInstanceNodeMemory<FRVRushMemory>(NodeMemory);
 
+	// Attack already launched — OnAttackFinished delegate handles completion.
+	if (Memory->bAttackLaunched) { return; }
+
 	ARVAIController* Controller = Cast<ARVAIController>(OwnerComp.GetAIOwner());
-	if (!IsValid(Controller))
-	{
-		FinishLatentTask(OwnerComp, EBTNodeResult::Failed);
-		return;
-	}
+	if (!IsValid(Controller)) { FinishLatentTask(OwnerComp, EBTNodeResult::Failed); return; }
 
-	ARVSevarogCharacter* Boss = Controller->GetBossCharacter();
-	APawn* Player = Controller->GetPlayerPawn();
-	if (!IsValid(Boss) || !IsValid(Player))
-	{
-		FinishLatentTask(OwnerComp, EBTNodeResult::Failed);
-		return;
-	}
+	ARVSevarogCharacter* Boss   = Controller->GetBossCharacter();
+	APawn*               Player = Controller->GetPlayerPawn();
+	if (!IsValid(Boss) || !IsValid(Player)) { FinishLatentTask(OwnerComp, EBTNodeResult::Failed); return; }
 
-	if (!Memory->bAttackLaunched)
-	{
-		const float Dist = FVector::Dist(Boss->GetActorLocation(), Player->GetActorLocation());
-		const float ArrivalRadius = Boss->GetSevarogData()->AttackRadius * 0.5f;
+	const float Dist          = FVector::Dist(Boss->GetActorLocation(), Player->GetActorLocation());
+	const float ArrivalRadius = Boss->GetSevarogData()->ArrivalRange;
 
-		if (Dist <= ArrivalRadius)
+	if (Dist <= ArrivalRadius)
+	{
+		Controller->StopMovement();
+		Boss->EndRush();
+		Boss->RotateToFacePlayer(Player);
+
+		if (!Boss->ExecuteRushAttack())
 		{
-			Controller->StopMovement();
-			Boss->EndRush();
-			Boss->RotateToFacePlayer();
+			FinishLatentTask(OwnerComp, EBTNodeResult::Failed);
+			return;
+		}
 
-			if (!Boss->ExecuteRushAttack())
-			{
-				FinishLatentTask(OwnerComp, EBTNodeResult::Failed);
-				return;
-			}
-			Memory->bAttackLaunched = true;
-		}
-		else
+		Memory->bAttackLaunched = true;
+
+		TWeakObjectPtr<UBehaviorTreeComponent> BTWeak(&OwnerComp);
+		TWeakObjectPtr<ARVSevarogCharacter>    BossWeak(Boss);
+		Boss->OnAttackFinished.AddWeakLambda(this, [BTWeak, BossWeak, this]()
 		{
-			UPathFollowingComponent* PFC = Controller->GetPathFollowingComponent();
-			if (IsValid(PFC) && PFC->GetStatus() != EPathFollowingStatus::Moving)
-			{
-				Controller->MoveToActor(Player, ArrivalRadius * 0.5f);
-			}
-		}
-	}
-	else if (!Boss->IsAttacking())
-	{
-		FinishLatentTask(OwnerComp, EBTNodeResult::Succeeded);
+			if (BossWeak.IsValid()) { BossWeak->OnAttackFinished.RemoveAll(this); }
+			if (BTWeak.IsValid())   { FinishLatentTask(*BTWeak.Get(), EBTNodeResult::Succeeded); }
+		});
 	}
 }
 
@@ -102,13 +123,8 @@ void UBTTask_SevarogRush::OnTaskFinished(UBehaviorTreeComponent& OwnerComp, uint
 	ARVSevarogCharacter* Boss = Controller->GetBossCharacter();
 	if (!IsValid(Boss)) { return; }
 
-	if (Boss->IsRushing())
-	{
-		Boss->EndRush();
-	}
+	Boss->OnAttackFinished.RemoveAll(this);
 
-	if (Boss->IsAttacking())
-	{
-		Boss->ForceEndCurrentAction();
-	}
+	if (Boss->IsRushing())   { Boss->EndRush(); }
+	if (Boss->IsAttacking()) { Boss->ForceEndCurrentAction(); }
 }

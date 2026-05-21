@@ -39,13 +39,6 @@ void URVCombatStateComponent::SetCombatStat(
     CachedAttackRadius    = InAttackRadius;
 }
 
-//--- State Mutators ----------------------------------------------------------
-
-void URVCombatStateComponent::AddState(ERVCombatState InState)
-{
-    CurrentStates |= InState;
-    OnStateChanged.Broadcast(CurrentStates);
-}
 
 //--- State Queries -----------------------------------------------------------
 

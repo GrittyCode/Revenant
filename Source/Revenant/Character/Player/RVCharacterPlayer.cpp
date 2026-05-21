@@ -20,6 +20,7 @@
 #include "Input/RVInputConfig.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/PlayerCameraManager.h"
+#include "Data/RVHitReactionAnimDataAsset.h"
 #include "Data/RVWeaponStatRow.h"
 
 ARVCharacterPlayer::ARVCharacterPlayer()
@@ -177,6 +178,22 @@ void ARVCharacterPlayer::SnapToAttackDirection()
 	}
 
 	AttackStartYaw = GetActorRotation().Yaw;
+}
+
+void ARVCharacterPlayer::OnDeath()
+{
+	APlayerController* PC = Cast<APlayerController>(GetController());
+	if (IsValid(PC))
+	{
+		DisableInput(PC);
+	}
+
+	URVHitReactionAnimDataAsset* HitReactionData = GetHitReactionAnimData();
+	UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
+	
+	AnimInst->Montage_Stop(0.1f);
+	AnimInst->Montage_Play(HitReactionData->DeathMontage);
+	
 }
 
 //--- Input Setup -------------------------------------------------------------

@@ -1,4 +1,3 @@
-// Source/Revenant/Animation/RVSevarogAnimInstance.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -20,27 +19,19 @@ public:
 	virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 
 protected:
-	// --- Locomotion ----------------------------------------------------------
+	//--- Locomotion ----------------------------------------------------------
 
-	// Character-local movement direction (-180~180) — both locomotion BS Direction-axis input.
-	// Movement speed is controlled directly via CharacterMovementComponent.MaxWalkSpeed.
+	// Movement speed — 1D BlendSpace (LocomotionBS) X-axis input.
+	// CharacterMovement.MaxWalkSpeed controls normal vs. rush automatically.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
-	float Direction = 0.f;
+	float Speed = 0.f;
 
-	// Default walk BS (Sevarog_Locomotion_1D).
+	// Single 1D BlendSpace covering Idle → Walk → Rush (Speed axis).
+	// Assigned from URVSevarogDataAsset::LocomotionBS at init.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
 	TObjectPtr<UBlendSpace> CachedLocomotionBS;
 
-	// Run BS (Sevarog_TravelMode_Locomotion_1D). Active while bIsRushing == true.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
-	TObjectPtr<UBlendSpace> CachedRunLocomotionBS;
-
-	// True while ARVSevarogCharacter is closing the gap at rush speed.
-	// ABP switches to CachedRunLocomotionBS when this is true.
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
-	uint8 bIsRushing : 1;
-
-	// --- State ---------------------------------------------------------------
+	//--- State ---------------------------------------------------------------
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
 	uint8 bIsInAir : 1;
@@ -57,7 +48,7 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
 	uint8 bIsGroggy : 1;
 
-	// --- Hit Reaction --------------------------------------------------------
+	//--- Hit Reaction --------------------------------------------------------
 
 	// Character-local hit angle (-180~180) — Stagger BS Direction-axis input.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")

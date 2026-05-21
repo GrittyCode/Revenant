@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Character/Base/RVCharacterBase.h"
+#include "Component/RVCombatStateComponent.h"
 #include "RVSevarogCharacter.generated.h"
 
 class URVSevarogDataAsset;
@@ -13,11 +14,17 @@ enum class ERVBossPhase : uint8
 	Phase2 UMETA(DisplayName = "Phase 2"),
 };
 
+// Dynamic — BP / UI can subscribe via OnBossPhaseChanged.
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRVOnBossPhaseChanged, ERVBossPhase, NewPhase);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnBossGroggyStarted);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnBossGroggyEnded);
 
-// Non-dynamic — supports AddWeakLambda binding from BT tasks.
+// Dynamic — Win UI subscribes in Blueprint.
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnBossDefeated);
+
+// Non-dynamic — BT tasks bind via AddWeakLambda; no BP graph subscription needed.
+DECLARE_MULTICAST_DELEGATE(FRVOnBossGroggyStarted);
+DECLARE_MULTICAST_DELEGATE(FRVOnBossGroggyEnded);
+
+// Non-dynamic — BT tasks bind via AddWeakLambda.
 DECLARE_MULTICAST_DELEGATE(FRVOnBossAttackFinished);
 
 UCLASS()
@@ -28,9 +35,10 @@ class REVENANT_API ARVSevarogCharacter : public ARVCharacterBase
 public:
 	ARVSevarogCharacter();
 
-	void RotateToFacePlayer();
+	/** Rotates the boss to face InPlayer, clamped to MaxComboTurnDegrees. */
+	void RotateToFacePlayer(const APawn* InPlayer);
 
-	// --- BT task interface ---------------------------------------------------
+	//--- BT task interface ---------------------------------------------------
 
 	/** Returns false if preconditions fail (groggy, already attacking, empty pattern set). */
 	bool ExecutePhaseAttack();
@@ -49,12 +57,12 @@ public:
 	void StartGroggy();
 	void EndGroggy();
 
-	// --- Rush ----------------------------------------------------------------
+	//--- Rush ----------------------------------------------------------------
 
 	void StartRush();
 	void EndRush();
 
-	// --- Combo chain (called from AnimNotify_BossComboChain) -----------------
+	//--- Combo chain (called from AnimNotify_BossComboChain) -----------------
 
 	/**
 	 * Called by AnimNotify_BossComboChain placed at the start of the Return2Idle section.
@@ -63,11 +71,11 @@ public:
 	 */
 	void TryChainCombo();
 
-	// --- Subjugation blast (called from AnimNotify_SubjugationBlast) ---------
+	//--- Subjugation blast (called from AnimNotify_SubjugationBlast) ---------
 
 	void SpawnSubjugationBlast();
 
-	// --- State queries -------------------------------------------------------
+	//--- State queries -------------------------------------------------------
 
 	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
 	ERVBossPhase GetCurrentPhase() const { return CurrentPhase; }
@@ -84,23 +92,26 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "RV|Boss")
 	const URVSevarogDataAsset* GetSevarogData() const { return SevarogData; }
 
-	// --- Delegates -----------------------------------------------------------
+	//--- Delegates -----------------------------------------------------------
 
 	UPROPERTY(BlueprintAssignable, Category = "RV|Boss")
 	FRVOnBossPhaseChanged OnBossPhaseChanged;
 
+	// Broadcast when HP reaches 0. Win UI subscribes here.
 	UPROPERTY(BlueprintAssignable, Category = "RV|Boss")
+	FRVOnBossDefeated OnBossDefeated;
+
+	// Non-dynamic: BT tasks use AddWeakLambda.
 	FRVOnBossGroggyStarted OnBossGroggyStarted;
+	FRVOnBossGroggyEnded   OnBossGroggyEnded;
 
-	UPROPERTY(BlueprintAssignable, Category = "RV|Boss")
-	FRVOnBossGroggyEnded OnBossGroggyEnded;
-
-	// Fired when any attack action finishes naturally (phase attack, soul siphon, subjugation).
-	// BT tasks bind via AddWeakLambda and call FinishLatentTask from here instead of polling TickTask.
+	// Fired when any attack action finishes naturally (phase attack, soul siphon, subjugation, rush).
+	// Interrupted actions (bInterrupted=true in BlendingOut) do not fire this delegate.
 	FRVOnBossAttackFinished OnAttackFinished;
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void OnDeath() override;
 
 	virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const override;
 
@@ -120,13 +131,19 @@ private:
 
 	TArray<TObjectPtr<UAnimMontage>> ActiveComboMontages;
 	int32 ActiveComboIndex = 0;
-
+	
 	void StartComboChain(const TArray<TObjectPtr<UAnimMontage>>& InMontages);
 	void PlayComboMontageAt(int32 InIndex);
 
 	int32 SelectWeightedPattern(const TArray<struct FRVBossAttackPattern>& InPatterns) const;
-
+	
 	void SetBossPhase(ERVBossPhase InNewPhase);
+
+	/** Common play path for single-montage actions (SoulSiphon, Subjugation). */
+	bool PlaySingleShotAction(UAnimMontage* InMontage,
+	                          void (ARVSevarogCharacter::*InBlendOutCallback)(UAnimMontage*, bool));
+
+	void OnDeathMontageBlendingOut(UAnimMontage* AnimMontage, bool bArg);
 
 	UFUNCTION() void OnAttackMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
 	UFUNCTION() void OnSoulSiphonBlendingOut(UAnimMontage* InMontage, bool bInterrupted);

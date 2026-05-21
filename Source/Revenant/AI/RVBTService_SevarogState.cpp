@@ -7,9 +7,9 @@
 
 UBTService_RVSevarogState::UBTService_RVSevarogState()
 {
-	NodeName         = TEXT("Sevarog State");
-	Interval         = 0.1f;
-	RandomDeviation  = 0.f;
+	NodeName        = TEXT("Sevarog State");
+	Interval        = 0.1f;
+	RandomDeviation = 0.f;
 }
 
 void UBTService_RVSevarogState::OnSearchStart(FBehaviorTreeSearchData& SearchData)
@@ -28,6 +28,8 @@ void UBTService_RVSevarogState::OnSearchStart(FBehaviorTreeSearchData& SearchDat
 	UBlackboardComponent* BB = OwnerComp.GetBlackboardComponent();
 	if (!IsValid(BB)) { return; }
 
+	
+	BB->SetValueAsFloat(RVSevarogBlackboardKeys::ArrivalRange, Data->ArrivalRange);
 	BB->SetValueAsFloat(RVSevarogBlackboardKeys::RushCooldownDuration,        Data->RushCooldown);
 	BB->SetValueAsFloat(RVSevarogBlackboardKeys::SoulSiphonCooldownDuration,  Data->SoulSiphonCooldown);
 	BB->SetValueAsFloat(RVSevarogBlackboardKeys::SubjugationCooldownDuration, Data->SubjugationCooldown);
@@ -51,18 +53,14 @@ void UBTService_RVSevarogState::TickNode(UBehaviorTreeComponent& OwnerComp, uint
 	BB->SetValueAsObject(RVSevarogBlackboardKeys::PlayerPawn, Player);
 
 	const float Dist = IsValid(Player)
-		                   ? FVector::Dist(Boss->GetActorLocation(), Player->GetActorLocation())
-		                   : BIG_NUMBER;
+		? FVector::Dist(Boss->GetActorLocation(), Player->GetActorLocation())
+		: BIG_NUMBER;
 
 	const URVSevarogDataAsset* Data = Boss->GetSevarogData();
-
-	BB->SetValueAsFloat(RVSevarogBlackboardKeys::DistToPlayer, Dist);
-
+	
 	BB->SetValueAsBool(RVSevarogBlackboardKeys::bIsRushRadius,   Dist >= Data->RushTriggerRadius);
-	BB->SetValueAsBool(RVSevarogBlackboardKeys::bIsAttackRadius, Dist <= Data->AttackRadius);
-
+	BB->SetValueAsBool(RVSevarogBlackboardKeys::bIsAttackRadius, Dist <= Data->MeleeEngagementRange);
 	BB->SetValueAsBool(RVSevarogBlackboardKeys::bIsGroggy,    Boss->IsGroggy());
-	BB->SetValueAsBool(RVSevarogBlackboardKeys::bIsAttacking, Boss->IsAttacking());
-
+	
 	BB->SetValueAsEnum(RVSevarogBlackboardKeys::CurrentPhase, static_cast<uint8>(Boss->GetCurrentPhase()));
 }

@@ -1,3 +1,4 @@
+// Source/Revenant/Data/RVSevarogDataAsset.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -5,7 +6,7 @@
 #include "Engine/DataTable.h"
 #include "RVSevarogDataAsset.generated.h"
 
-class URVLocomotionAnimDataAsset;
+class UBlendSpace;
 class URVHitReactionAnimDataAsset;
 class UAnimMontage;
 struct FRVEnemyStatRow;
@@ -68,7 +69,14 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Boss|Combat",
 		meta = (ClampMin = "0.0"))
-	float AttackRadius = 300.f;
+	float MeleeEngagementRange = 250.f;
+	
+	//--- Combo Rotation ------------------------------------------------------
+
+	// Maximum yaw correction applied per combo hit to face the player.
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Combat",
+		meta = (ClampMin = "0.0", ClampMax = "180.0"))
+	float MaxComboTurnDegrees = 60.f;
 
 	//--- Groggy --------------------------------------------------------------
 
@@ -78,40 +86,46 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Groggy")
 	float GroggyDuration = 4.f;
 
-	//--- Rush ----------------------------------------------------------------
+	//--- Movement ----------------------------------------------------------------
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Boss|Rush",
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Movement",
+	meta = (ClampMin = "0.0"))
+	float ArrivalRange = 200.f;
+
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Boss|Movement",
 		meta = (ClampMin = "0.0"))
 	float RushTriggerRadius = 700.f;
-	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Boss|Rush",
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Boss|Movement",
 		meta = (ClampMin = "0.0"))
 	float RushSpeed = 700.f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Boss|Rush",
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Boss|Movement",
 		meta = (ClampMin = "0.0"))
 	float RushCooldown = 5.f;
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Rush")
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Movement")
 	TObjectPtr<UAnimMontage> RushAttackMontage;
 
 	//--- Animation Assets ----------------------------------------------------
 
+	// Single 1D BlendSpace (Speed axis: 0 = Idle → NormalWalkSpeed = Walk → RushSpeed = Rush).
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|AnimationAsset")
-	TObjectPtr<URVLocomotionAnimDataAsset> LocomotionAnimData;
+	TObjectPtr<UBlendSpace> LocomotionBS;
 
 	UPROPERTY(EditDefaultsOnly, Category = "RV|AnimationAsset")
 	TObjectPtr<URVHitReactionAnimDataAsset> HitReactionAnimData;
-
+	
+	UAnimMontage* GetGroggyStunStartMontage() const;
+	UAnimMontage* GetGroggyStunLoopMontage() const;
+	UAnimMontage* GetGroggyStunEndMontage() const;
+	
+	
 	//--- Soul Siphon ---------------------------------------------------------
 
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|SoulSiphon")
 	TObjectPtr<UAnimMontage> SoulSiphonMontage;
-
-	// Sphere radius for the ghost-hand strike overlap.
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|SoulSiphon",
-		meta = (ClampMin = "0.0"))
-	float SoulSiphonHitRadius = 200.f;
 
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|SoulSiphon",
 		meta = (ClampMin = "0.0"))
@@ -122,7 +136,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Subjugation")
 	TObjectPtr<UAnimMontage> SubjugationMontage;
 
-	// Blast sphere radius. Damage fires from AnimNotify_SubjugationBlast mid-montage.
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Subjugation",
 		meta = (ClampMin = "0.0"))
 	float SubjugationBlastRadius = 400.f;

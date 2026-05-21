@@ -9,8 +9,7 @@ UBTDecorator_SevarogCheckPhase::UBTDecorator_SevarogCheckPhase()
 
 bool UBTDecorator_SevarogCheckPhase::CalculateRawConditionValue(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) const
 {
-	Super::CalculateRawConditionValue(OwnerComp, NodeMemory);
-	
+	// Base returns true unconditionally — call is noise, omitted.
 	const ARVAIController* Controller = Cast<ARVAIController>(OwnerComp.GetAIOwner());
 	if (!IsValid(Controller)) { return false; }
 
@@ -22,11 +21,11 @@ bool UBTDecorator_SevarogCheckPhase::CalculateRawConditionValue(UBehaviorTreeCom
 
 FString UBTDecorator_SevarogCheckPhase::GetStaticDescription() const
 {
-	Super::GetStaticDescription();
-	
 	const UEnum* PhaseEnum = StaticEnum<ERVBossPhase>();
 	const FString PhaseName = PhaseEnum
 		? PhaseEnum->GetNameStringByValue(static_cast<int64>(RequiredPhase))
 		: TEXT("Unknown");
-	return FString::Printf(TEXT("Phase >= %s"), *PhaseName);
+
+	// Include base info (abort type, flow control) from Super.
+	return FString::Printf(TEXT("%s\nPhase >= %s"), *Super::GetStaticDescription(), *PhaseName);
 }

@@ -1,15 +1,16 @@
 #include "Character/Enemy/RVSevarogCharacter.h"
 #include "AI/RVAIController.h"
 #include "Animation/AnimInstance.h"
+#include "BrainComponent.h"
 #include "Component/RVAttributeComponent.h"
 #include "Component/RVCombatStateComponent.h"
 #include "Component/RVHitReactionComponent.h"
+#include "Components/CapsuleComponent.h"
 #include "Data/RVSevarogDataAsset.h"
 #include "Data/RVHitReactionAnimDataAsset.h"
 #include "Data/RVEnemyStatRow.h"
 #include "Interface/RVDamageable.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 
 ARVSevarogCharacter::ARVSevarogCharacter()
@@ -18,21 +19,19 @@ ARVSevarogCharacter::ARVSevarogCharacter()
 	AIControllerClass = ARVAIController::StaticClass();
 }
 
-void ARVSevarogCharacter::RotateToFacePlayer()
+void ARVSevarogCharacter::RotateToFacePlayer(const APawn* InPlayer)
 {
-	APawn* Player = UGameplayStatics::GetPlayerPawn(this, 0);
-	if (!IsValid(Player)) { return; }
+	if (!IsValid(InPlayer)) { return; }
 
-	const FVector ToPlayer = (Player->GetActorLocation() - GetActorLocation()).GetSafeNormal2D();
+	const FVector ToPlayer = (InPlayer->GetActorLocation() - GetActorLocation()).GetSafeNormal2D();
 	if (ToPlayer.IsNearlyZero()) { return; }
 
 	const FRotator CurrentRotation = GetActorRotation();
 	const FRotator TargetRotation  = ToPlayer.Rotation();
 
-	// Clamp to max delta — prevents 180° spin between combo hits
-	static constexpr float MaxTurnDegrees = 60.f;
+	const float MaxTurn    = SevarogData->MaxComboTurnDegrees;
 	const float DeltaYaw   = FMath::FindDeltaAngleDegrees(CurrentRotation.Yaw, TargetRotation.Yaw);
-	const float ClampedYaw = FMath::Clamp(DeltaYaw, -MaxTurnDegrees, MaxTurnDegrees);
+	const float ClampedYaw = FMath::Clamp(DeltaYaw, -MaxTurn, MaxTurn);
 
 	SetActorRotation(FRotator(0.f, CurrentRotation.Yaw + ClampedYaw, 0.f));
 }
@@ -61,7 +60,7 @@ void ARVSevarogCharacter::BeginPlay()
 			EnemyStat->BaseDamage,
 			EnemyStat->BasePoiseDamage,
 			EnemyStat->AttackRadius);
-		
+
 		HitReactionComponent->SetStaggerDuration(EnemyStat->StaggerDuration);
 	}
 
@@ -73,6 +72,9 @@ URVHitReactionAnimDataAsset* ARVSevarogCharacter::GetHitReactionAnimData() const
 {
 	return IsValid(SevarogData) ? SevarogData->HitReactionAnimData : nullptr;
 }
+
+//--- Death -------------------------------------------------------------------
+
 
 //--- Weighted random selection -----------------------------------------------
 
@@ -88,10 +90,7 @@ int32 ARVSevarogCharacter::SelectWeightedPattern(const TArray<FRVBossAttackPatte
 	for (int32 i = 0; i < InPatterns.Num(); ++i)
 	{
 		Roll -= FMath::Max(1, InPatterns[i].Weight);
-		if (Roll < 0)
-		{
-			return i;
-		}
+		if (Roll < 0) { return i; }
 	}
 
 	return InPatterns.Num() - 1;
@@ -111,7 +110,8 @@ void ARVSevarogCharacter::StartComboChain(const TArray<TObjectPtr<UAnimMontage>>
 
 void ARVSevarogCharacter::PlayComboMontageAt(int32 InIndex)
 {
-	RotateToFacePlayer();
+	const ARVAIController* AICtrl = Cast<ARVAIController>(GetController());
+	RotateToFacePlayer(IsValid(AICtrl) ? AICtrl->GetPlayerPawn() : nullptr);
 
 	UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
 	if (!IsValid(AnimInst)) { return; }
@@ -133,14 +133,13 @@ void ARVSevarogCharacter::TryChainCombo()
 
 	UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
 	if (!IsValid(AnimInst)) { return; }
-	
-	bIsComboChaining = true;
 
+	bIsComboChaining = true;
 	++ActiveComboIndex;
 	PlayComboMontageAt(ActiveComboIndex);
 }
 
-void ARVSevarogCharacter::OnAttackMontageBlendingOut(UAnimMontage* /*InMontage*/, bool /*bInterrupted*/)
+void ARVSevarogCharacter::OnAttackMontageBlendingOut(UAnimMontage* /*InMontage*/, bool bInterrupted)
 {
 	if (bIsComboChaining)
 	{
@@ -151,7 +150,13 @@ void ARVSevarogCharacter::OnAttackMontageBlendingOut(UAnimMontage* /*InMontage*/
 	CombatStateComponent->RemoveState(ERVCombatState::Attacking);
 	ActiveComboMontages.Empty();
 	ActiveComboIndex = 0;
-	OnAttackFinished.Broadcast();
+
+	// Broadcast only on natural completion.
+	// ForceEndCurrentAction (bInterrupted=true) is handled by OnTaskFinished — no broadcast needed.
+	if (!bInterrupted)
+	{
+		OnAttackFinished.Broadcast();
+	}
 }
 
 //--- ForceEnd ----------------------------------------------------------------
@@ -169,6 +174,70 @@ void ARVSevarogCharacter::ForceEndCurrentAction()
 	}
 
 	CombatStateComponent->RemoveState(ERVCombatState::Attacking);
+}
+
+//--- Single-shot action helper -----------------------------------------------
+
+bool ARVSevarogCharacter::PlaySingleShotAction(
+	UAnimMontage* InMontage,
+	void (ARVSevarogCharacter::*InBlendOutCallback)(UAnimMontage*, bool))
+{
+	if (bIsGroggy)           { return false; }
+	if (IsAttacking())       { return false; }
+	if (!IsValid(InMontage)) { return false; }
+
+	UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
+	if (!IsValid(AnimInst))  { return false; }
+
+	CombatStateComponent->AddState(ERVCombatState::Attacking);
+	AnimInst->Montage_Play(InMontage);
+
+	FOnMontageBlendingOutStarted BlendOutDelegate;
+	BlendOutDelegate.BindUObject(this, InBlendOutCallback);
+	AnimInst->Montage_SetBlendingOutDelegate(BlendOutDelegate, InMontage);
+	return true;
+}
+
+void ARVSevarogCharacter::OnDeathMontageBlendingOut(UAnimMontage* AnimMontage, bool bArg)
+{
+	SetLifeSpan(1.f);
+}
+
+void ARVSevarogCharacter::OnDeath()
+{
+	if (AAIController* AICtrl = Cast<AAIController>(GetController()))
+	{
+		if (UBrainComponent* Brain = AICtrl->GetBrainComponent())
+		{
+			Brain->StopLogic(TEXT("Dead"));
+		}
+		AICtrl->StopMovement();
+	}
+
+	ForceEndCurrentAction();
+	CombatStateComponent->RemoveState(ERVCombatState::Groggy);
+
+	GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	// DeathMontage lives in HitReactionAnimData — same asset that owns Knockdown/Groggy montages.
+	URVHitReactionAnimDataAsset* HitReactionData = GetHitReactionAnimData();
+	UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
+	if (IsValid(AnimInst) && IsValid(HitReactionData) && IsValid(HitReactionData->DeathMontage))
+	{
+		AnimInst->Montage_Stop(0.1f);
+		AnimInst->Montage_Play(HitReactionData->DeathMontage);
+
+		FOnMontageBlendingOutStarted BlendOutDelegate;
+		BlendOutDelegate.BindUObject(this, &ARVSevarogCharacter::OnDeathMontageBlendingOut);
+		AnimInst->Montage_SetBlendingOutDelegate(BlendOutDelegate, HitReactionData->DeathMontage);
+	}
+	else
+	{
+		// No death montage assigned — destroy after a short hold.
+		SetLifeSpan(2.f);
+	}
+
+	OnBossDefeated.Broadcast();
 }
 
 //--- Phase Attack ------------------------------------------------------------
@@ -211,52 +280,28 @@ bool ARVSevarogCharacter::IsAttacking() const
 
 bool ARVSevarogCharacter::ExecuteSoulSiphon()
 {
-	if (bIsGroggy)     { return false; }
-	if (IsAttacking()) { return false; }
-	if (!IsValid(SevarogData->SoulSiphonMontage)) { return false; }
-
-	UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
-	if (!IsValid(AnimInst)) { return false; }
-
-	CombatStateComponent->AddState(ERVCombatState::Attacking);
-	AnimInst->Montage_Play(SevarogData->SoulSiphonMontage);
-
-	FOnMontageBlendingOutStarted BlendOutDelegate;
-	BlendOutDelegate.BindUObject(this, &ARVSevarogCharacter::OnSoulSiphonBlendingOut);
-	AnimInst->Montage_SetBlendingOutDelegate(BlendOutDelegate, SevarogData->SoulSiphonMontage);
-	return true;
+	return PlaySingleShotAction(SevarogData->SoulSiphonMontage,
+	                            &ARVSevarogCharacter::OnSoulSiphonBlendingOut);
 }
 
-void ARVSevarogCharacter::OnSoulSiphonBlendingOut(UAnimMontage* /*InMontage*/, bool /*bInterrupted*/)
+void ARVSevarogCharacter::OnSoulSiphonBlendingOut(UAnimMontage* /*InMontage*/, bool bInterrupted)
 {
 	CombatStateComponent->RemoveState(ERVCombatState::Attacking);
-	OnAttackFinished.Broadcast();
+	if (!bInterrupted) { OnAttackFinished.Broadcast(); }
 }
 
 //--- Subjugation -------------------------------------------------------------
 
 bool ARVSevarogCharacter::ExecuteSubjugation()
 {
-	if (bIsGroggy)     { return false; }
-	if (IsAttacking()) { return false; }
-	if (!IsValid(SevarogData->SubjugationMontage)) { return false; }
-
-	UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
-	if (!IsValid(AnimInst)) { return false; }
-
-	CombatStateComponent->AddState(ERVCombatState::Attacking);
-	AnimInst->Montage_Play(SevarogData->SubjugationMontage);
-
-	FOnMontageBlendingOutStarted BlendOutDelegate;
-	BlendOutDelegate.BindUObject(this, &ARVSevarogCharacter::OnSubjugationMontageBlendingOut);
-	AnimInst->Montage_SetBlendingOutDelegate(BlendOutDelegate, SevarogData->SubjugationMontage);
-	return true;
+	return PlaySingleShotAction(SevarogData->SubjugationMontage,
+	                            &ARVSevarogCharacter::OnSubjugationMontageBlendingOut);
 }
 
-void ARVSevarogCharacter::OnSubjugationMontageBlendingOut(UAnimMontage* /*InMontage*/, bool /*bInterrupted*/)
+void ARVSevarogCharacter::OnSubjugationMontageBlendingOut(UAnimMontage* /*InMontage*/, bool bInterrupted)
 {
 	CombatStateComponent->RemoveState(ERVCombatState::Attacking);
-	OnAttackFinished.Broadcast();
+	if (!bInterrupted) { OnAttackFinished.Broadcast(); }
 }
 
 void ARVSevarogCharacter::SpawnSubjugationBlast()
@@ -287,22 +332,19 @@ void ARVSevarogCharacter::SpawnSubjugationBlast()
 		}
 	}
 
-	// TODO: Spawn P_Sevarog_Subjugate_Blast Niagara at GetActorLocation()
+	// TODO: Spawn P_Sevarog_Subjugate_Blast Niagara
 }
 
-//--- Groggy — 3-stage: StunStart → StunLoop → StunEnd -----------------------
+//--- Groggy ------------------------------------------------------------------
 
 void ARVSevarogCharacter::StartGroggy()
 {
 	if (bIsGroggy) { return; }
-	
+
 	bIsGroggy = true;
 	CurrentPoiseDepletionCount = 0;
 
-	if (IsAttacking())
-	{
-		ForceEndCurrentAction();
-	}
+	if (IsAttacking()) { ForceEndCurrentAction(); }
 
 	CombatStateComponent->AddState(ERVCombatState::Groggy);
 	OnBossGroggyStarted.Broadcast();
@@ -310,7 +352,7 @@ void ARVSevarogCharacter::StartGroggy()
 	UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
 	if (!IsValid(AnimInst)) { return; }
 
-	UAnimMontage* StunStartMontage = SevarogData->HitReactionAnimData->GroggyStunStartMontage;
+	UAnimMontage* StunStartMontage = SevarogData->GetGroggyStunStartMontage();
 	if (!IsValid(StunStartMontage)) { return; }
 
 	AnimInst->Montage_Play(StunStartMontage);
@@ -327,12 +369,11 @@ void ARVSevarogCharacter::OnStunStartMontageBlendingOut(UAnimMontage* /*InMontag
 	UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
 	if (!IsValid(AnimInst)) { return; }
 
-	UAnimMontage* StunLoopMontage = SevarogData->HitReactionAnimData->GroggyStunLoopMontage;
+	UAnimMontage* StunLoopMontage = SevarogData->GetGroggyStunLoopMontage();
 	if (!IsValid(StunLoopMontage)) { return; }
 
 	AnimInst->Montage_Play(StunLoopMontage);
 
-	// GroggyDuration timer starts when the loop begins — EndGroggy stops the loop.
 	GetWorldTimerManager().SetTimer(
 		GroggyTimerHandle,
 		this,
@@ -350,13 +391,13 @@ void ARVSevarogCharacter::EndGroggy()
 	UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
 	if (!IsValid(AnimInst)) { return; }
 
-	UAnimMontage* StunLoopMontage = SevarogData->HitReactionAnimData->GroggyStunLoopMontage;
+	UAnimMontage* StunLoopMontage = SevarogData->GetGroggyStunLoopMontage();
 	if (IsValid(StunLoopMontage))
 	{
 		AnimInst->Montage_Stop(0.2f, StunLoopMontage);
 	}
 
-	UAnimMontage* StunEndMontage = SevarogData->HitReactionAnimData->GroggyStunEndMontage;
+	UAnimMontage* StunEndMontage = SevarogData->GetGroggyStunEndMontage();
 	if (!IsValid(StunEndMontage))
 	{
 		// No recovery montage assigned — clear state immediately.

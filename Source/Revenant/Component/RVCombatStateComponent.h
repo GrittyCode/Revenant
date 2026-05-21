@@ -67,9 +67,8 @@ public:
 
     //--- State Mutators ------------------------------------------------------
 
-    void AddState(ERVCombatState InState);
-
-    FORCEINLINE void RemoveState(ERVCombatState InState) { CurrentStates &= ~InState; }
+	FORCEINLINE void AddState(ERVCombatState InState) { CurrentStates |= InState; OnStateChanged.Broadcast(CurrentStates);}
+    FORCEINLINE void RemoveState(ERVCombatState InState) { CurrentStates &= ~InState; OnStateChanged.Broadcast(CurrentStates); }
     FORCEINLINE bool HasState(ERVCombatState InState) const { return (CurrentStates & InState) != ERVCombatState::None; }
 
     void SetInvincible(bool bInInvincible) { bIsInvincible = bInInvincible; }
