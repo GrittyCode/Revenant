@@ -1,3 +1,4 @@
+// Source/Revenant/Component/RVAttributeComponent.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -7,9 +8,10 @@
 class URVCharacterDataAsset;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FRVOnHealthChanged,  float, NewHealth,  float, InDelta);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnDeath);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FRVOnStaminaChanged, float, NewStamina, float, InDelta);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam (FRVOnPoiseChanged,   float, NewPoiseRatio);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnStaminaDepleted);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnDeath);
 
 /**
  * Fired when poise reaches 0 via ApplyPoiseDamage.
@@ -32,14 +34,18 @@ public:
     FRVOnHealthChanged OnHealthChanged;
 
     UPROPERTY(BlueprintAssignable, Category = "RV|Attribute")
-    FRVOnDeath OnDeath;
-
-    UPROPERTY(BlueprintAssignable, Category = "RV|Attribute")
     FRVOnStaminaChanged OnStaminaChanged;
+
+    // Fired on every poise change. NewPoiseRatio = CurrentPoise / MaxPoise (0..1).
+    UPROPERTY(BlueprintAssignable, Category = "RV|Attribute")
+    FRVOnPoiseChanged OnPoiseChanged;
 
     /** Fired when stamina reaches 0 via ApplyStaminaDamage. URVGuardComponent binds this. */
     UPROPERTY(BlueprintAssignable, Category = "RV|Attribute")
     FRVOnStaminaDepleted OnStaminaDepleted;
+
+    UPROPERTY(BlueprintAssignable, Category = "RV|Attribute")
+    FRVOnDeath OnDeath;
 
     /**
      * Fired when poise reaches 0 via ApplyPoiseDamage.
@@ -48,11 +54,10 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "RV|Attribute")
     FRVOnPoiseDepleted OnPoiseDepleted;
 
-	// ─── Init ────────────────────────────────────────────────────────────────────
+    // ─── Init ────────────────────────────────────────────────────────────────
 
-	void InitFromDataAsset(URVCharacterDataAsset* InData);
-
-	void InitFromValues(float InMaxHP, float InMaxPoise);
+    void InitFromDataAsset(URVCharacterDataAsset* InData);
+    void InitFromValues(float InMaxHP, float InMaxPoise);
 
     // ─── HP ──────────────────────────────────────────────────────────────────
 
@@ -68,20 +73,11 @@ public:
 
     // ─── Stamina ─────────────────────────────────────────────────────────────
 
-    /**
-     * Deducts InAmount from stamina. Returns false if stamina was already 0.
-     * Automatically resets the regen delay clock — regen starts StaminaRegenDelay
-     * seconds after the last ConsumeStamina call.
-     */
     bool ConsumeStamina(float InAmount);
 
     /** Returns true if guard held (stamina still > 0). */
     bool ApplyStaminaDamage(float InAmount);
 
-    /**
-     * Resets the regen delay clock without consuming stamina.
-     * Used by actions that occupy the character without stamina cost (e.g. heavy charge).
-     */
     void ResetStaminaRegenDelay();
 
     /** Hard-stops regen. Reserved for heavy charge suppression. */
@@ -106,15 +102,9 @@ public:
 
     /**
      * Restores poise to MaxPoise.
-     * Called by URVHitReactionComponent after each Stagger or Groggy entry.
+     * Called by ARVSevarogCharacter after Groggy ends.
      */
     void ResetPoise();
-
-    UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
-    float GetPoisePercent() const;
-
-    UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
-    float GetCurrentPoise() const { return CurrentPoise; }
 
 protected:
     virtual void BeginPlay() override;
@@ -142,7 +132,6 @@ private:
     UPROPERTY(EditDefaultsOnly, Category = "RV|Attribute")
     float StaminaRegenInterval = 0.1f;
 
-    /** Delay before regen starts after the last stamina consumption. Loaded from DataAsset. */
     UPROPERTY(VisibleAnywhere, Category = "RV|Attribute")
     float StaminaRegenDelay = 1.5f;
 

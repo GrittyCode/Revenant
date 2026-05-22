@@ -1,11 +1,10 @@
-// Source/Revenant/Character/Player/RVCharacterPlayer.h
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Character/Base/RVCharacterBase.h"
+#include "Component/RVEquipmentComponent.h"
 #include "RVCharacterPlayer.generated.h"
 
-class URVEquipmentComponent;
 class URVInputConfig;
 class UInputMappingContext;
 class USpringArmComponent;
@@ -34,6 +33,15 @@ public:
 
 	virtual bool ApplyDamage(const FRVHitInfo& InHitInfo) override;
 
+	//--- Component facades (AnimInstance uses these) -------------------------
+
+	FRVOnWeaponChanged& GetOnWeaponChanged();
+	URVWeaponDataAsset* GetCurrentWeaponData() const;
+	bool  IsComboActive()  const;
+	float GetSprintSpeed() const;
+	bool  IsSprinting()    const;
+	bool  IsLockedOn()     const;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void OnDeath() override;
@@ -44,7 +52,7 @@ protected:
 	UFUNCTION()
 	void OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData);
 
-	// --- Player-only Action Components ---------------------------------------
+	//--- Player-only Action Components ---------------------------------------
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
 	TObjectPtr<URVComboComponent> ComboComponent;
@@ -63,10 +71,9 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
 	TObjectPtr<URVEquipmentComponent> EquipmentComponent;
-	
 
 private:
-	// -- Input Handlers -------------------------------------------------------
+	//--- Input Handlers ------------------------------------------------------
 
 	void InputMove  (const FInputActionValue& Value);
 	void InputLook  (const FInputActionValue& Value);
@@ -83,18 +90,15 @@ private:
 	void InputGuardCompleted(const FInputActionValue& Value);
 
 	void InputLockOn(const FInputActionValue& Value);
-
 	void InputWeaponSwap(const FInputActionValue& Value);
 
-	// -- Attack Direction -----------------------------------------------------
+	//--- Attack Direction ----------------------------------------------------
 
-	// Snaps rotation to target (lock-on) or freezes current yaw (default).
-	// Called at attack start to prevent mid-combo camera steering.
 	void SnapToAttackDirection();
-	
+
 	float AttackStartYaw = 0.f;
 
-	// -- Input Config ---------------------------------------------------------
+	//--- Input Config --------------------------------------------------------
 
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
 	TObjectPtr<URVInputConfig> InputConfig;
@@ -102,7 +106,7 @@ private:
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
 	TObjectPtr<UInputMappingContext> DefaultMappingContext;
 
-	// -- Camera ---------------------------------------------------------------
+	//--- Camera --------------------------------------------------------------
 
 	UPROPERTY(VisibleAnywhere, Category = "RV|Components")
 	TObjectPtr<USpringArmComponent> CameraBoom;
@@ -110,12 +114,12 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "RV|Components")
 	TObjectPtr<UCameraComponent> FollowCamera;
 
-	// -- Lock-on --------------------------------------------------------------
+	//--- Lock-on -------------------------------------------------------------
 
 	UPROPERTY(VisibleAnywhere, Category = "RV|Components")
 	TObjectPtr<URVLockOnComponent> LockOnComponent;
 
-	// -- Attack Rotation ------------------------------------------------------
+	//--- Attack Rotation -----------------------------------------------------
 
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Combat")
 	float AttackRotationInterpSpeed = 10.f;

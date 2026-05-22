@@ -1,4 +1,3 @@
-// Source/Revenant/Character/Player/RVCharacterPlayer.cpp
 #include "Character/Player/RVCharacterPlayer.h"
 #include "Camera/CameraComponent.h"
 #include "Component/RVCombatStateComponent.h"
@@ -7,7 +6,6 @@
 #include "Component/RVDodgeComponent.h"
 #include "Component/RVGuardComponent.h"
 #include "Component/RVSprintComponent.h"
-#include "Component/RVEquipmentComponent.h"
 #include "Component/RVAttributeComponent.h"
 #include "Component/RVHitReactionComponent.h"
 #include "Component/RVLockOnComponent.h"
@@ -92,14 +90,45 @@ void ARVCharacterPlayer::BeginPlay()
 
 	CombatStateComponent->OnForceEnd.AddUObject(HeavyAttackComponent, &URVHeavyAttackComponent::ForceEndHeavyAttack);
 	CombatStateComponent->OnForceEnd.AddUObject(DodgeComponent,       &URVDodgeComponent::ForceEndDodge);
-	// ForceEndGuard removed — EndGuard covers the same behavior and is the single guard-clear path.
 	CombatStateComponent->OnForceEnd.AddUObject(GuardComponent,       &URVGuardComponent::EndGuard);
 
 	EquipmentComponent->OnWeaponChanged.AddDynamic(this, &ARVCharacterPlayer::OnWeaponChangedHandler);
 	OnWeaponChangedHandler(EquipmentComponent->GetCurrentWeaponData());
 }
 
-// --- GetHitReactionAnim / GetWeaponTraceMesh ---------------------------------
+//--- Component facades -------------------------------------------------------
+
+FRVOnWeaponChanged& ARVCharacterPlayer::GetOnWeaponChanged()
+{
+	return EquipmentComponent->OnWeaponChanged;
+}
+
+URVWeaponDataAsset* ARVCharacterPlayer::GetCurrentWeaponData() const
+{
+	return EquipmentComponent->GetCurrentWeaponData();
+}
+
+bool ARVCharacterPlayer::IsComboActive() const
+{
+	return ComboComponent->IsComboActive();
+}
+
+float ARVCharacterPlayer::GetSprintSpeed() const
+{
+	return SprintComponent->GetSprintSpeed();
+}
+
+bool ARVCharacterPlayer::IsSprinting() const
+{
+	return SprintComponent->IsSprinting();
+}
+
+bool ARVCharacterPlayer::IsLockedOn() const
+{
+	return LockOnComponent->IsLockedOn();
+}
+
+//--- GetHitReactionAnim / GetWeaponTraceMesh ---------------------------------
 
 URVHitReactionAnimDataAsset* ARVCharacterPlayer::GetHitReactionAnimData() const
 {
@@ -152,10 +181,8 @@ void ARVCharacterPlayer::Tick(float DeltaTime)
 
 	if (CombatStateComponent->HasState(ERVCombatState::Attacking | ERVCombatState::HeavyCharging | ERVCombatState::HeavyAttacking))
 	{
-		// AttackStartYaw captured at input — hold that direction for the entire combo
 		const FRotator CurrentRot = GetActorRotation();
 		const FRotator TargetRot  = FRotator(0.f, AttackStartYaw, 0.f);
-
 		SetActorRotation(FMath::RInterpTo(CurrentRot, TargetRot, DeltaTime, AttackRotationInterpSpeed));
 	}
 }
@@ -233,7 +260,7 @@ void ARVCharacterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	}
 }
 
-// ─── Movement ────────────────────────────────────────────────────────────────
+//--- Movement ----------------------------------------------------------------
 
 void ARVCharacterPlayer::InputMove(const FInputActionValue& Value)
 {
@@ -261,7 +288,7 @@ void ARVCharacterPlayer::InputJump(const FInputActionValue& Value)
 	Jump();
 }
 
-// ─── Combat ──────────────────────────────────────────────────────────────────
+//--- Combat ------------------------------------------------------------------
 
 void ARVCharacterPlayer::InputAttack(const FInputActionValue& Value)
 {
@@ -376,11 +403,10 @@ void ARVCharacterPlayer::InputLockOn(const FInputActionValue& Value)
 	{
 		SprintComponent->EndSprint();
 	}
-
 	LockOnComponent->ToggleLockOn();
 }
 
-// ─── Weapon Swap ─────────────────────────────────────────────────────────────
+//--- Weapon Swap -------------------------------------------------------------
 
 void ARVCharacterPlayer::InputWeaponSwap(const FInputActionValue& Value)
 {

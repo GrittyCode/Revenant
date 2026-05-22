@@ -72,16 +72,13 @@ public:
 
     //--- Combo Rotation ------------------------------------------------------
 
-    // Maximum yaw correction applied per combo hit to face the player.
     UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Combat",
         meta = (ClampMin = "0.0", ClampMax = "180.0"))
     float MaxComboTurnDegrees = 60.f;
 
     //--- Groggy --------------------------------------------------------------
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Groggy")
-    int32 GroggyPoiseDepletionCount = 3;
-
+    // Poise depletes to 0 → Groggy triggers. Poise resets on Groggy end.
     UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Groggy")
     float GroggyDuration = 4.f;
 
@@ -108,7 +105,6 @@ public:
 
     //--- Animation Assets ----------------------------------------------------
 
-    // Single 1D BlendSpace (Speed axis: 0 = Idle → NormalWalkSpeed = Walk → RushSpeed = Rush).
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|AnimationAsset")
     TObjectPtr<UBlendSpace> LocomotionBS;
 

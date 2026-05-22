@@ -1,14 +1,13 @@
-// Source/Revenant/Character/Base/RVCharacterBase.h
 #pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Interface/RVHitCheckTarget.h"
 #include "Interface/RVDamageable.h"
+#include "Component/RVAttributeComponent.h"
+#include "Component/RVCombatStateComponent.h"
 #include "RVCharacterBase.generated.h"
 
-class URVAttributeComponent;
-class URVCombatStateComponent;
 class URVHitReactionComponent;
 class URVCharacterDataAsset;
 class URVHitReactionAnimDataAsset;
@@ -27,6 +26,26 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
 	float GetHealthRatio() const;
+	
+	UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
+	float GetStaminaRatio() const;
+
+	//--- Attribute event facades ---------------------------------------------
+
+	FRVOnHealthChanged&   GetOnHealthChanged();
+	FRVOnStaminaChanged&  GetOnStaminaChanged();
+	FRVOnDeath&           GetOnDeath();
+	FRVOnPoiseDepleted&   GetOnPoiseDepleted();
+	FRVOnPoiseChanged&	  GetOnPoiseChanged();
+	//--- Combat state facades (AnimNotify) -----------------------------------
+
+	void OpenAttackHitWindow();
+	void CloseAttackHitWindow();
+
+	//--- State query facades (AnimInstance) ----------------------------------
+
+	bool  IsInCombatState(ERVCombatState InState) const;
+	float GetStaggerDirection() const;
 
 protected:
 	virtual void BeginPlay() override;
@@ -35,17 +54,12 @@ protected:
 
 	virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const { return nullptr; }
 
-	// Subclasses override to implement entity-specific death behavior.
 	UFUNCTION()
 	virtual void OnDeath();
-	
-	/**
-	 * Player: weapon StaticMeshComponent (set up by URVEquipmentComponent).
-	 * Boss:   character SkeletalMeshComponent (sockets on Sevarog skeleton).
-	 */
+
 	virtual UMeshComponent* GetWeaponTraceMesh() const { return GetMesh(); }
 
-	// --- Components ----------------------------------------------------------
+	//--- Components ----------------------------------------------------------
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
 	TObjectPtr<URVAttributeComponent> AttributeComponent;
@@ -56,16 +70,15 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
 	TObjectPtr<URVHitReactionComponent> HitReactionComponent;
 
-	// --- Data ----------------------------------------------------------------
+	//--- Data ----------------------------------------------------------------
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Data")
 	TObjectPtr<URVCharacterDataAsset> CharacterData;
 
-	// --- Movement ------------------------------------------------------------
+	//--- Movement ------------------------------------------------------------
 
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Movement")
 	FRotator AirRotationRate = FRotator(0.f, 0.f, 0.f);
-	
 
 private:
 	FRotator OriginalRotationRate;

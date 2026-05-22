@@ -1,57 +1,33 @@
 #include "Animation/RVPlayerAnimInstance.h"
-#include "Component/RVComboComponent.h"
-#include "Component/RVCombatStateComponent.h"
-#include "Component/RVEquipmentComponent.h"
-#include "Component/RVHitReactionComponent.h"
-#include "Component/RVLockOnComponent.h"
-#include "Component/RVSprintComponent.h"
 #include "Data/RVWeaponDataAsset.h"
 #include "Data/RVLocomotionAnimDataAsset.h"
 #include "Data/RVHitReactionAnimDataAsset.h"
+#include "Component/RVCombatStateComponent.h"
 #include "KismetAnimationLibrary.h"
-#include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 void URVPlayerAnimInstance::NativeInitializeAnimation()
 {
     Super::NativeInitializeAnimation();
 
-    OwnerCharacter = Cast<ACharacter>(GetOwningActor());
+    OwnerCharacter = Cast<ARVCharacterPlayer>(GetOwningActor());
+    ensureMsgf(IsValid(OwnerCharacter),
+        TEXT("[URVPlayerAnimInstance] Owner is not ARVCharacterPlayer — check ABP assignment"));
     if (!IsValid(OwnerCharacter)) { return; }
 
-    EquipmentComponent   = OwnerCharacter->FindComponentByClass<URVEquipmentComponent>();
-    ComboComponent       = OwnerCharacter->FindComponentByClass<URVComboComponent>();
-    CombatStateComponent = OwnerCharacter->FindComponentByClass<URVCombatStateComponent>();
-    HitReactionComponent = OwnerCharacter->FindComponentByClass<URVHitReactionComponent>();
-    LockOnComponent      = OwnerCharacter->FindComponentByClass<URVLockOnComponent>();
-    SprintComponent      = OwnerCharacter->FindComponentByClass<URVSprintComponent>();
+    MaxLocomotionSpeed = OwnerCharacter->GetSprintSpeed();
 
-    ensureMsgf(IsValid(EquipmentComponent),   TEXT("[%s] EquipmentComponent missing"),   *GetNameSafe(OwnerCharacter));
-    ensureMsgf(IsValid(ComboComponent),       TEXT("[%s] ComboComponent missing"),       *GetNameSafe(OwnerCharacter));
-    ensureMsgf(IsValid(CombatStateComponent), TEXT("[%s] CombatStateComponent missing"), *GetNameSafe(OwnerCharacter));
-    ensureMsgf(IsValid(HitReactionComponent), TEXT("[%s] HitReactionComponent missing"), *GetNameSafe(OwnerCharacter));
-    ensureMsgf(IsValid(LockOnComponent),      TEXT("[%s] LockOnComponent missing"),      *GetNameSafe(OwnerCharacter));
-    ensureMsgf(IsValid(SprintComponent),      TEXT("[%s] SprintComponent missing"),      *GetNameSafe(OwnerCharacter));
+    OwnerCharacter->GetOnWeaponChanged().AddDynamic(
+        this, &URVPlayerAnimInstance::OnWeaponChangedHandler);
 
-    if (IsValid(SprintComponent))
-    {
-        MaxLocomotionSpeed = SprintComponent->GetSprintSpeed();
-    }
-
-    if (IsValid(EquipmentComponent))
-    {
-        EquipmentComponent->OnWeaponChanged.AddDynamic(
-            this, &URVPlayerAnimInstance::OnWeaponChangedHandler);
-
-        OnWeaponChangedHandler(EquipmentComponent->GetCurrentWeaponData());
-    }
+    OnWeaponChangedHandler(OwnerCharacter->GetCurrentWeaponData());
 }
 
 void URVPlayerAnimInstance::NativeUninitializeAnimation()
 {
-    if (IsValid(EquipmentComponent))
+    if (IsValid(OwnerCharacter))
     {
-        EquipmentComponent->OnWeaponChanged.RemoveDynamic(
+        OwnerCharacter->GetOnWeaponChanged().RemoveDynamic(
             this, &URVPlayerAnimInstance::OnWeaponChangedHandler);
     }
 
@@ -66,20 +42,18 @@ void URVPlayerAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 
     Speed           = OwnerCharacter->GetVelocity().Size2D();
     NormalizedSpeed = FMath::Clamp(Speed / MaxLocomotionSpeed, 0.f, 1.f);
-
-    Direction = UKismetAnimationLibrary::CalculateDirection(
-        OwnerCharacter->GetVelocity(),
-        OwnerCharacter->GetActorRotation());
+    Direction       = UKismetAnimationLibrary::CalculateDirection(
+                          OwnerCharacter->GetVelocity(),
+                          OwnerCharacter->GetActorRotation());
 
     bIsInAir         = OwnerCharacter->GetCharacterMovement()->IsFalling();
-    bIsAttacking     = ComboComponent->IsComboActive();
-    bIsGuarding      = CombatStateComponent->IsInState(ERVCombatState::Guarding);
-    bIsInHitReaction = CombatStateComponent->IsInState(ERVCombatState::HitReaction);
-    bIsKnockedDown   = CombatStateComponent->IsInState(ERVCombatState::Knockdown);
-    bIsLockedOn      = LockOnComponent->IsLockedOn();
-    bIsSprinting     = SprintComponent->IsSprinting();
-
-    StaggerDirection = HitReactionComponent->GetStaggerDirection();
+    bIsAttacking     = OwnerCharacter->IsComboActive();
+    bIsGuarding      = OwnerCharacter->IsInCombatState(ERVCombatState::Guarding);
+    bIsInHitReaction = OwnerCharacter->IsInCombatState(ERVCombatState::HitReaction);
+    bIsKnockedDown   = OwnerCharacter->IsInCombatState(ERVCombatState::Knockdown);
+    bIsLockedOn      = OwnerCharacter->IsLockedOn();
+    bIsSprinting     = OwnerCharacter->IsSprinting();
+    StaggerDirection = OwnerCharacter->GetStaggerDirection();
 }
 
 void URVPlayerAnimInstance::OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData)

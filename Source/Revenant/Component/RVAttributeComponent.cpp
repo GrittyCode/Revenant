@@ -1,3 +1,4 @@
+// Source/Revenant/Component/RVAttributeComponent.cpp
 #include "Component/RVAttributeComponent.h"
 #include "Data/RVCharacterDataAsset.h"
 
@@ -34,10 +35,10 @@ void URVAttributeComponent::InitFromDataAsset(URVCharacterDataAsset* InData)
 
 void URVAttributeComponent::InitFromValues(float InMaxHP, float InMaxPoise)
 {
-	MaxHealth    = InMaxHP;
-	CurrentHealth = MaxHealth;
-	MaxPoise     = InMaxPoise;
-	CurrentPoise  = MaxPoise;
+    MaxHealth    = InMaxHP;
+    CurrentHealth = MaxHealth;
+    MaxPoise     = InMaxPoise;
+    CurrentPoise  = MaxPoise;
 }
 
 // ─── HP ──────────────────────────────────────────────────────────────────────
@@ -89,7 +90,6 @@ bool URVAttributeComponent::ConsumeStamina(float InAmount)
     OnStaminaChanged.Broadcast(CurrentStamina, -InAmount);
 
     // Reset the regen delay clock on every consumption.
-    // Regen starts StaminaRegenDelay seconds after the last ConsumeStamina call.
     ResetStaminaRegenDelay();
 
     return true;
@@ -97,18 +97,18 @@ bool URVAttributeComponent::ConsumeStamina(float InAmount)
 
 bool URVAttributeComponent::ApplyStaminaDamage(float InAmount)
 {
-	const float Clamped = FMath::Max(0.f, InAmount);
-	CurrentStamina = FMath::Max(0.f, CurrentStamina - Clamped);
-	OnStaminaChanged.Broadcast(CurrentStamina, -Clamped);
+    const float Clamped = FMath::Max(0.f, InAmount);
+    CurrentStamina = FMath::Max(0.f, CurrentStamina - Clamped);
+    OnStaminaChanged.Broadcast(CurrentStamina, -Clamped);
 
-	ResetStaminaRegenDelay();
+    ResetStaminaRegenDelay();
 
-	if (CurrentStamina <= 0.f)
-	{
-		OnStaminaDepleted.Broadcast();
-		return false;
-	}
-	return true;
+    if (CurrentStamina <= 0.f)
+    {
+        OnStaminaDepleted.Broadcast();
+        return false;
+    }
+    return true;
 }
 
 void URVAttributeComponent::ResetStaminaRegenDelay()
@@ -179,6 +179,9 @@ bool URVAttributeComponent::ApplyPoiseDamage(float InPoiseDamage)
     const float Clamped = FMath::Max(0.f, InPoiseDamage);
     CurrentPoise = FMath::Max(0.f, CurrentPoise - Clamped);
 
+    const float Ratio = MaxPoise > 0.f ? CurrentPoise / MaxPoise : 0.f;
+    OnPoiseChanged.Broadcast(Ratio);
+
     if (CurrentPoise <= 0.f)
     {
         OnPoiseDepleted.Broadcast();
@@ -190,9 +193,5 @@ bool URVAttributeComponent::ApplyPoiseDamage(float InPoiseDamage)
 void URVAttributeComponent::ResetPoise()
 {
     CurrentPoise = MaxPoise;
-}
-
-float URVAttributeComponent::GetPoisePercent() const
-{
-    return MaxPoise > 0.f ? CurrentPoise / MaxPoise : 0.f;
+    OnPoiseChanged.Broadcast(1.f);
 }

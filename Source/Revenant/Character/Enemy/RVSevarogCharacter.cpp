@@ -64,7 +64,6 @@ void ARVSevarogCharacter::BeginPlay()
         HitReactionComponent->SetStaggerDuration(EnemyStat->StaggerDuration);
     }
 
-    // boss reacts via Groggy only — no stagger or knockdown
     HitReactionComponent->SetHitReactCapability(ERVHitReactCapability::Groggy);
     HitReactionComponent->OnGroggySequenceCompleted.AddUObject(
         this, &ARVSevarogCharacter::OnGroggySequenceCompleted);
@@ -77,6 +76,7 @@ URVHitReactionAnimDataAsset* ARVSevarogCharacter::GetHitReactionAnimData() const
 {
     return IsValid(SevarogData) ? SevarogData->HitReactionAnimData : nullptr;
 }
+
 
 //--- Death -------------------------------------------------------------------
 
@@ -102,7 +102,6 @@ void ARVSevarogCharacter::OnDeath()
     CombatStateComponent->RemoveState(ERVCombatState::Groggy);
     GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-    // DeathMontage lives in HitReactionAnimData — same asset that owns Knockdown/Groggy montages.
     URVHitReactionAnimDataAsset* HitReactionData = GetHitReactionAnimData();
     UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
     if (IsValid(AnimInst) && IsValid(HitReactionData) && IsValid(HitReactionData->DeathMontage))
@@ -202,8 +201,6 @@ void ARVSevarogCharacter::OnAttackMontageBlendingOut(UAnimMontage* /*InMontage*/
     ActiveComboMontages.Empty();
     ActiveComboIndex = 0;
 
-    // Broadcast only on natural completion.
-    // ForceEndCurrentAction (bInterrupted=true) is handled by OnTaskFinished — no broadcast needed.
     if (!bInterrupted)
     {
         OnAttackFinished.Broadcast();
@@ -330,8 +327,6 @@ void ARVSevarogCharacter::SpawnSubjugationBlast()
             Target->ApplyDamage(HitInfo);
         }
     }
-
-    // TODO: Spawn P_Sevarog_Subjugate_Blast Niagara
 }
 
 //--- Groggy ------------------------------------------------------------------
@@ -341,7 +336,6 @@ void ARVSevarogCharacter::StartGroggy()
     if (bIsGroggy) { return; }
 
     bIsGroggy = true;
-    CurrentPoiseDepletionCount = 0;
 
     if (IsAttacking()) { ForceEndCurrentAction(); }
 
@@ -357,11 +351,13 @@ void ARVSevarogCharacter::EndGroggy()
     HitReactionComponent->EndGroggy();
 }
 
+
 void ARVSevarogCharacter::OnGroggySequenceCompleted()
 {
-    bIsGroggy = false;
-    CombatStateComponent->RemoveState(ERVCombatState::Groggy);
-    OnBossGroggyEnded.Broadcast();
+	bIsGroggy = false;
+	CombatStateComponent->RemoveState(ERVCombatState::Groggy);
+	AttributeComponent->ResetPoise();
+	OnBossGroggyEnded.Broadcast();
 }
 
 //--- Rush --------------------------------------------------------------------
@@ -399,11 +395,6 @@ void ARVSevarogCharacter::CheckPhaseTransition(float /*InNewHealth*/, float /*In
 
 void ARVSevarogCharacter::OnPoiseDepleted()
 {
-    if (bIsGroggy) { return; }
-
-    ++CurrentPoiseDepletionCount;
-    if (CurrentPoiseDepletionCount >= SevarogData->GroggyPoiseDepletionCount)
-    {
-        StartGroggy();
-    }
+	if (bIsGroggy) { return; }
+	StartGroggy();
 }

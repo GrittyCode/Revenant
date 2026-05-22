@@ -2,14 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "Animation/AnimInstance.h"
+#include "Character/Player/RVCharacterPlayer.h"
 #include "RVPlayerAnimInstance.generated.h"
 
-class URVEquipmentComponent;
-class URVComboComponent;
-class URVCombatStateComponent;
-class URVHitReactionComponent;
-class URVLockOnComponent;
-class URVSprintComponent;
 class URVWeaponDataAsset;
 class UBlendSpace;
 
@@ -24,12 +19,11 @@ public:
     virtual void NativeUpdateAnimation(float DeltaSeconds) override;
 
 protected:
-    // --- Locomotion ----------------------------------------------------------
+    //--- Locomotion ----------------------------------------------------------
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     float Speed;
 
-    // Speed / SprintSpeed (0~1). BS input — stays accurate regardless of sprint state.
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     float NormalizedSpeed;
 
@@ -39,7 +33,6 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UBlendSpace> CachedLocomotionBS;
 
-    // Sprint state only — Default mode. Switched via bIsSprinting in ABP.
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UBlendSpace> CachedRunLocomotionBS;
 
@@ -52,7 +45,7 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UBlendSpace> CachedGuardLocomotionBS_LockOn;
 
-    // --- State ---------------------------------------------------------------
+    //--- State ---------------------------------------------------------------
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     uint8 bIsInAir : 1;
@@ -69,45 +62,23 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     uint8 bIsGuarding : 1;
 
-    // True during stagger (timer-based). Drives Grounded → HitReaction transition.
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     uint8 bIsInHitReaction : 1;
 
-    // True during knockdown + get-up montage. Drives HitReaction → Knockdown transition.
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     uint8 bIsKnockedDown : 1;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UBlendSpace> CachedStaggerBlendSpace;
 
-    // Polled from URVHitReactionComponent each frame.
-    // Character-local hit angle (-180~180) — Stagger BS Y-axis input.
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     float StaggerDirection;
 
 private:
+    // All state queries go through ARVCharacterPlayer facade — no cached component pointers.
     UPROPERTY()
-    TObjectPtr<ACharacter> OwnerCharacter;
+    TObjectPtr<ARVCharacterPlayer> OwnerCharacter;
 
-    UPROPERTY()
-    TObjectPtr<URVEquipmentComponent> EquipmentComponent;
-
-    UPROPERTY()
-    TObjectPtr<URVComboComponent> ComboComponent;
-
-    UPROPERTY()
-    TObjectPtr<URVCombatStateComponent> CombatStateComponent;
-
-    UPROPERTY()
-    TObjectPtr<URVHitReactionComponent> HitReactionComponent;
-
-    UPROPERTY()
-    TObjectPtr<URVLockOnComponent> LockOnComponent;
-
-    UPROPERTY()
-    TObjectPtr<URVSprintComponent> SprintComponent;
-
-    // Cached at init from SprintComponent — fixed denominator for NormalizedSpeed.
     float MaxLocomotionSpeed = 1.f;
 
     UFUNCTION()

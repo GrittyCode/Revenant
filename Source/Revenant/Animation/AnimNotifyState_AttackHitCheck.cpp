@@ -1,21 +1,17 @@
 #include "Animation/AnimNotifyState_AttackHitCheck.h"
-#include "Component/RVCombatStateComponent.h"
+#include "Character/Base/RVCharacterBase.h"
 
 void UAnimNotifyState_AttackHitCheck::NotifyBegin(USkeletalMeshComponent* MeshComp,
-												  UAnimSequenceBase* Animation, float TotalDuration,
-												  const FAnimNotifyEventReference& EventReference)
+	UAnimSequenceBase* Animation, float TotalDuration,
+	const FAnimNotifyEventReference& EventReference)
 {
 	Super::NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
 
-	AActor* Owner = MeshComp->GetOwner();
-	if (!IsValid(Owner)) { return; }
+	ARVCharacterBase* OwnerChar = Cast<ARVCharacterBase>(MeshComp->GetOwner());
+	if (!IsValid(OwnerChar)) { return; }
 
-	URVCombatStateComponent* CombatComp =
-		Owner->FindComponentByClass<URVCombatStateComponent>();
-	if (!IsValid(CombatComp)) { return; }
-
-	CachedCombatComps.Add(MeshComp, CombatComp);
-	CombatComp->OpenHitWindow();
+	CachedOwners.Add(MeshComp, OwnerChar);
+	OwnerChar->OpenAttackHitWindow();
 }
 
 void UAnimNotifyState_AttackHitCheck::NotifyTick(USkeletalMeshComponent* MeshComp,
@@ -24,10 +20,10 @@ void UAnimNotifyState_AttackHitCheck::NotifyTick(USkeletalMeshComponent* MeshCom
 {
 	Super::NotifyTick(MeshComp, Animation, FrameDeltaTime, EventReference);
 
-	URVCombatStateComponent* CombatComp = CachedCombatComps.FindRef(MeshComp);
-	if (!IsValid(CombatComp)) { return; }
+	ARVCharacterBase* OwnerChar = CachedOwners.FindRef(MeshComp);
+	if (!IsValid(OwnerChar)) { return; }
 
-	CombatComp->PerformAttackTrace();
+	OwnerChar->ActivateHitCheck();
 }
 
 void UAnimNotifyState_AttackHitCheck::NotifyEnd(USkeletalMeshComponent* MeshComp,
@@ -36,11 +32,11 @@ void UAnimNotifyState_AttackHitCheck::NotifyEnd(USkeletalMeshComponent* MeshComp
 {
 	Super::NotifyEnd(MeshComp, Animation, EventReference);
 
-	URVCombatStateComponent* CombatComp = CachedCombatComps.FindRef(MeshComp);
-	CachedCombatComps.Remove(MeshComp);
+	ARVCharacterBase* OwnerChar = CachedOwners.FindRef(MeshComp);
+	CachedOwners.Remove(MeshComp);
 
-	if (!IsValid(CombatComp)) { return; }
-	CombatComp->CloseHitWindow();
+	if (!IsValid(OwnerChar)) { return; }
+	OwnerChar->CloseAttackHitWindow();
 }
 
 FString UAnimNotifyState_AttackHitCheck::GetNotifyName_Implementation() const
