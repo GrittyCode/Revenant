@@ -1,4 +1,3 @@
-// Source/Revenant/Character/Enemy/RVSevarogCharacter.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -28,8 +27,6 @@ class REVENANT_API ARVSevarogCharacter : public ARVCharacterBase
 public:
     ARVSevarogCharacter();
 
-    void RotateToFacePlayer(const APawn* InPlayer);
-
     //--- BT task interface ---------------------------------------------------
 
     bool ExecutePhaseAttack();
@@ -42,18 +39,13 @@ public:
     void StartGroggy();
     void EndGroggy();
 
-    //--- Rush ----------------------------------------------------------------
-
     void StartRush();
     void EndRush();
 
-    //--- Combo chain ---------------------------------------------------------
-
     void TryChainCombo();
 
-    //--- Subjugation ---------------------------------------------------------
-
     void SpawnSubjugationBlast();
+    void ExecuteSoulSiphonHit();
 
     //--- State queries -------------------------------------------------------
 
@@ -87,7 +79,6 @@ public:
 protected:
     virtual void BeginPlay() override;
     virtual void OnDeath() override;
-
     virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const override;
 
     UPROPERTY(EditDefaultsOnly, Category = "RV|Boss")
@@ -101,17 +92,42 @@ private:
 
     float NormalWalkSpeed = 400.f;
 
+    //--- Combo chain ---------------------------------------------------------
+
     TArray<TObjectPtr<UAnimMontage>> ActiveComboMontages;
     int32 ActiveComboIndex = 0;
 
     void StartComboChain(const TArray<TObjectPtr<UAnimMontage>>& InMontages);
     void PlayComboMontageAt(int32 InIndex);
-
-    int32 SelectWeightedPattern(const TArray<struct FRVBossAttackPattern>& InPatterns) const;
-
-    void SetBossPhase(ERVBossPhase InNewPhase);
-
     bool PlaySingleShotAction(UAnimMontage* InMontage);
+
+    static int32 SelectWeightedPattern(const TArray<struct FRVBossAttackPattern>& InPatterns);
+
+    //--- Damage helpers ------------------------------------------------------
+
+    void ApplyRadialDamageAt(const FVector& InLocation, float InRadius,
+        float InDamage, float InPoiseDamage);
+
+    //--- Subjugation helpers -------------------------------------------------
+
+    static TArray<FVector> GenerateSwirlLocations(const FVector& InOrigin,
+        float InSpreadRadius, float InMinSeparation, int32 InCount);
+
+    //--- VFX helpers ---------------------------------------------------------
+
+    void SpawnFXAtLocation(UParticleSystem* InFX, const FVector& InLocation,
+        const FRotator& InRotation = FRotator::ZeroRotator,
+        const FVector& InScale = FVector::OneVector) const;
+
+    void SpawnFXAttached(UParticleSystem* InFX, FName InSocketName = NAME_None) const;
+
+    //--- Internal helpers ----------------------------------------------------
+
+    // Resolves the current player pawn via AIController. Returns null if unavailable.
+    APawn* ResolvePlayerPawn() const;
+
+    void RotateToFacePlayer(const APawn* InPlayer);
+    void SetBossPhase(ERVBossPhase InNewPhase);
 
     void OnDeathMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
 

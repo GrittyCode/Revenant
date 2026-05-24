@@ -1,14 +1,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Camera/CameraShakeBase.h"
 #include "Engine/DataAsset.h"
 #include "Engine/DataTable.h"
+#include "Data/RVEnemyStatRow.h"
 #include "RVSevarogDataAsset.generated.h"
 
 class UBlendSpace;
 class URVHitReactionAnimDataAsset;
 class UAnimMontage;
-struct FRVEnemyStatRow;
+class UParticleSystem;
 
 USTRUCT(BlueprintType)
 struct FRVBossAttackPattern
@@ -18,7 +20,6 @@ struct FRVBossAttackPattern
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
     TArray<TObjectPtr<UAnimMontage>> ComboMontages;
 
-    // Higher weight = more frequent selection. Minimum effective value is 1.
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (ClampMin = "1"))
     int32 Weight = 1;
 };
@@ -32,6 +33,48 @@ struct FRVBossPhaseAttacks
     TArray<FRVBossAttackPattern> Patterns;
 };
 
+USTRUCT(BlueprintType)
+struct FRVSoulSiphonData
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditDefaultsOnly) TObjectPtr<UAnimMontage> Montage;
+
+    // Max distance at which the BT will trigger this attack.
+    UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float EngagementRange  = 200.f;
+    UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float Cooldown         = 20.f;
+    UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitDamage        = 40.f;
+    UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitPoiseDamage   = 30.f;
+    UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitRadius        = 300.f;
+    UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitForwardOffset = 10.f;
+
+    UPROPERTY(EditDefaultsOnly) TObjectPtr<UParticleSystem> CastFX;       // P_SiphonCasting
+    UPROPERTY(EditDefaultsOnly) TObjectPtr<UParticleSystem> BodySwirlsFX; // P_SoulSwirlsBody
+    UPROPERTY(EditDefaultsOnly) TObjectPtr<UParticleSystem> CastTrailsFX; // P_SoulCastTrails
+    UPROPERTY(EditDefaultsOnly) TObjectPtr<UParticleSystem> HandFX;       // P_GhostHand
+    UPROPERTY(EditDefaultsOnly) TObjectPtr<UParticleSystem> ImpactFX;     // P_SiphonImpact
+};
+
+USTRUCT(BlueprintType)
+struct FRVSubjugationData
+{
+    GENERATED_BODY()
+
+    UPROPERTY(EditDefaultsOnly) TObjectPtr<UAnimMontage> Montage;
+
+    // Max distance at which the BT will trigger this attack.
+    UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float EngagementRange  = 400.f;
+    UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float Cooldown         = 30.f;
+    UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float BlastDamage      = 60.f;
+    UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float BlastPoiseDamage = 40.f;
+    UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float SwirlSpreadRadius = 400.f;
+    UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float SwirlDamageRadius = 150.f;
+
+    UPROPERTY(EditDefaultsOnly) TObjectPtr<UParticleSystem> CastFX;   // P_Sub_Cast
+    UPROPERTY(EditDefaultsOnly) TObjectPtr<UParticleSystem> BlastFX;  // P_Sevarog_Subjugate_Blast
+    UPROPERTY(EditDefaultsOnly) TObjectPtr<UParticleSystem> SwirlsFX; // P_SubjugateSwirls
+};
+
 UCLASS()
 class REVENANT_API URVSevarogDataAsset : public UPrimaryDataAsset
 {
@@ -40,104 +83,79 @@ class REVENANT_API URVSevarogDataAsset : public UPrimaryDataAsset
 public:
     //--- Identity ------------------------------------------------------------
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss")
+    UPROPERTY(EditDefaultsOnly, Category = "Name")
     FText BossName;
 
-    //--- Enemy Stats ---------------------------------------------------------
+    //--- Stats ---------------------------------------------------------------
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Boss|Stats")
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stats")
     FDataTableRowHandle EnemyStatRowHandle;
 
-    const FRVEnemyStatRow* GetEnemyStatRow() const;
+    FORCEINLINE const FRVEnemyStatRow* GetEnemyStatRow() const
+    {
+        if (EnemyStatRowHandle.IsNull()) { return nullptr; }
+        return EnemyStatRowHandle.GetRow<FRVEnemyStatRow>(TEXT("URVSevarogDataAsset::GetEnemyStatRow"));
+    }
 
-    //--- Phase Thresholds ----------------------------------------------------
+    //--- Phase ---------------------------------------------------------------
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Phase",
+    UPROPERTY(EditDefaultsOnly, Category = "Phase",
         meta = (ClampMin = "0.0", ClampMax = "1.0"))
     float Phase2Threshold = 0.50f;
 
-    //--- Phase Attack Sets ---------------------------------------------------
-
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Attacks")
+    UPROPERTY(EditDefaultsOnly, Category = "Attacks")
     FRVBossPhaseAttacks Phase1Attacks;
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Attacks")
+    UPROPERTY(EditDefaultsOnly, Category = "Attacks")
     FRVBossPhaseAttacks Phase2Attacks;
 
-    //--- Attack Range --------------------------------------------------------
+    //--- Combat --------------------------------------------------------------
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Boss|Combat",
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat",
         meta = (ClampMin = "0.0"))
     float MeleeEngagementRange = 250.f;
 
-    //--- Combo Rotation ------------------------------------------------------
-
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Combat",
+    UPROPERTY(EditDefaultsOnly, Category = "Combat",
         meta = (ClampMin = "0.0", ClampMax = "180.0"))
     float MaxComboTurnDegrees = 60.f;
 
-    //--- Groggy --------------------------------------------------------------
-
-    // Poise depletes to 0 → Groggy triggers. Poise resets on Groggy end.
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Groggy")
+    UPROPERTY(EditDefaultsOnly, Category = "Combat")
     float GroggyDuration = 4.f;
 
     //--- Movement ------------------------------------------------------------
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Movement",
+    UPROPERTY(EditDefaultsOnly, Category = "Movement",
         meta = (ClampMin = "0.0"))
     float ArrivalRange = 200.f;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Boss|Movement",
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement",
         meta = (ClampMin = "0.0"))
     float RushTriggerRadius = 700.f;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Boss|Movement",
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement",
         meta = (ClampMin = "0.0"))
     float RushSpeed = 700.f;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Boss|Movement",
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement",
         meta = (ClampMin = "0.0"))
     float RushCooldown = 5.f;
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Movement")
+    UPROPERTY(EditDefaultsOnly, Category = "Movement")
     TObjectPtr<UAnimMontage> RushAttackMontage;
 
-    //--- Animation Assets ----------------------------------------------------
+    //--- Animation -----------------------------------------------------------
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|AnimationAsset")
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AnimationAsset")
     TObjectPtr<UBlendSpace> LocomotionBS;
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|AnimationAsset")
+    UPROPERTY(EditDefaultsOnly, Category = "AnimationAsset")
     TObjectPtr<URVHitReactionAnimDataAsset> HitReactionAnimData;
 
-    //--- Soul Siphon ---------------------------------------------------------
+    //--- Special Attacks -----------------------------------------------------
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|SoulSiphon")
-    TObjectPtr<UAnimMontage> SoulSiphonMontage;
+    UPROPERTY(EditDefaultsOnly, Category = "SoulSiphon")
+    FRVSoulSiphonData SoulSiphon;
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|SoulSiphon",
-        meta = (ClampMin = "0.0"))
-    float SoulSiphonCooldown = 20.f;
-
-    //--- Subjugation ---------------------------------------------------------
-
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Subjugation")
-    TObjectPtr<UAnimMontage> SubjugationMontage;
-
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Subjugation",
-        meta = (ClampMin = "0.0"))
-    float SubjugationBlastRadius = 400.f;
-
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Subjugation",
-        meta = (ClampMin = "0.0"))
-    float SubjugationBlastDamage = 60.f;
-
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Subjugation",
-        meta = (ClampMin = "0.0"))
-    float SubjugationBlastPoiseDamage = 40.f;
-
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss|Subjugation",
-        meta = (ClampMin = "0.0"))
-    float SubjugationCooldown = 30.f;
+    UPROPERTY(EditDefaultsOnly, Category = "Subjugation")
+    FRVSubjugationData Subjugation;
 };

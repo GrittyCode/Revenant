@@ -15,7 +15,6 @@ EBTNodeResult::Type UBTTask_SevarogAttackBase::ExecuteTask(UBehaviorTreeComponen
 	ARVSevarogCharacter* Boss = Controller->GetBossCharacter();
 	if (!IsValid(Boss)) { return EBTNodeResult::Failed; }
 
-	Boss->RotateToFacePlayer(Controller->GetPlayerPawn());
 	if (!LaunchAttack(Boss)) { return EBTNodeResult::Failed; }
 
 	TWeakObjectPtr<UBehaviorTreeComponent> BTWeak(&OwnerComp);

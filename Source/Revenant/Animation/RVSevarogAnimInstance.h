@@ -21,20 +21,13 @@ public:
 protected:
 	//--- Locomotion ----------------------------------------------------------
 
-	// Movement speed — 1D BlendSpace (LocomotionBS) X-axis input.
-	// CharacterMovement.MaxWalkSpeed controls normal vs. rush automatically.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
 	float Speed = 0.f;
 
-	// Single 1D BlendSpace covering Idle → Walk → Rush (Speed axis).
-	// Assigned from URVSevarogDataAsset::LocomotionBS at init.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
 	TObjectPtr<UBlendSpace> CachedLocomotionBS;
 
 	//--- State ---------------------------------------------------------------
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
-	uint8 bIsInAir : 1;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
 	uint8 bIsAttacking : 1;
@@ -50,7 +43,6 @@ protected:
 
 	//--- Hit Reaction --------------------------------------------------------
 
-	// Character-local hit angle (-180~180) — Stagger BS Direction-axis input.
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
 	float StaggerDirection = 0.f;
 

@@ -9,31 +9,18 @@
 #include "Data/RVSevarogDataAsset.h"
 #include "Data/RVHitReactionAnimDataAsset.h"
 #include "Data/RVEnemyStatRow.h"
-#include "Interface/RVDamageable.h"
+#include "DrawDebugHelpers.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/PlayerController.h"
+#include "Interface/RVDamageable.h"
+#include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Particles/ParticleSystem.h"
 
 ARVSevarogCharacter::ARVSevarogCharacter()
 {
     AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
     AIControllerClass = ARVAIController::StaticClass();
-}
-
-void ARVSevarogCharacter::RotateToFacePlayer(const APawn* InPlayer)
-{
-    if (!IsValid(InPlayer)) { return; }
-
-    const FVector ToPlayer = (InPlayer->GetActorLocation() - GetActorLocation()).GetSafeNormal2D();
-    if (ToPlayer.IsNearlyZero()) { return; }
-
-    const FRotator CurrentRotation = GetActorRotation();
-    const FRotator TargetRotation  = ToPlayer.Rotation();
-
-    const float MaxTurn    = SevarogData->MaxComboTurnDegrees;
-    const float DeltaYaw   = FMath::FindDeltaAngleDegrees(CurrentRotation.Yaw, TargetRotation.Yaw);
-    const float ClampedYaw = FMath::Clamp(DeltaYaw, -MaxTurn, MaxTurn);
-
-    SetActorRotation(FRotator(0.f, CurrentRotation.Yaw + ClampedYaw, 0.f));
 }
 
 void ARVSevarogCharacter::BeginPlay()
@@ -76,7 +63,6 @@ URVHitReactionAnimDataAsset* ARVSevarogCharacter::GetHitReactionAnimData() const
 {
     return IsValid(SevarogData) ? SevarogData->HitReactionAnimData : nullptr;
 }
-
 
 //--- Death -------------------------------------------------------------------
 
@@ -126,9 +112,82 @@ void ARVSevarogCharacter::OnDeathMontageBlendingOut(UAnimMontage* /*InMontage*/,
     SetLifeSpan(1.f);
 }
 
-//--- Weighted random selection -----------------------------------------------
+//--- BT task interface -------------------------------------------------------
 
-int32 ARVSevarogCharacter::SelectWeightedPattern(const TArray<FRVBossAttackPattern>& InPatterns) const
+bool ARVSevarogCharacter::IsAttacking() const
+{
+    return CombatStateComponent->HasState(ERVCombatState::Attacking);
+}
+
+bool ARVSevarogCharacter::ExecutePhaseAttack()
+{
+    if (bIsGroggy || IsAttacking()) { return false; }
+
+    const FRVBossPhaseAttacks* PhaseAttacks = nullptr;
+    switch (CurrentPhase)
+    {
+    case ERVBossPhase::Phase1: PhaseAttacks = &SevarogData->Phase1Attacks; break;
+    case ERVBossPhase::Phase2: PhaseAttacks = &SevarogData->Phase2Attacks; break;
+    }
+
+    if (!PhaseAttacks || PhaseAttacks->Patterns.IsEmpty()) { return false; }
+
+    const int32 Index = SelectWeightedPattern(PhaseAttacks->Patterns);
+    StartComboChain(PhaseAttacks->Patterns[Index].ComboMontages);
+    return true;
+}
+
+bool ARVSevarogCharacter::ExecuteRushAttack()
+{
+    if (bIsGroggy || IsAttacking())                       { return false; }
+    if (!IsValid(SevarogData->RushAttackMontage))         { return false; }
+
+    // Rotate is handled inside PlayComboMontageAt.
+    StartComboChain({ SevarogData->RushAttackMontage });
+    return true;
+}
+
+bool ARVSevarogCharacter::ExecuteSoulSiphon()
+{
+    RotateToFacePlayer(ResolvePlayerPawn());
+
+    if (!PlaySingleShotAction(SevarogData->SoulSiphon.Montage)) { return false; }
+
+    SpawnFXAttached(SevarogData->SoulSiphon.CastFX);
+    SpawnFXAttached(SevarogData->SoulSiphon.BodySwirlsFX);
+    SpawnFXAttached(SevarogData->SoulSiphon.CastTrailsFX);
+
+    SpawnFXAtLocation(SevarogData->SoulSiphon.HandFX,
+        GetForwardLocation(), GetActorRotation(), FVector(0.5f));
+
+    return true;
+}
+
+bool ARVSevarogCharacter::ExecuteSubjugation()
+{
+    RotateToFacePlayer(ResolvePlayerPawn());
+
+    if (!PlaySingleShotAction(SevarogData->Subjugation.Montage)) { return false; }
+
+    SpawnFXAttached(SevarogData->Subjugation.CastFX);
+    return true;
+}
+
+void ARVSevarogCharacter::ForceEndCurrentAction()
+{
+    bIsComboChaining = false;
+    ActiveComboMontages.Empty();
+    ActiveComboIndex = 0;
+
+    UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
+    if (IsValid(AnimInst)) { AnimInst->Montage_Stop(0.2f); }
+
+    CombatStateComponent->RemoveState(ERVCombatState::Attacking);
+}
+
+//--- Combo chain -------------------------------------------------------------
+
+int32 ARVSevarogCharacter::SelectWeightedPattern(const TArray<FRVBossAttackPattern>& InPatterns)
 {
     int32 TotalWeight = 0;
     for (const FRVBossAttackPattern& Pattern : InPatterns)
@@ -146,8 +205,6 @@ int32 ARVSevarogCharacter::SelectWeightedPattern(const TArray<FRVBossAttackPatte
     return InPatterns.Num() - 1;
 }
 
-//--- Internal combo chain ----------------------------------------------------
-
 void ARVSevarogCharacter::StartComboChain(const TArray<TObjectPtr<UAnimMontage>>& InMontages)
 {
     if (InMontages.IsEmpty()) { return; }
@@ -160,8 +217,7 @@ void ARVSevarogCharacter::StartComboChain(const TArray<TObjectPtr<UAnimMontage>>
 
 void ARVSevarogCharacter::PlayComboMontageAt(int32 InIndex)
 {
-    const ARVAIController* AICtrl = Cast<ARVAIController>(GetController());
-    RotateToFacePlayer(IsValid(AICtrl) ? AICtrl->GetPlayerPawn() : nullptr);
+    RotateToFacePlayer(ResolvePlayerPawn());
 
     UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
     if (!IsValid(AnimInst)) { return; }
@@ -181,9 +237,6 @@ void ARVSevarogCharacter::TryChainCombo()
 {
     if (ActiveComboIndex + 1 >= ActiveComboMontages.Num()) { return; }
 
-    UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
-    if (!IsValid(AnimInst)) { return; }
-
     bIsComboChaining = true;
     ++ActiveComboIndex;
     PlayComboMontageAt(ActiveComboIndex);
@@ -201,39 +254,16 @@ void ARVSevarogCharacter::OnAttackMontageBlendingOut(UAnimMontage* /*InMontage*/
     ActiveComboMontages.Empty();
     ActiveComboIndex = 0;
 
-    if (!bInterrupted)
-    {
-        OnAttackFinished.Broadcast();
-    }
+    if (!bInterrupted) { OnAttackFinished.Broadcast(); }
 }
-
-//--- ForceEnd ----------------------------------------------------------------
-
-void ARVSevarogCharacter::ForceEndCurrentAction()
-{
-    bIsComboChaining = false;
-    ActiveComboMontages.Empty();
-    ActiveComboIndex = 0;
-
-    UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
-    if (IsValid(AnimInst))
-    {
-        AnimInst->Montage_Stop(0.2f);
-    }
-
-    CombatStateComponent->RemoveState(ERVCombatState::Attacking);
-}
-
-//--- Single-shot action helper -----------------------------------------------
 
 bool ARVSevarogCharacter::PlaySingleShotAction(UAnimMontage* InMontage)
 {
-    if (bIsGroggy)           { return false; }
-    if (IsAttacking())       { return false; }
-    if (!IsValid(InMontage)) { return false; }
+    if (bIsGroggy || IsAttacking())  { return false; }
+    if (!IsValid(InMontage))         { return false; }
 
     UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
-    if (!IsValid(AnimInst))  { return false; }
+    if (!IsValid(AnimInst))          { return false; }
 
     CombatStateComponent->AddState(ERVCombatState::Attacking);
     AnimInst->Montage_Play(InMontage);
@@ -248,85 +278,6 @@ void ARVSevarogCharacter::OnSingleShotActionBlendingOut(UAnimMontage* /*InMontag
 {
     CombatStateComponent->RemoveState(ERVCombatState::Attacking);
     if (!bInterrupted) { OnAttackFinished.Broadcast(); }
-}
-
-//--- Phase Attack ------------------------------------------------------------
-
-bool ARVSevarogCharacter::ExecutePhaseAttack()
-{
-    if (bIsGroggy)     { return false; }
-    if (IsAttacking()) { return false; }
-
-    const FRVBossPhaseAttacks* PhaseAttacks = nullptr;
-    switch (CurrentPhase)
-    {
-    case ERVBossPhase::Phase1: PhaseAttacks = &SevarogData->Phase1Attacks; break;
-    case ERVBossPhase::Phase2: PhaseAttacks = &SevarogData->Phase2Attacks; break;
-    }
-
-    if (!PhaseAttacks || PhaseAttacks->Patterns.IsEmpty()) { return false; }
-
-    const int32 Index = SelectWeightedPattern(PhaseAttacks->Patterns);
-    StartComboChain(PhaseAttacks->Patterns[Index].ComboMontages);
-    return true;
-}
-
-bool ARVSevarogCharacter::ExecuteRushAttack()
-{
-    if (bIsGroggy)     { return false; }
-    if (IsAttacking()) { return false; }
-    if (!IsValid(SevarogData->RushAttackMontage)) { return false; }
-
-    StartComboChain({ SevarogData->RushAttackMontage });
-    return true;
-}
-
-bool ARVSevarogCharacter::IsAttacking() const
-{
-    return CombatStateComponent->HasState(ERVCombatState::Attacking);
-}
-
-//--- Soul Siphon -------------------------------------------------------------
-
-bool ARVSevarogCharacter::ExecuteSoulSiphon()
-{
-    return PlaySingleShotAction(SevarogData->SoulSiphonMontage);
-}
-
-//--- Subjugation -------------------------------------------------------------
-
-bool ARVSevarogCharacter::ExecuteSubjugation()
-{
-    return PlaySingleShotAction(SevarogData->SubjugationMontage);
-}
-
-void ARVSevarogCharacter::SpawnSubjugationBlast()
-{
-    if (!IsValid(SevarogData)) { return; }
-
-    TArray<AActor*> HitActors;
-    UKismetSystemLibrary::SphereOverlapActors(
-        this,
-        GetActorLocation(),
-        SevarogData->SubjugationBlastRadius,
-        TArray<TEnumAsByte<EObjectTypeQuery>>{ UEngineTypes::ConvertToObjectType(ECC_Pawn) },
-        nullptr,
-        TArray<AActor*>{ this },
-        HitActors);
-
-    for (AActor* HitActor : HitActors)
-    {
-        if (IRVDamageable* Target = Cast<IRVDamageable>(HitActor))
-        {
-            FRVHitInfo HitInfo;
-            HitInfo.Damage       = SevarogData->SubjugationBlastDamage;
-            HitInfo.PoiseDamage  = SevarogData->SubjugationBlastPoiseDamage;
-            HitInfo.HitType      = ERVHitType::Normal;
-            HitInfo.HitDirection = (HitActor->GetActorLocation() - GetActorLocation()).GetSafeNormal();
-            HitInfo.Instigator   = this;
-            Target->ApplyDamage(HitInfo);
-        }
-    }
 }
 
 //--- Groggy ------------------------------------------------------------------
@@ -351,13 +302,12 @@ void ARVSevarogCharacter::EndGroggy()
     HitReactionComponent->EndGroggy();
 }
 
-
 void ARVSevarogCharacter::OnGroggySequenceCompleted()
 {
-	bIsGroggy = false;
-	CombatStateComponent->RemoveState(ERVCombatState::Groggy);
-	AttributeComponent->ResetPoise();
-	OnBossGroggyEnded.Broadcast();
+    bIsGroggy = false;
+    CombatStateComponent->RemoveState(ERVCombatState::Groggy);
+    AttributeComponent->ResetPoise();
+    OnBossGroggyEnded.Broadcast();
 }
 
 //--- Rush --------------------------------------------------------------------
@@ -374,7 +324,157 @@ void ARVSevarogCharacter::EndRush()
     GetCharacterMovement()->MaxWalkSpeed = NormalWalkSpeed;
 }
 
-//--- Phase Transition --------------------------------------------------------
+//--- Soul Siphon hit ---------------------------------------------------------
+
+void ARVSevarogCharacter::ExecuteSoulSiphonHit()
+{
+    if (!IsValid(SevarogData)) { return; }
+
+    const FVector HitCenter = GetForwardLocation(SevarogData->SoulSiphon.HitForwardOffset);
+
+#if !UE_BUILD_SHIPPING
+    DrawDebugSphere(GetWorld(), HitCenter,
+        SevarogData->SoulSiphon.HitRadius, 16, FColor::Cyan, false, 2.f);
+#endif
+
+    ApplyRadialDamageAt(HitCenter,
+        SevarogData->SoulSiphon.HitRadius,
+        SevarogData->SoulSiphon.HitDamage,
+        SevarogData->SoulSiphon.HitPoiseDamage);
+
+    SpawnFXAtLocation(SevarogData->SoulSiphon.ImpactFX, HitCenter, GetActorRotation());
+}
+
+//--- Subjugation blast -------------------------------------------------------
+
+void ARVSevarogCharacter::SpawnSubjugationBlast()
+{
+    if (!IsValid(SevarogData)) { return; }
+
+    const FVector Origin = GetGroundOrigin();
+    SpawnFXAtLocation(SevarogData->Subjugation.BlastFX, Origin);
+
+    const float MinSeparation = SevarogData->Subjugation.SwirlDamageRadius * 2.f;
+    const TArray<FVector> SwirlLocations = GenerateSwirlLocations(
+        Origin,
+        SevarogData->Subjugation.SwirlSpreadRadius,
+        MinSeparation,
+        3);
+
+    for (const FVector& SwirlLocation : SwirlLocations)
+    {
+        SpawnFXAtLocation(SevarogData->Subjugation.SwirlsFX, SwirlLocation);
+
+#if !UE_BUILD_SHIPPING
+        DrawDebugSphere(GetWorld(), SwirlLocation,
+            SevarogData->Subjugation.SwirlDamageRadius, 16, FColor::Orange, false, 2.f);
+#endif
+
+        ApplyRadialDamageAt(SwirlLocation,
+            SevarogData->Subjugation.SwirlDamageRadius,
+            SevarogData->Subjugation.BlastDamage,
+            SevarogData->Subjugation.BlastPoiseDamage);
+    }
+}
+
+TArray<FVector> ARVSevarogCharacter::GenerateSwirlLocations(const FVector& InOrigin,
+    float InSpreadRadius, float InMinSeparation, int32 InCount)
+{
+    TArray<FVector> Result;
+    Result.Reserve(InCount);
+
+    static constexpr int32 MaxAttemptsPerPoint = 30;
+
+    for (int32 i = 0; i < InCount; ++i)
+    {
+        FVector Candidate = InOrigin;
+
+        for (int32 Attempt = 0; Attempt < MaxAttemptsPerPoint; ++Attempt)
+        {
+            const float Angle = FMath::RandRange(0.f, 2.f * PI);
+            const float Dist  = FMath::Sqrt(FMath::FRand()) * InSpreadRadius;
+
+            const FVector Try = InOrigin + FVector(
+                FMath::Cos(Angle) * Dist,
+                FMath::Sin(Angle) * Dist,
+                0.f);
+
+            bool bTooClose = false;
+            for (const FVector& Placed : Result)
+            {
+                if (FVector::Dist2D(Try, Placed) < InMinSeparation)
+                {
+                    bTooClose = true;
+                    break;
+                }
+            }
+
+            if (!bTooClose)
+            {
+                Candidate = Try;
+                break;
+            }
+        }
+
+        Result.Add(Candidate);
+    }
+
+    return Result;
+}
+
+//--- Radial damage -----------------------------------------------------------
+
+void ARVSevarogCharacter::ApplyRadialDamageAt(const FVector& InLocation, float InRadius,
+    float InDamage, float InPoiseDamage)
+{
+    TArray<AActor*> HitActors;
+    UKismetSystemLibrary::SphereOverlapActors(
+        this,
+        InLocation,
+        InRadius,
+        TArray<TEnumAsByte<EObjectTypeQuery>>{ UEngineTypes::ConvertToObjectType(ECC_Pawn) },
+        nullptr,
+        TArray<AActor*>{ this },
+        HitActors);
+
+    for (AActor* HitActor : HitActors)
+    {
+        if (IRVDamageable* Target = Cast<IRVDamageable>(HitActor))
+        {
+            FRVHitInfo HitInfo;
+            HitInfo.Damage       = InDamage;
+            HitInfo.PoiseDamage  = InPoiseDamage;
+            HitInfo.HitType      = ERVHitType::Normal;
+            HitInfo.HitDirection = (HitActor->GetActorLocation() - InLocation).GetSafeNormal();
+            HitInfo.Instigator   = this;
+            Target->ApplyDamage(HitInfo);
+        }
+    }
+}
+
+//--- VFX helpers -------------------------------------------------------------
+
+void ARVSevarogCharacter::SpawnFXAtLocation(UParticleSystem* InFX,
+    const FVector& InLocation, const FRotator& InRotation, const FVector& InScale) const
+{
+    if (!IsValid(InFX)) { return; }
+    UGameplayStatics::SpawnEmitterAtLocation(this, InFX, InLocation, InRotation, InScale);
+}
+
+void ARVSevarogCharacter::SpawnFXAttached(UParticleSystem* InFX, FName InSocketName) const
+{
+    if (!IsValid(InFX)) { return; }
+    UGameplayStatics::SpawnEmitterAttached(
+        InFX,
+        GetMesh(),
+        InSocketName,
+        FVector::ZeroVector,
+        FRotator::ZeroRotator,
+        EAttachLocation::SnapToTarget,
+        true);
+}
+
+//--- Phase transition --------------------------------------------------------
 
 void ARVSevarogCharacter::SetBossPhase(ERVBossPhase InNewPhase)
 {
@@ -385,9 +485,8 @@ void ARVSevarogCharacter::SetBossPhase(ERVBossPhase InNewPhase)
 
 void ARVSevarogCharacter::CheckPhaseTransition(float /*InNewHealth*/, float /*InDelta*/)
 {
-    const float HealthRatio = AttributeComponent->GetHealthPercent();
-
-    if (CurrentPhase == ERVBossPhase::Phase1 && HealthRatio <= SevarogData->Phase2Threshold)
+    if (CurrentPhase == ERVBossPhase::Phase1
+        && AttributeComponent->GetHealthPercent() <= SevarogData->Phase2Threshold)
     {
         SetBossPhase(ERVBossPhase::Phase2);
     }
@@ -395,6 +494,28 @@ void ARVSevarogCharacter::CheckPhaseTransition(float /*InNewHealth*/, float /*In
 
 void ARVSevarogCharacter::OnPoiseDepleted()
 {
-	if (bIsGroggy) { return; }
-	StartGroggy();
+    if (bIsGroggy) { return; }
+    StartGroggy();
+}
+
+//--- Internal helpers --------------------------------------------------------
+
+APawn* ARVSevarogCharacter::ResolvePlayerPawn() const
+{
+    const ARVAIController* AICtrl = Cast<ARVAIController>(GetController());
+    return IsValid(AICtrl) ? AICtrl->GetPlayerPawn() : nullptr;
+}
+
+void ARVSevarogCharacter::RotateToFacePlayer(const APawn* InPlayer)
+{
+    if (!IsValid(InPlayer) || !IsValid(SevarogData)) { return; }
+
+    const FVector ToPlayer = (InPlayer->GetActorLocation() - GetActorLocation()).GetSafeNormal2D();
+    if (ToPlayer.IsNearlyZero()) { return; }
+
+    const FRotator CurrentRotation = GetActorRotation();
+    const float DeltaYaw   = FMath::FindDeltaAngleDegrees(CurrentRotation.Yaw, ToPlayer.Rotation().Yaw);
+    const float ClampedYaw = FMath::Clamp(DeltaYaw, -SevarogData->MaxComboTurnDegrees, SevarogData->MaxComboTurnDegrees);
+
+    SetActorRotation(FRotator(0.f, CurrentRotation.Yaw + ClampedYaw, 0.f));
 }

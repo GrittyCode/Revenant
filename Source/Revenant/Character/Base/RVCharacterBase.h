@@ -9,77 +9,81 @@
 #include "RVCharacterBase.generated.h"
 
 class URVHitReactionComponent;
-class URVCharacterDataAsset;
 class URVHitReactionAnimDataAsset;
 class UMeshComponent;
 
 UCLASS()
 class REVENANT_API ARVCharacterBase : public ACharacter, public IRVHitCheckTarget, public IRVDamageable
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	ARVCharacterBase();
+    ARVCharacterBase();
 
-	virtual void ActivateHitCheck() override;
-	virtual bool ApplyDamage(const FRVHitInfo& InHitInfo) override;
+    virtual void ActivateHitCheck() override;
+    virtual bool ApplyDamage(const FRVHitInfo& InHitInfo) override;
 
-	UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
-	float GetHealthRatio() const;
-	
-	UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
-	float GetStaminaRatio() const;
+    UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
+    float GetHealthRatio() const;
 
-	//--- Attribute event facades ---------------------------------------------
+    UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
+    float GetStaminaRatio() const;
 
-	FRVOnHealthChanged&   GetOnHealthChanged();
-	FRVOnStaminaChanged&  GetOnStaminaChanged();
-	FRVOnDeath&           GetOnDeath();
-	FRVOnPoiseDepleted&   GetOnPoiseDepleted();
-	FRVOnPoiseChanged&	  GetOnPoiseChanged();
-	//--- Combat state facades (AnimNotify) -----------------------------------
+    //--- Attribute event facades ---------------------------------------------
 
-	void OpenAttackHitWindow();
-	void CloseAttackHitWindow();
+    FRVOnHealthChanged&  GetOnHealthChanged();
+    FRVOnStaminaChanged& GetOnStaminaChanged();
+    FRVOnDeath&          GetOnDeath();
+    FRVOnPoiseDepleted&  GetOnPoiseDepleted();
+    FRVOnPoiseChanged&   GetOnPoiseChanged();
 
-	//--- State query facades (AnimInstance) ----------------------------------
+    //--- Combat state facades (AnimNotify) -----------------------------------
 
-	bool  IsInCombatState(ERVCombatState InState) const;
-	float GetStaggerDirection() const;
+    void OpenAttackHitWindow();
+    void CloseAttackHitWindow();
+
+    //--- State query facades (AnimInstance) ----------------------------------
+
+    bool  IsInCombatState(ERVCombatState InState) const;
+    float GetStaggerDirection() const;
 
 protected:
-	virtual void BeginPlay() override;
-	virtual void Falling() override;
-	virtual void Landed(const FHitResult& Hit) override;
+    virtual void BeginPlay() override;
+    virtual void Falling() override;
+    virtual void Landed(const FHitResult& Hit) override;
 
-	virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const { return nullptr; }
+    virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const { return nullptr; }
 
-	UFUNCTION()
-	virtual void OnDeath();
+    // Override to initialize AttributeComponent and return the stagger duration for this character.
+    // Called from BeginPlay before HitReactionComponent is initialized.
+    virtual float InitStats() { return 0.5f; }
 
-	virtual UMeshComponent* GetWeaponTraceMesh() const { return GetMesh(); }
+    UFUNCTION()
+    virtual void OnDeath();
 
-	//--- Components ----------------------------------------------------------
+    virtual UMeshComponent* GetWeaponTraceMesh() const { return GetMesh(); }
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-	TObjectPtr<URVAttributeComponent> AttributeComponent;
+    //--- Spatial helpers -----------------------------------------------------
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-	TObjectPtr<URVCombatStateComponent> CombatStateComponent;
+    FVector GetForwardLocation(float InOffset = 1.f) const;
+    FVector GetGroundOrigin() const;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-	TObjectPtr<URVHitReactionComponent> HitReactionComponent;
+    //--- Components ----------------------------------------------------------
 
-	//--- Data ----------------------------------------------------------------
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVAttributeComponent> AttributeComponent;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Data")
-	TObjectPtr<URVCharacterDataAsset> CharacterData;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVCombatStateComponent> CombatStateComponent;
 
-	//--- Movement ------------------------------------------------------------
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVHitReactionComponent> HitReactionComponent;
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Movement")
-	FRotator AirRotationRate = FRotator(0.f, 0.f, 0.f);
+    //--- Movement ------------------------------------------------------------
+
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Movement")
+    FRotator AirRotationRate = FRotator(0.f, 0.f, 0.f);
 
 private:
-	FRotator OriginalRotationRate;
+    FRotator OriginalRotationRate;
 };

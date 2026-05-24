@@ -7,60 +7,61 @@
 
 UBTService_RVSevarogState::UBTService_RVSevarogState()
 {
-	NodeName        = TEXT("Sevarog State");
-	Interval        = 0.1f;
-	RandomDeviation = 0.f;
+    NodeName        = TEXT("Sevarog State");
+    Interval        = 0.1f;
+    RandomDeviation = 0.f;
 }
 
 void UBTService_RVSevarogState::OnSearchStart(FBehaviorTreeSearchData& SearchData)
 {
-	UBehaviorTreeComponent& OwnerComp = SearchData.OwnerComp;
+    UBehaviorTreeComponent& OwnerComp = SearchData.OwnerComp;
 
-	ARVAIController* Controller = Cast<ARVAIController>(OwnerComp.GetAIOwner());
-	if (!IsValid(Controller)) { return; }
+    const ARVAIController* Controller = Cast<ARVAIController>(OwnerComp.GetAIOwner());
+    if (!IsValid(Controller)) { return; }
 
-	ARVSevarogCharacter* Boss = Controller->GetBossCharacter();
-	if (!IsValid(Boss)) { return; }
+    const ARVSevarogCharacter* Boss = Controller->GetBossCharacter();
+    if (!IsValid(Boss)) { return; }
 
-	const URVSevarogDataAsset* Data = Boss->GetSevarogData();
-	if (!IsValid(Data)) { return; }
+    const URVSevarogDataAsset* Data = Boss->GetSevarogData();
+    if (!IsValid(Data)) { return; }
 
-	UBlackboardComponent* BB = OwnerComp.GetBlackboardComponent();
-	if (!IsValid(BB)) { return; }
+    UBlackboardComponent* BB = OwnerComp.GetBlackboardComponent();
+    if (!IsValid(BB)) { return; }
 
-	
-	BB->SetValueAsFloat(RVSevarogBlackboardKeys::ArrivalRange, Data->ArrivalRange);
-	BB->SetValueAsFloat(RVSevarogBlackboardKeys::RushCooldownDuration,        Data->RushCooldown);
-	BB->SetValueAsFloat(RVSevarogBlackboardKeys::SoulSiphonCooldownDuration,  Data->SoulSiphonCooldown);
-	BB->SetValueAsFloat(RVSevarogBlackboardKeys::SubjugationCooldownDuration, Data->SubjugationCooldown);
+    // Static values written once — these do not change at runtime.
+    BB->SetValueAsFloat(RVSevarogBlackboardKeys::ArrivalRange,                Data->ArrivalRange);
+    BB->SetValueAsFloat(RVSevarogBlackboardKeys::RushCooldownDuration,        Data->RushCooldown);
+    BB->SetValueAsFloat(RVSevarogBlackboardKeys::SoulSiphonCooldownDuration,  Data->SoulSiphon.Cooldown);
+    BB->SetValueAsFloat(RVSevarogBlackboardKeys::SubjugationCooldownDuration, Data->Subjugation.Cooldown);
 }
 
 void UBTService_RVSevarogState::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
-	Super::TickNode(OwnerComp, NodeMemory, DeltaSeconds);
+    Super::TickNode(OwnerComp, NodeMemory, DeltaSeconds);
 
-	ARVAIController* Controller = Cast<ARVAIController>(OwnerComp.GetAIOwner());
-	if (!IsValid(Controller)) { return; }
+    const ARVAIController* Controller = Cast<ARVAIController>(OwnerComp.GetAIOwner());
+    if (!IsValid(Controller)) { return; }
 
-	ARVSevarogCharacter* Boss = Controller->GetBossCharacter();
-	if (!IsValid(Boss)) { return; }
+    const ARVSevarogCharacter* Boss = Controller->GetBossCharacter();
+    if (!IsValid(Boss)) { return; }
 
-	APawn* Player = Controller->GetPlayerPawn();
+    UBlackboardComponent* BB = OwnerComp.GetBlackboardComponent();
+    if (!IsValid(BB)) { return; }
 
-	UBlackboardComponent* BB = OwnerComp.GetBlackboardComponent();
-	if (!IsValid(BB)) { return; }
+    APawn* Player = Controller->GetPlayerPawn();
+    BB->SetValueAsObject(RVSevarogBlackboardKeys::PlayerPawn, Player);
 
-	BB->SetValueAsObject(RVSevarogBlackboardKeys::PlayerPawn, Player);
+    const float Dist = IsValid(Player)
+        ? FVector::Dist(Boss->GetActorLocation(), Player->GetActorLocation())
+        : BIG_NUMBER;
 
-	const float Dist = IsValid(Player)
-		? FVector::Dist(Boss->GetActorLocation(), Player->GetActorLocation())
-		: BIG_NUMBER;
+    const URVSevarogDataAsset* Data = Boss->GetSevarogData();
 
-	const URVSevarogDataAsset* Data = Boss->GetSevarogData();
-	
-	BB->SetValueAsBool(RVSevarogBlackboardKeys::bIsRushRadius,   Dist >= Data->RushTriggerRadius);
-	BB->SetValueAsBool(RVSevarogBlackboardKeys::bIsAttackRadius, Dist <= Data->MeleeEngagementRange);
-	BB->SetValueAsBool(RVSevarogBlackboardKeys::bIsGroggy,    Boss->IsGroggy());
-	
-	BB->SetValueAsEnum(RVSevarogBlackboardKeys::CurrentPhase, static_cast<uint8>(Boss->GetCurrentPhase()));
+    BB->SetValueAsBool(RVSevarogBlackboardKeys::bIsRushRadius,        Dist >= Data->RushTriggerRadius);
+    BB->SetValueAsBool(RVSevarogBlackboardKeys::bIsAttackRadius,      Dist <= Data->MeleeEngagementRange);
+    BB->SetValueAsBool(RVSevarogBlackboardKeys::bIsSoulSiphonRadius,  Dist <= Data->SoulSiphon.EngagementRange);
+    BB->SetValueAsBool(RVSevarogBlackboardKeys::bIsSubjugationRadius, Dist <= Data->Subjugation.EngagementRange);
+    BB->SetValueAsBool(RVSevarogBlackboardKeys::bIsGroggy,            Boss->IsGroggy());
+
+    BB->SetValueAsEnum(RVSevarogBlackboardKeys::CurrentPhase, static_cast<uint8>(Boss->GetCurrentPhase()));
 }

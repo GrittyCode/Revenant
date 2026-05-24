@@ -17,110 +17,118 @@ class URVDodgeComponent;
 class URVGuardComponent;
 class URVSprintComponent;
 class URVHitReactionAnimDataAsset;
+class URVCharacterDataAsset;
 
 struct FInputActionValue;
 
 UCLASS()
 class REVENANT_API ARVCharacterPlayer : public ARVCharacterBase
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	ARVCharacterPlayer();
+    ARVCharacterPlayer();
 
-	virtual void Tick(float DeltaTime) override;
-	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
+    virtual void Tick(float DeltaTime) override;
+    virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
-	virtual bool ApplyDamage(const FRVHitInfo& InHitInfo) override;
+    virtual bool ApplyDamage(const FRVHitInfo& InHitInfo) override;
 
-	//--- Component facades (AnimInstance uses these) -------------------------
+    //--- Component facades (AnimInstance uses these) -------------------------
 
-	FRVOnWeaponChanged& GetOnWeaponChanged();
-	URVWeaponDataAsset* GetCurrentWeaponData() const;
-	bool  IsComboActive()  const;
-	float GetSprintSpeed() const;
-	bool  IsSprinting()    const;
-	bool  IsLockedOn()     const;
+    FRVOnWeaponChanged& GetOnWeaponChanged();
+    URVWeaponDataAsset* GetCurrentWeaponData() const;
+    bool  IsComboActive()  const;
+    float GetSprintSpeed() const;
+    bool  IsSprinting()    const;
+    bool  IsLockedOn()     const;
 
 protected:
-	virtual void BeginPlay() override;
-	virtual void OnDeath() override;
+    virtual void BeginPlay() override;
+    virtual void OnDeath() override;
 
-	virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const override;
-	virtual UMeshComponent* GetWeaponTraceMesh() const override;
+    virtual float InitStats() override;
 
-	UFUNCTION()
-	void OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData);
+    virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const override;
+    virtual UMeshComponent* GetWeaponTraceMesh() const override;
 
-	//--- Player-only Action Components ---------------------------------------
+    UFUNCTION()
+    void OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData);
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-	TObjectPtr<URVComboComponent> ComboComponent;
+    //--- Data ----------------------------------------------------------------
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-	TObjectPtr<URVHeavyAttackComponent> HeavyAttackComponent;
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Data")
+    TObjectPtr<URVCharacterDataAsset> CharacterData;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-	TObjectPtr<URVDodgeComponent> DodgeComponent;
+    //--- Player-only Action Components ---------------------------------------
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-	TObjectPtr<URVGuardComponent> GuardComponent;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVComboComponent> ComboComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-	TObjectPtr<URVSprintComponent> SprintComponent;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVHeavyAttackComponent> HeavyAttackComponent;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-	TObjectPtr<URVEquipmentComponent> EquipmentComponent;
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVDodgeComponent> DodgeComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVGuardComponent> GuardComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVSprintComponent> SprintComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVEquipmentComponent> EquipmentComponent;
 
 private:
-	//--- Input Handlers ------------------------------------------------------
+    //--- Input Handlers ------------------------------------------------------
 
-	void InputMove  (const FInputActionValue& Value);
-	void InputLook  (const FInputActionValue& Value);
-	void InputJump  (const FInputActionValue& Value);
-	void InputAttack(const FInputActionValue& Value);
-	void InputHeavyAttackStarted  (const FInputActionValue& Value);
-	void InputHeavyAttackCompleted(const FInputActionValue& Value);
-	void InputDodge(const FInputActionValue& Value);
+    void InputMove  (const FInputActionValue& Value);
+    void InputLook  (const FInputActionValue& Value);
+    void InputJump  (const FInputActionValue& Value);
+    void InputAttack(const FInputActionValue& Value);
+    void InputHeavyAttackStarted  (const FInputActionValue& Value);
+    void InputHeavyAttackCompleted(const FInputActionValue& Value);
+    void InputDodge(const FInputActionValue& Value);
 
-	void InputSprintStarted  (const FInputActionValue& Value);
-	void InputSprintCompleted(const FInputActionValue& Value);
+    void InputSprintStarted  (const FInputActionValue& Value);
+    void InputSprintCompleted(const FInputActionValue& Value);
 
-	void InputGuardStarted  (const FInputActionValue& Value);
-	void InputGuardCompleted(const FInputActionValue& Value);
+    void InputGuardStarted  (const FInputActionValue& Value);
+    void InputGuardCompleted(const FInputActionValue& Value);
 
-	void InputLockOn(const FInputActionValue& Value);
-	void InputWeaponSwap(const FInputActionValue& Value);
+    void InputLockOn(const FInputActionValue& Value);
+    void InputWeaponSwap(const FInputActionValue& Value);
 
-	//--- Attack Direction ----------------------------------------------------
+    //--- Attack Direction ----------------------------------------------------
 
-	void SnapToAttackDirection();
+    void SnapToAttackDirection();
 
-	float AttackStartYaw = 0.f;
+    float AttackStartYaw = 0.f;
 
-	//--- Input Config --------------------------------------------------------
+    //--- Input Config --------------------------------------------------------
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
-	TObjectPtr<URVInputConfig> InputConfig;
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
+    TObjectPtr<URVInputConfig> InputConfig;
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
-	TObjectPtr<UInputMappingContext> DefaultMappingContext;
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
+    TObjectPtr<UInputMappingContext> DefaultMappingContext;
 
-	//--- Camera --------------------------------------------------------------
+    //--- Camera --------------------------------------------------------------
 
-	UPROPERTY(VisibleAnywhere, Category = "RV|Components")
-	TObjectPtr<USpringArmComponent> CameraBoom;
+    UPROPERTY(VisibleAnywhere, Category = "RV|Components")
+    TObjectPtr<USpringArmComponent> CameraBoom;
 
-	UPROPERTY(VisibleAnywhere, Category = "RV|Components")
-	TObjectPtr<UCameraComponent> FollowCamera;
+    UPROPERTY(VisibleAnywhere, Category = "RV|Components")
+    TObjectPtr<UCameraComponent> FollowCamera;
 
-	//--- Lock-on -------------------------------------------------------------
+    //--- Lock-on -------------------------------------------------------------
 
-	UPROPERTY(VisibleAnywhere, Category = "RV|Components")
-	TObjectPtr<URVLockOnComponent> LockOnComponent;
+    UPROPERTY(VisibleAnywhere, Category = "RV|Components")
+    TObjectPtr<URVLockOnComponent> LockOnComponent;
 
-	//--- Attack Rotation -----------------------------------------------------
+    //--- Attack Rotation -----------------------------------------------------
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Combat")
-	float AttackRotationInterpSpeed = 10.f;
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Combat")
+    float AttackRotationInterpSpeed = 10.f;
 };
