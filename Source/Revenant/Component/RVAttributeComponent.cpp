@@ -1,6 +1,5 @@
-// Source/Revenant/Component/RVAttributeComponent.cpp
 #include "Component/RVAttributeComponent.h"
-#include "Data/RVCharacterDataAsset.h"
+#include "Data/RVCharacterStatRow.h"
 
 URVAttributeComponent::URVAttributeComponent()
 {
@@ -18,27 +17,18 @@ void URVAttributeComponent::BeginPlay()
     ResumeStaminaRegen();
 }
 
-void URVAttributeComponent::InitFromDataAsset(URVCharacterDataAsset* InData)
+void URVAttributeComponent::InitFromStatRow(const FRVCharacterStatRow& InRow)
 {
-    if (!IsValid(InData)) { return; }
-
-    MaxHealth         = InData->MaxHealth;
-    MaxStamina        = InData->MaxStamina;
-    StaminaRegenRate  = InData->StaminaRegenRate;
-    StaminaRegenDelay = InData->StaminaRegenDelay;
-    MaxPoise          = InData->MaxPoise;
+    MaxHealth         = InRow.MaxHealth;
+    MaxStamina        = InRow.MaxStamina;
+    StaminaRegenRate  = InRow.StaminaRegenRate;
+    StaminaRegenDelay = InRow.StaminaRegenDelay;
+    MaxPoise          = InRow.MaxPoise;
+    PoiseRegenDelay   = InRow.PoiseRegenDelay;
 
     CurrentHealth  = MaxHealth;
     CurrentStamina = MaxStamina;
     CurrentPoise   = MaxPoise;
-}
-
-void URVAttributeComponent::InitFromValues(float InMaxHP, float InMaxPoise)
-{
-    MaxHealth    = InMaxHP;
-    CurrentHealth = MaxHealth;
-    MaxPoise     = InMaxPoise;
-    CurrentPoise  = MaxPoise;
 }
 
 // ─── HP ──────────────────────────────────────────────────────────────────────
@@ -89,9 +79,7 @@ bool URVAttributeComponent::ConsumeStamina(float InAmount)
     CurrentStamina = FMath::Max(0.f, CurrentStamina - InAmount);
     OnStaminaChanged.Broadcast(CurrentStamina, -InAmount);
 
-    // Reset the regen delay clock on every consumption.
     ResetStaminaRegenDelay();
-
     return true;
 }
 
@@ -136,8 +124,7 @@ void URVAttributeComponent::ResumeStaminaRegen()
         this,
         &URVAttributeComponent::StartStaminaRegenTick,
         StaminaRegenDelay,
-        false
-    );
+        false);
 }
 
 void URVAttributeComponent::StartStaminaRegenTick()
@@ -150,8 +137,7 @@ void URVAttributeComponent::StartStaminaRegenTick()
         this,
         &URVAttributeComponent::TickStaminaRegen,
         StaminaRegenInterval,
-        true
-    );
+        true);
 }
 
 void URVAttributeComponent::TickStaminaRegen()
@@ -179,8 +165,20 @@ bool URVAttributeComponent::ApplyPoiseDamage(float InPoiseDamage)
     const float Clamped = FMath::Max(0.f, InPoiseDamage);
     CurrentPoise = FMath::Max(0.f, CurrentPoise - Clamped);
 
-    const float Ratio = MaxPoise > 0.f ? CurrentPoise / MaxPoise : 0.f;
-    OnPoiseChanged.Broadcast(Ratio);
+    OnPoiseChanged.Broadcast(GetPoiseRatio());
+
+    // Reset regen delay on every hit.
+    UWorld* World = GetWorld();
+    if (IsValid(World) && PoiseRegenDelay > 0.f)
+    {
+        World->GetTimerManager().ClearTimer(PoiseRegenDelayHandle);
+        World->GetTimerManager().SetTimer(
+            PoiseRegenDelayHandle,
+            this,
+            &URVAttributeComponent::StartPoiseRegen,
+            PoiseRegenDelay,
+            false);
+    }
 
     if (CurrentPoise <= 0.f)
     {
@@ -191,6 +189,18 @@ bool URVAttributeComponent::ApplyPoiseDamage(float InPoiseDamage)
 }
 
 void URVAttributeComponent::ResetPoise()
+{
+    UWorld* World = GetWorld();
+    if (IsValid(World))
+    {
+        World->GetTimerManager().ClearTimer(PoiseRegenDelayHandle);
+    }
+
+    CurrentPoise = MaxPoise;
+    OnPoiseChanged.Broadcast(1.f);
+}
+
+void URVAttributeComponent::StartPoiseRegen()
 {
     CurrentPoise = MaxPoise;
     OnPoiseChanged.Broadcast(1.f);

@@ -8,7 +8,6 @@
 class ACharacter;
 class URVAttributeComponent;
 class URVCombatStateComponent;
-class URVCharacterDataAsset;
 class UAnimMontage;
 
 UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
@@ -25,17 +24,14 @@ public:
 
 	void SetDodgeIFrame(bool bActivate);
 
-	/** Called via CombatStateComponent::OnForceEnd. */
 	void ForceEndDodge();
 
 	void InitReferences(ACharacter* InOwnerCharacter,
 						URVCombatStateComponent* InCombatStateComponent,
 						URVAttributeComponent* InAttributeComponent,
-						URVCharacterDataAsset* InCharacterData);
-	
-	
-	bool CanStartDodge() const;
+						float InDodgeStaminaCost);
 
+	bool CanStartDodge() const;
 
 protected:
 	virtual void BeginPlay() override;
@@ -50,8 +46,7 @@ private:
 	UPROPERTY()
 	TObjectPtr<URVAttributeComponent> AttributeComponent;
 
-	UPROPERTY()
-	TObjectPtr<URVCharacterDataAsset> CharacterData;
+	float DodgeStaminaCost = 30.f;
 
 	// Guards OnDodgeMontageBlendingOut against stale callbacks on external interruption.
 	UPROPERTY()

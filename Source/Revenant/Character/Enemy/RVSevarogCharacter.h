@@ -79,13 +79,18 @@ public:
 protected:
     virtual void BeginPlay() override;
     virtual void OnDeath() override;
+    virtual void InitStats() override;
     virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const override;
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Boss")
+private:
+    // Cached cast of CharacterData. Assigned in InitStats() — not exposed to the editor.
+    UPROPERTY()
     TObjectPtr<URVSevarogDataAsset> SevarogData;
 
-private:
     ERVBossPhase CurrentPhase     = ERVBossPhase::Phase1;
+    // bIsGroggy mirrors ERVCombatState::Groggy on CombatStateComponent.
+    // Both are maintained in sync: bIsGroggy for fast local checks,
+    // CombatStateComponent for external BT queries.
     bool         bIsGroggy        = false;
     bool         bIsRushing       = false;
     bool         bIsComboChaining = false;
@@ -106,7 +111,10 @@ private:
     //--- Damage helpers ------------------------------------------------------
 
     void ApplyRadialDamageAt(const FVector& InLocation, float InRadius,
-        float InDamage, float InPoiseDamage);
+        float InDamage, float InPoiseDamage,
+        UParticleSystem* InHitFX = nullptr,
+        const FVector& InOverrideDirection = FVector::ZeroVector,
+        bool bUseCapsule = false);
 
     //--- Subjugation helpers -------------------------------------------------
 
@@ -119,13 +127,9 @@ private:
         const FRotator& InRotation = FRotator::ZeroRotator,
         const FVector& InScale = FVector::OneVector) const;
 
-    void SpawnFXAttached(UParticleSystem* InFX, FName InSocketName = NAME_None) const;
-
     //--- Internal helpers ----------------------------------------------------
 
-    // Resolves the current player pawn via AIController. Returns null if unavailable.
     APawn* ResolvePlayerPawn() const;
-
     void RotateToFacePlayer(const APawn* InPlayer);
     void SetBossPhase(ERVBossPhase InNewPhase);
 

@@ -9,7 +9,8 @@
 #include "Component/RVAttributeComponent.h"
 #include "Component/RVHitReactionComponent.h"
 #include "Component/RVLockOnComponent.h"
-#include "Data/RVCharacterDataAsset.h"
+#include "Data/RVPlayerDataAsset.h"
+#include "Data/RVCharacterStatRow.h"
 #include "Data/RVWeaponDataAsset.h"
 #include "Data/RVPlayerCombatAnimDataAsset.h"
 #include "Interface/RVDamageable.h"
@@ -49,12 +50,15 @@ ARVCharacterPlayer::ARVCharacterPlayer()
     EquipmentComponent   = CreateDefaultSubobject<URVEquipmentComponent>   (TEXT("EquipmentComponent"));
 }
 
-float ARVCharacterPlayer::InitStats()
+void ARVCharacterPlayer::InitStats()
 {
-    if (!IsValid(CharacterData)) { return 0.5f; }
+    const URVPlayerDataAsset* PlayerData = Cast<URVPlayerDataAsset>(CharacterData);
+    if (!IsValid(PlayerData)) { return; }
 
-    AttributeComponent->InitFromDataAsset(CharacterData);
-    return CharacterData->StaggerDuration;
+    const FRVCharacterStatRow* StatRow = PlayerData->GetStatRow();
+    if (!StatRow) { return; }
+
+    AttributeComponent->InitFromStatRow(*StatRow);
 }
 
 void ARVCharacterPlayer::BeginPlay()
@@ -79,10 +83,13 @@ void ARVCharacterPlayer::BeginPlay()
 
     //--- Reference Injection -------------------------------------------------
 
+    const URVPlayerDataAsset* PlayerData = Cast<URVPlayerDataAsset>(CharacterData);
+    const float DodgeStaminaCost = IsValid(PlayerData) ? PlayerData->DodgeStaminaCost : 30.f;
+
     LockOnComponent->InitReferences(this, PC, CombatStateComponent);
     ComboComponent->InitReferences(this, CombatStateComponent, AttributeComponent, EquipmentComponent);
     HeavyAttackComponent->InitReferences(this, CombatStateComponent, AttributeComponent, EquipmentComponent);
-    DodgeComponent->InitReferences(this, CombatStateComponent, AttributeComponent, CharacterData);
+    DodgeComponent->InitReferences(this, CombatStateComponent, AttributeComponent, DodgeStaminaCost);
     GuardComponent->InitReferences(this, CombatStateComponent, AttributeComponent, EquipmentComponent);
     SprintComponent->InitReferences(this, CombatStateComponent, AttributeComponent);
 
@@ -220,10 +227,7 @@ void ARVCharacterPlayer::SnapToAttackDirection()
 void ARVCharacterPlayer::OnDeath()
 {
     APlayerController* PC = Cast<APlayerController>(GetController());
-    if (IsValid(PC))
-    {
-        DisableInput(PC);
-    }
+    if (IsValid(PC)) { DisableInput(PC); }
 
     URVHitReactionAnimDataAsset* HitReactionData = GetHitReactionAnimData();
     UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
@@ -324,16 +328,10 @@ void ARVCharacterPlayer::InputDodge(const FInputActionValue& Value)
     if (!IsValid(WeaponData)) { return; }
 
     FVector DodgeDir = GetLastMovementInputVector();
-    if (DodgeDir.IsNearlyZero())
-    {
-        DodgeDir = GetActorForwardVector();
-    }
+    if (DodgeDir.IsNearlyZero()) { DodgeDir = GetActorForwardVector(); }
     DodgeDir = DodgeDir.GetSafeNormal();
 
-    if (CombatStateComponent->HasState(ERVCombatState::Guarding))
-    {
-        GuardComponent->EndGuard();
-    }
+    if (CombatStateComponent->HasState(ERVCombatState::Guarding)) { GuardComponent->EndGuard(); }
 
     UAnimMontage* Montage = nullptr;
 
@@ -342,39 +340,14 @@ void ARVCharacterPlayer::InputDodge(const FInputActionValue& Value)
         const FVector Forward = GetActorForwardVector();
         const FVector Right   = GetActorRightVector();
         const float Angle = FMath::RadiansToDegrees(
-            FMath::Atan2(FVector::DotProduct(Right,   DodgeDir),
-                         FVector::DotProduct(Forward, DodgeDir)));
+            FMath::Atan2(FVector::DotProduct(Right, DodgeDir), FVector::DotProduct(Forward, DodgeDir)));
 
-        if (Angle > -67.5f && Angle <= 67.5f)
-        {
-            SetActorRotation(DodgeDir.ToOrientationRotator());
-            Montage = WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::Forward);
-        }
-        else if (Angle > 67.5f && Angle <= 112.5f)
-        {
-            Montage = WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::Right);
-        }
-        else if (Angle > 112.5f && Angle <= 157.5f)
-        {
-            SetActorRotation((-DodgeDir).ToOrientationRotator());
-            Montage = WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::BackRight);
-        }
-        else if (Angle > 157.5f || Angle < -157.5f)
-        {
-            SetActorRotation((-DodgeDir).ToOrientationRotator());
-            Montage = (Angle > 0.f)
-                ? WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::BackRight)
-                : WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::BackLeft);
-        }
-        else if (Angle < -112.5f && Angle >= -157.5f)
-        {
-            SetActorRotation((-DodgeDir).ToOrientationRotator());
-            Montage = WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::BackLeft);
-        }
-        else
-        {
-            Montage = WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::Left);
-        }
+        if      (Angle > -67.5f  && Angle <=  67.5f)  { SetActorRotation(DodgeDir.ToOrientationRotator());   Montage = WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::Forward);   }
+        else if (Angle >  67.5f  && Angle <= 112.5f)  {                                                       Montage = WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::Right);     }
+        else if (Angle > 112.5f  && Angle <= 157.5f)  { SetActorRotation((-DodgeDir).ToOrientationRotator()); Montage = WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::BackRight);  }
+        else if (Angle >  157.5f || Angle < -157.5f)  { SetActorRotation((-DodgeDir).ToOrientationRotator()); Montage = Angle > 0.f ? WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::BackRight) : WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::BackLeft); }
+        else if (Angle < -112.5f && Angle >= -157.5f) { SetActorRotation((-DodgeDir).ToOrientationRotator()); Montage = WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::BackLeft);   }
+        else                                           {                                                       Montage = WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::Left);      }
     }
     else
     {
@@ -408,10 +381,7 @@ void ARVCharacterPlayer::InputGuardCompleted(const FInputActionValue& Value)
 
 void ARVCharacterPlayer::InputLockOn(const FInputActionValue& Value)
 {
-    if (SprintComponent->IsSprinting())
-    {
-        SprintComponent->EndSprint();
-    }
+    if (SprintComponent->IsSprinting()) { SprintComponent->EndSprint(); }
     LockOnComponent->ToggleLockOn();
 }
 

@@ -9,6 +9,7 @@
 #include "RVCharacterBase.generated.h"
 
 class URVHitReactionComponent;
+class URVCharacterDataAsset;
 class URVHitReactionAnimDataAsset;
 class UMeshComponent;
 
@@ -54,9 +55,9 @@ protected:
 
     virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const { return nullptr; }
 
-    // Override to initialize AttributeComponent and return the stagger duration for this character.
     // Called from BeginPlay before HitReactionComponent is initialized.
-    virtual float InitStats() { return 0.5f; }
+    // Subclass initializes AttributeComponent and any character-specific stats here.
+    virtual void InitStats() {}
 
     UFUNCTION()
     virtual void OnDeath();
@@ -78,6 +79,11 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
     TObjectPtr<URVHitReactionComponent> HitReactionComponent;
+
+    //--- Data ----------------------------------------------------------------
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Data")
+    TObjectPtr<URVCharacterDataAsset> CharacterData;
 
     //--- Movement ------------------------------------------------------------
 

@@ -107,8 +107,6 @@ void URVCombatStateComponent::PerformAttackTrace()
 
     const float DmgMult   = AttackStat ? AttackStat->DamageMultiplier      : 1.f;
     const float PoiseMult = AttackStat ? AttackStat->PoiseDamageMultiplier : 1.f;
-    const ERVHitType HitType = AttackStat ? AttackStat->HitType : ERVHitType::Normal;
-
     const float Damage      = CachedBaseDamage      * DmgMult;
     const float PoiseDamage = CachedBasePoiseDamage * PoiseMult;
 
@@ -166,7 +164,6 @@ void URVCombatStateComponent::PerformAttackTrace()
             FRVHitInfo HitInfo;
             HitInfo.Damage       = Damage;
             HitInfo.PoiseDamage  = PoiseDamage;
-            HitInfo.HitType      = HitType;
             HitInfo.Instigator   = OwnerCharacter;
             HitInfo.HitDirection = (OwnerCharacter->GetActorLocation() - HitActor->GetActorLocation()).GetSafeNormal();
 

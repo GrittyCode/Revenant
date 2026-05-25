@@ -17,6 +17,7 @@ class REVENANT_API ARVGameMode : public AGameModeBase
 
 public:
 	void ShowGameResult(bool bVictory);
+	void SetHUDVisible(bool bVisible); 
 
 protected:
 	virtual void BeginPlay() override;

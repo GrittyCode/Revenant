@@ -1,3 +1,4 @@
+// Source/Revenant.Build.cs
 using UnrealBuildTool;
 
 public class Revenant : ModuleRules
@@ -13,7 +14,8 @@ public class Revenant : ModuleRules
 			"Core", "CoreUObject", "Engine", "InputCore",
 			"EnhancedInput", "AIModule", "NavigationSystem",
 			"StateTreeModule", "GameplayStateTreeModule",
-			"UMG"
+			"UMG",
+			"LevelSequence", "MovieScene" 
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]

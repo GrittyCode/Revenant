@@ -91,6 +91,12 @@ void ARVGameMode::ShowGameResult(bool bVictory)
     }
 }
 
+void ARVGameMode::SetHUDVisible(bool bVisible)
+{
+	if (!IsValid(HUDWidget)) { return; }
+	HUDWidget->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
+}
+
 void ARVGameMode::OnPlayerHealthChanged(float NewHealth, float InDelta)
 {
     if (!IsValid(HUDWidget) || !PlayerCharRef.IsValid()) { return; }

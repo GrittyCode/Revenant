@@ -21,7 +21,6 @@ enum class ERVHitReactCapability : uint8
 };
 ENUM_CLASS_FLAGS(ERVHitReactCapability)
 
-// fired when the full groggy montage sequence (Start → Loop → End) completes naturally
 DECLARE_MULTICAST_DELEGATE(FRVOnGroggySequenceCompleted);
 
 UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
@@ -34,23 +33,18 @@ public:
 
     void HandleHit(const FRVHitInfo& InHitInfo);
 
-    /** Guard break routes through here so recovery is montage-length-driven. */
     void TriggerStaggerWithMontage(UAnimMontage* InMontage);
-
-    /** Starts the 3-stage groggy sequence (Start → Loop → End). Fires OnGroggySequenceCompleted on completion. */
     void TriggerGroggy(float InGroggyDuration);
-
-    /** Transitions from Loop to End montage. Called when groggy duration elapses or forced externally. */
     void EndGroggy();
-
-    /** Stops groggy timer and montage immediately without firing OnGroggySequenceCompleted. Used on death. */
     void AbortGroggy();
 
     void InitReferences(ACharacter* InOwnerCharacter,
                         URVCombatStateComponent* InCombatStateComponent,
                         URVAttributeComponent* InAttributeComponent,
                         URVHitReactionAnimDataAsset* InHitReactionAnimData,
-                        float InStaggerDuration);
+                        float InStaggerDuration,
+                        float InStaggerThreshold,
+                        float InKnockdownThreshold);
 
     void SetHitReactionAnimData(URVHitReactionAnimDataAsset* InHitReactionAnimData) { HitReactionAnimData = InHitReactionAnimData; }
     void SetStaggerDuration(float InDuration)               { StaggerDuration = InDuration; }
@@ -75,14 +69,17 @@ private:
     UPROPERTY()
     TObjectPtr<URVHitReactionAnimDataAsset> HitReactionAnimData;
 
-    FTimerHandle          StaggerHandle;
-    FTimerHandle          GroggyTimerHandle;
-	
-    float                 StaggerDirection   = 0.f;
-    float                 StaggerDuration    = 0.5f;
-	float                 GroggyDuration     = 0.f;
-	
-    // all characters support stagger and knockdown by default; override per character type in BeginPlay
+    FTimerHandle StaggerHandle;
+    FTimerHandle GroggyTimerHandle;
+
+    float StaggerDirection   = 0.f;
+    float StaggerDuration    = 0.5f;
+    float GroggyDuration     = 0.f;
+
+    // Ratio thresholds derived from FRVCharacterStatRow.
+    float StaggerThreshold   = 0.5f;
+    float KnockdownThreshold = 0.4f;
+
     ERVHitReactCapability HitReactCapability = ERVHitReactCapability::Stagger | ERVHitReactCapability::Knockdown;
 
     bool CanHitReact(ERVHitReactCapability InCapability) const { return (HitReactCapability & InCapability) != ERVHitReactCapability::None; }

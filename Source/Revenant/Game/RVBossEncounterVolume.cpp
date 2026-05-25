@@ -1,6 +1,11 @@
 #include "Game/RVBossEncounterVolume.h"
+#include "Game/RVGameMode.h"
 #include "Character/Enemy/RVSevarogCharacter.h"
-#include "Camera/PlayerCameraManager.h"
+#include "Player/RVPlayerController.h"
+#include "AIController.h"
+#include "BrainComponent.h"
+#include "LevelSequenceActor.h"
+#include "LevelSequencePlayer.h"
 #include "Kismet/GameplayStatics.h"
 
 ARVBossEncounterVolume::ARVBossEncounterVolume()
@@ -28,18 +33,8 @@ void ARVBossEncounterVolume::OnOverlapBegin(AActor* OverlappedActor, AActor* Oth
 
 void ARVBossEncounterVolume::BeginBossEncounter()
 {
-    APlayerController* PC = GetWorld()->GetFirstPlayerController();
-    if (IsValid(PC) && IsValid(PC->PlayerCameraManager))
-    {
-        PC->PlayerCameraManager->StartCameraFade(0.f, 1.f, FadeOutDuration, FadeColor, false, true);
-    }
+    //--- Spawn boss ----------------------------------------------------------
 
-    GetWorldTimerManager().SetTimer(
-        SpawnTimerHandle, this, &ARVBossEncounterVolume::OnFadeOutComplete, FadeOutDuration, false);
-}
-
-void ARVBossEncounterVolume::OnFadeOutComplete()
-{
     ensureMsgf(IsValid(BossCharacterClass), TEXT("[ARVBossEncounterVolume] BossCharacterClass is not assigned"));
     if (!IsValid(BossCharacterClass)) { return; }
 
@@ -51,22 +46,104 @@ void ARVBossEncounterVolume::OnFadeOutComplete()
     Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
     SpawnedBoss = GetWorld()->SpawnActor<ARVSevarogCharacter>(BossCharacterClass, SpawnTransform, Params);
 
+    PauseBossAI();
+
+    //--- Lock input + hide HUD -----------------------------------------------
+
+    APlayerController* PC = GetWorld()->GetFirstPlayerController();
+    if (ARVPlayerController* RVPC = Cast<ARVPlayerController>(PC))
+    {
+        RVPC->LockInputForCutscene();
+    }
+
+    if (ARVGameMode* GM = GetWorld()->GetAuthGameMode<ARVGameMode>())
+    {
+        GM->SetHUDVisible(false);
+    }
+
+    //--- Play intro montage --------------------------------------------------
+
+    if (IsValid(SpawnedBoss) && IsValid(BossIntroMontage))
+    {
+        SpawnedBoss->PlayAnimMontage(BossIntroMontage);
+    }
+
+    //--- Start sequence ------------------------------------------------------
+
+    if (!IsValid(CutsceneSequenceActor))
+    {
+        // No sequence assigned — go straight to gameplay
+        if (ARVGameMode* GM = GetWorld()->GetAuthGameMode<ARVGameMode>())
+        {
+            GM->SetHUDVisible(true);
+        }
+        if (ARVPlayerController* RVPC = Cast<ARVPlayerController>(PC))
+        {
+            RVPC->UnlockInputAfterCutscene();
+        }
+        ResumeBossAI();
+        OnBossSpawned.Broadcast(SpawnedBoss);
+        return;
+    }
+
+    ULevelSequencePlayer* SeqPlayer = CutsceneSequenceActor->GetSequencePlayer();
+    if (!IsValid(SeqPlayer))
+    {
+        ResumeBossAI();
+        OnBossSpawned.Broadcast(SpawnedBoss);
+        return;
+    }
+
+    SeqPlayer->OnStop.AddDynamic(this, &ARVBossEncounterVolume::OnCutsceneFinished);
+    SeqPlayer->Play();
+
     if (IsValid(BossBGM))
     {
         UGameplayStatics::SpawnSound2D(GetWorld(), BossBGM);
     }
-
-    GetWorldTimerManager().SetTimer(
-        FadeInTimerHandle, this, &ARVBossEncounterVolume::OnFadeInStart, SpawnDelay, false);
 }
 
-void ARVBossEncounterVolume::OnFadeInStart()
+void ARVBossEncounterVolume::OnCutsceneFinished()
 {
     APlayerController* PC = GetWorld()->GetFirstPlayerController();
-    if (IsValid(PC) && IsValid(PC->PlayerCameraManager))
+
+    if (ARVGameMode* GM = GetWorld()->GetAuthGameMode<ARVGameMode>())
     {
-        PC->PlayerCameraManager->StartCameraFade(1.f, 0.f, FadeInDuration, FadeColor, false, false);
+        GM->SetHUDVisible(true);
     }
 
+    if (ARVPlayerController* RVPC = Cast<ARVPlayerController>(PC))
+    {
+        RVPC->UnlockInputAfterCutscene();
+    }
+
+    ResumeBossAI();
     OnBossSpawned.Broadcast(SpawnedBoss);
+}
+
+void ARVBossEncounterVolume::PauseBossAI()
+{
+    if (!IsValid(SpawnedBoss)) { return; }
+
+    AAIController* AICon = Cast<AAIController>(SpawnedBoss->GetController());
+    if (!IsValid(AICon)) { return; }
+
+    AICon->StopMovement();
+    if (IsValid(AICon->BrainComponent))
+    {
+        AICon->BrainComponent->StopLogic(TEXT("Cutscene"));
+    }
+}
+
+void ARVBossEncounterVolume::ResumeBossAI()
+{
+    if (!IsValid(SpawnedBoss)) { return; }
+
+    AAIController* AICon = Cast<AAIController>(SpawnedBoss->GetController());
+    if (!IsValid(AICon)) { return; }
+
+    if (IsValid(AICon->BrainComponent))
+    {
+        AICon->BrainComponent->RestartLogic();
+    }
 }

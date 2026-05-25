@@ -17,7 +17,7 @@ class URVDodgeComponent;
 class URVGuardComponent;
 class URVSprintComponent;
 class URVHitReactionAnimDataAsset;
-class URVCharacterDataAsset;
+class URVPlayerDataAsset;
 
 struct FInputActionValue;
 
@@ -46,19 +46,13 @@ public:
 protected:
     virtual void BeginPlay() override;
     virtual void OnDeath() override;
-
-    virtual float InitStats() override;
+    virtual void InitStats() override;
 
     virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const override;
     virtual UMeshComponent* GetWeaponTraceMesh() const override;
 
     UFUNCTION()
     void OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData);
-
-    //--- Data ----------------------------------------------------------------
-
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Data")
-    TObjectPtr<URVCharacterDataAsset> CharacterData;
 
     //--- Player-only Action Components ---------------------------------------
 

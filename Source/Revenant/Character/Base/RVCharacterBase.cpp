@@ -1,6 +1,8 @@
 #include "Character/Base/RVCharacterBase.h"
 #include "Component/RVHitReactionComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Data/RVCharacterDataAsset.h"
+#include "Data/RVCharacterStatRow.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 ARVCharacterBase::ARVCharacterBase()
@@ -34,9 +36,16 @@ void ARVCharacterBase::BeginPlay()
 
     CombatStateComponent->InitReferences(this, GetWeaponTraceMesh(), GetCharacterMovement());
 
-    const float StaggerDuration = InitStats();
+    InitStats();
+
+    const FRVCharacterStatRow* StatRow          = IsValid(CharacterData) ? CharacterData->GetStatRow() : nullptr;
+    const float                StaggerDuration    = StatRow ? StatRow->StaggerDuration    : 0.5f;
+    const float                StaggerThreshold   = StatRow ? StatRow->StaggerThreshold   : 0.5f;
+    const float                KnockdownThreshold = StatRow ? StatRow->KnockdownThreshold : 0.4f;
+
     HitReactionComponent->InitReferences(
-        this, CombatStateComponent, AttributeComponent, GetHitReactionAnimData(), StaggerDuration);
+        this, CombatStateComponent, AttributeComponent, GetHitReactionAnimData(),
+        StaggerDuration, StaggerThreshold, KnockdownThreshold);
 
     AttributeComponent->OnDeath.AddDynamic(this, &ARVCharacterBase::OnDeath);
 }

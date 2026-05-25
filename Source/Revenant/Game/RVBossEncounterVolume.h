@@ -1,3 +1,4 @@
+// Source/Revenant/Game/RVBossEncounterVolume.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -5,6 +6,7 @@
 #include "RVBossEncounterVolume.generated.h"
 
 class ARVSevarogCharacter;
+class ALevelSequenceActor;
 class USoundBase;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FRVOnBossSpawned, ARVSevarogCharacter* /*SpawnedBoss*/);
@@ -17,7 +19,6 @@ class REVENANT_API ARVBossEncounterVolume : public ATriggerVolume
 public:
 	ARVBossEncounterVolume();
 
-	// ARVGameMode subscribes via AddUObject in BeginPlay.
 	FRVOnBossSpawned OnBossSpawned;
 
 protected:
@@ -29,34 +30,22 @@ private:
 	UPROPERTY(EditInstanceOnly, Category = "RV|Boss")
 	TSubclassOf<ARVSevarogCharacter> BossCharacterClass;
 
-	// Place a TargetPoint actor in the level and assign here.
 	UPROPERTY(EditInstanceOnly, Category = "RV|Boss")
 	TObjectPtr<AActor> BossSpawnPoint;
 
 	UPROPERTY(EditInstanceOnly, Category = "RV|Boss")
 	TObjectPtr<USoundBase> BossBGM;
 
-	//--- Fade timing ---------------------------------------------------------
+	UPROPERTY(EditInstanceOnly, Category = "RV|Boss|Cutscene")
+	TObjectPtr<ALevelSequenceActor> CutsceneSequenceActor;
 
-	UPROPERTY(EditInstanceOnly, Category = "RV|Boss|Fade")
-	float FadeOutDuration = 0.5f;
-
-	UPROPERTY(EditInstanceOnly, Category = "RV|Boss|Fade")
-	float SpawnDelay = 0.3f;
-
-	UPROPERTY(EditInstanceOnly, Category = "RV|Boss|Fade")
-	float FadeInDuration = 0.5f;
-
-	UPROPERTY(EditInstanceOnly, Category = "RV|Boss|Fade")
-	FLinearColor FadeColor = FLinearColor::Black;
+	UPROPERTY(EditInstanceOnly, Category = "RV|Boss|Cutscene")
+	TObjectPtr<UAnimMontage> BossIntroMontage;
 
 	//--- Runtime state -------------------------------------------------------
 
 	bool bTriggered = false;
 	TObjectPtr<ARVSevarogCharacter> SpawnedBoss;
-
-	FTimerHandle SpawnTimerHandle;
-	FTimerHandle FadeInTimerHandle;
 
 	//--- Internal flow -------------------------------------------------------
 
@@ -64,6 +53,10 @@ private:
 	void OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor);
 
 	void BeginBossEncounter();
-	void OnFadeOutComplete();
-	void OnFadeInStart();
+
+	void PauseBossAI();
+	void ResumeBossAI();
+
+	UFUNCTION()
+	void OnCutsceneFinished();
 };

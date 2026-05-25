@@ -117,7 +117,6 @@ void ARVDummyTarget::DealDamageToPlayer()
 	FRVHitInfo HitInfo;
 	HitInfo.Damage       = DealDamageAmount;
 	HitInfo.PoiseDamage  = DealPoiseDamage;
-	HitInfo.HitType      = ERVHitType::Normal;
 	HitInfo.HitDirection = (GetActorLocation() - CachedPlayer->GetActorLocation()).GetSafeNormal();
 	HitInfo.Instigator   = this;
 

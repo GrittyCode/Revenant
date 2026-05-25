@@ -1,4 +1,3 @@
-// Source/Revenant/Component/RVHitReactionComponent.cpp
 #include "Component/RVHitReactionComponent.h"
 #include "Component/RVCombatStateComponent.h"
 #include "Component/RVAttributeComponent.h"
@@ -23,38 +22,49 @@ void URVHitReactionComponent::InitReferences(
     URVCombatStateComponent* InCombatStateComponent,
     URVAttributeComponent* InAttributeComponent,
     URVHitReactionAnimDataAsset* InHitReactionAnimData,
-    float InStaggerDuration)
+    float InStaggerDuration,
+    float InStaggerThreshold,
+    float InKnockdownThreshold)
 {
     OwnerCharacter       = InOwnerCharacter;
     CombatStateComponent = InCombatStateComponent;
     AttributeComponent   = InAttributeComponent;
     HitReactionAnimData  = InHitReactionAnimData;
     StaggerDuration      = InStaggerDuration;
+    StaggerThreshold     = InStaggerThreshold;
+    KnockdownThreshold   = InKnockdownThreshold;
 }
 
 //--- Main Entry Point --------------------------------------------------------
 
 void URVHitReactionComponent::HandleHit(const FRVHitInfo& InHitInfo)
 {
-    // Knockdown blocks all further hit processing.
-    // HitReaction (stagger) does not — a hit while staggering escalates to knockdown.
-    if (CombatStateComponent->HasState(ERVCombatState::Knockdown))
-    {
-        return;
-    }
+    if (CombatStateComponent->HasState(ERVCombatState::Knockdown)) { return; }
 
-    const bool bPoiseDepleted = AttributeComponent->ApplyPoiseDamage(InHitInfo.PoiseDamage);
-    if (!bPoiseDepleted) { return; }
+    const float MaxPoise = AttributeComponent->GetMaxPoise();
 
-    const bool bShouldKnockdown = InHitInfo.HitType != ERVHitType::Normal
-                                || !CombatStateComponent->IsGrounded()
-                                || CombatStateComponent->HasState(ERVCombatState::HitReaction);
+    // Single-hit knockdown: one attack delivers enough poise damage relative to MaxPoise.
+    const bool bSingleHitKnockdown = MaxPoise > 0.f
+        && (InHitInfo.PoiseDamage / MaxPoise) >= KnockdownThreshold;
 
-    // capability check after poise damage — poise must accumulate even when reactions are disabled
+    // Apply poise damage. Also fires OnPoiseDepleted for boss groggy if poise hits 0.
+    AttributeComponent->ApplyPoiseDamage(InHitInfo.PoiseDamage);
+
+    const float PoiseRatio = AttributeComponent->GetPoiseRatio();
+
+    // Escalate to knockdown if already staggering or airborne.
+    const bool bShouldKnockdown = bSingleHitKnockdown
+        || !CombatStateComponent->IsGrounded()
+        || CombatStateComponent->HasState(ERVCombatState::HitReaction);
+
+    const bool bReactionNeeded = bShouldKnockdown || (PoiseRatio <= StaggerThreshold);
+    if (!bReactionNeeded) { return; }
+
     const ERVHitReactCapability Required = bShouldKnockdown
         ? ERVHitReactCapability::Knockdown
         : ERVHitReactCapability::Stagger;
 
+    // Poise damage accumulates even when reactions are disabled (e.g. boss Groggy capability only).
     if (!CanHitReact(Required)) { return; }
 
     CombatStateComponent->ForceEndAllActions();
@@ -62,7 +72,6 @@ void URVHitReactionComponent::HandleHit(const FRVHitInfo& InHitInfo)
 
     if (bShouldKnockdown)
     {
-        // clear active stagger before entering knockdown
         if (CombatStateComponent->HasState(ERVCombatState::HitReaction))
         {
             GetWorld()->GetTimerManager().ClearTimer(StaggerHandle);
@@ -108,7 +117,6 @@ void URVHitReactionComponent::TriggerGroggy(float InGroggyDuration)
     UAnimMontage* StartMontage = HitReactionAnimData->GroggyStunStartMontage;
     if (!IsValid(StartMontage))
     {
-        // no start montage — go straight to loop
         UAnimMontage* LoopMontage = HitReactionAnimData->GroggyStunLoopMontage;
         if (IsValid(LoopMontage)) { AnimInst->Montage_Play(LoopMontage); }
         GetWorld()->GetTimerManager().SetTimer(
@@ -138,7 +146,6 @@ void URVHitReactionComponent::EndGroggy()
     UAnimMontage* EndMontage = HitReactionAnimData->GroggyStunEndMontage;
     if (!IsValid(EndMontage))
     {
-        // no end montage — complete immediately
         OnGroggySequenceCompleted.Broadcast();
         return;
     }
@@ -153,7 +160,6 @@ void URVHitReactionComponent::EndGroggy()
 void URVHitReactionComponent::AbortGroggy()
 {
     GetWorld()->GetTimerManager().ClearTimer(GroggyTimerHandle);
-    // montage is stopped by the caller (e.g. OnDeath stops all montages before playing DeathMontage)
 }
 
 //--- Reaction Triggers -------------------------------------------------------
@@ -170,8 +176,7 @@ void URVHitReactionComponent::TriggerStagger(const FVector& InHitDirection)
         this,
         &URVHitReactionComponent::OnStaggerEnd,
         StaggerDuration,
-        false
-    );
+        false);
 }
 
 void URVHitReactionComponent::TriggerKnockdown(const FVector& InHitDirection)

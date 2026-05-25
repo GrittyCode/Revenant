@@ -1,7 +1,6 @@
 #include "Component/RVDodgeComponent.h"
 #include "Component/RVCombatStateComponent.h"
 #include "Component/RVAttributeComponent.h"
-#include "Data/RVCharacterDataAsset.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Animation/AnimInstance.h"
@@ -20,35 +19,32 @@ void URVDodgeComponent::InitReferences(
     ACharacter* InOwnerCharacter,
     URVCombatStateComponent* InCombatStateComponent,
     URVAttributeComponent* InAttributeComponent,
-    URVCharacterDataAsset* InCharacterData)
+    float InDodgeStaminaCost)
 {
-    OwnerCharacter       = InOwnerCharacter;
+    OwnerCharacter     = InOwnerCharacter;
     CombatStateComponent = InCombatStateComponent;
     AttributeComponent   = InAttributeComponent;
-    CharacterData        = InCharacterData;
+    DodgeStaminaCost     = InDodgeStaminaCost;
 }
 
 bool URVDodgeComponent::CanStartDodge() const
 {
-	if (CombatStateComponent->HasState(ERVCombatState::Dodging)) { return false; }
-	if (!CombatStateComponent->CheckAvailableState()) { return false; }
-	if (!CombatStateComponent->IsGrounded()) { return false; }
+    if (CombatStateComponent->HasState(ERVCombatState::Dodging)) { return false; }
+    if (!CombatStateComponent->CheckAvailableState())            { return false; }
+    if (!CombatStateComponent->IsGrounded())                     { return false; }
+    if (AttributeComponent->GetCurrentStamina() < DodgeStaminaCost) { return false; }
 
-	const float StaminaCost = IsValid(CharacterData) ? CharacterData->DodgeStaminaCost : 30.f;
-	if (AttributeComponent->GetCurrentStamina() < StaminaCost) { return false; }
-
-	return true;
+    return true;
 }
 
 void URVDodgeComponent::StartDodge(UAnimMontage* InMontage)
 {
     if (CombatStateComponent->HasState(ERVCombatState::Dodging)) { return; }
-    if (!CombatStateComponent->CheckAvailableState()) { return; }
-    if (!CombatStateComponent->IsGrounded()) { return; }
-    if (!IsValid(InMontage)) { return; }
+    if (!CombatStateComponent->CheckAvailableState())            { return; }
+    if (!CombatStateComponent->IsGrounded())                     { return; }
+    if (!IsValid(InMontage))                                     { return; }
 
-    const float StaminaCost = IsValid(CharacterData) ? CharacterData->DodgeStaminaCost : 30.f;
-    if (!AttributeComponent->ConsumeStamina(StaminaCost)) { return; }
+    if (!AttributeComponent->ConsumeStamina(DodgeStaminaCost)) { return; }
 
     UAnimInstance* AnimInstance = OwnerCharacter->GetMesh()->GetAnimInstance();
     if (!IsValid(AnimInstance)) { return; }
