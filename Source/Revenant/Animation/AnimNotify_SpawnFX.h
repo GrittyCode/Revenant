@@ -8,17 +8,14 @@
 UCLASS(meta = (DisplayName = "Spawn FX"))
 class REVENANT_API UAnimNotify_SpawnFX : public UAnimNotify
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
-        const FAnimNotifyEventReference& EventReference) override;
+	virtual void Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
+		const FAnimNotifyEventReference& EventReference) override;
 
-    virtual FString GetNotifyName_Implementation() const override
-    {
-        return TEXT("SpawnFX");
-    }
+	virtual FString GetNotifyName_Implementation() const override { return TEXT("SpawnFX"); }
 
-    UPROPERTY(EditAnywhere, Category = "RV|FX")
-    TArray<FRVFXEntry> FXList;
+	UPROPERTY(EditAnywhere, Category = "RV|FX")
+	TArray<FRVFXEntry> FXList;
 };

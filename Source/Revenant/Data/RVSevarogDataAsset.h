@@ -9,6 +9,8 @@ class UBlendSpace;
 class URVHitReactionAnimDataAsset;
 class UAnimMontage;
 class UParticleSystem;
+class UNiagaraSystem;
+class USoundBase;
 
 USTRUCT(BlueprintType)
 struct FRVBossAttackPattern
@@ -68,7 +70,7 @@ struct FRVSubjugationData
     // Spawned at computed positions — position requires C++ calculation.
     UPROPERTY(EditDefaultsOnly) TObjectPtr<UParticleSystem> BlastFX;  // P_Sevarog_Subjugate_Blast
     UPROPERTY(EditDefaultsOnly) TObjectPtr<UParticleSystem> SwirlsFX; // P_SubjugateSwirls
-
+	UPROPERTY(EditDefaultsOnly) TObjectPtr<USoundBase> BlastSFX;
     // Cast cosmetic FX — assign to AnimNotify_SpawnFX on AM_Boss_Subjugation.
 };
 
@@ -120,6 +122,23 @@ public:
     UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4,
         ClampMin = "0.0"))
     float AttackRadius = 55.f;
+
+    // Cascade hit impact spawned at the struck actor's location on confirmed melee hits.
+    UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4))
+    TObjectPtr<UParticleSystem> MeleeHitImpact; // P_Sevarog_Melee_SucessfulImpact
+
+    // Sound played at the struck actor's location on each confirmed melee hit.
+    UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4))
+    TObjectPtr<USoundBase> MeleeHitSFX;
+
+    // Niagara trail attached to WeaponTip socket on melee swing.
+    // Activated via AnimNotifyState_WeaponTrailFX. Same approach as player weapon trail.
+    UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4))
+    TObjectPtr<UNiagaraSystem> MeleeTrailEffect;
+
+    // Ribbon width injected into User.Width parameter of the trail Niagara system.
+    UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4, ClampMin = "0.0"))
+    float MeleeTrailWidth = 15.f;
 
     //--- Movement ------------------------------------------------------------
 

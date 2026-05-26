@@ -7,6 +7,8 @@
 class URVWeaponDataAsset;
 class URVHitReactionAnimDataAsset;
 class UStaticMeshComponent;
+class UNiagaraComponent;
+class UNiagaraSystem;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRVOnWeaponChanged, URVWeaponDataAsset*, NewWeaponData);
 
@@ -18,15 +20,20 @@ class REVENANT_API URVEquipmentComponent : public UActorComponent
 public:
 	URVEquipmentComponent();
 
-	URVWeaponDataAsset*          GetCurrentWeaponData()         const { return CurrentWeaponData; }
+	URVWeaponDataAsset*          GetCurrentWeaponData()          const { return CurrentWeaponData; }
 	URVHitReactionAnimDataAsset* GetCurrentHitReactionAnimData() const;
 	UStaticMeshComponent*        GetWeaponMeshComponent()        const { return WeaponMeshComponent; }
 
 	void SetCurrentWeaponData(URVWeaponDataAsset* InWeaponData);
 
 	// Toggles between WeaponDataSlotA and WeaponDataSlotB.
-	// Gate checks (combat state) are the caller's responsibility before calling this.
 	void SwapWeapon();
+
+	// Called by AnimNotifyState_WeaponTrailFX::NotifyBegin.
+	void ActivateWeaponTrail();
+
+	// Called by AnimNotifyState_WeaponTrailFX::NotifyEnd.
+	void DeactivateWeaponTrail();
 
 	UPROPERTY(BlueprintAssignable, Category = "RV|Equipment")
 	FRVOnWeaponChanged OnWeaponChanged;
@@ -48,5 +55,14 @@ private:
 	UPROPERTY()
 	TObjectPtr<UStaticMeshComponent> WeaponMeshComponent;
 
+	// Permanently attached Niagara component for the blade trail.
+	// Inactive by default; activated only during AttackHitCheck window.
+	UPROPERTY()
+	TObjectPtr<UNiagaraComponent> WeaponTrailNC;
+
 	bool bIsSlotA = true;
+
+	// Applies the trail asset and width from the given weapon data.
+	// Called on weapon equip / swap. Deactivates any active trail first.
+	void SetupWeaponTrail(URVWeaponDataAsset* InWeaponData);
 };

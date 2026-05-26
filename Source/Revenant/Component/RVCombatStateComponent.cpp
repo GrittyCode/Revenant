@@ -8,6 +8,9 @@
 #include "Components/MeshComponent.h"
 #include "DrawDebugHelpers.h"
 #include "Engine/OverlapResult.h"
+#include "Kismet/GameplayStatics.h"
+#include "NiagaraFunctionLibrary.h"
+#include "Particles/ParticleSystem.h"
 
 URVCombatStateComponent::URVCombatStateComponent()
 {
@@ -37,6 +40,16 @@ void URVCombatStateComponent::SetCombatStat(
     CachedBaseDamage      = InBaseDamage;
     CachedBasePoiseDamage = InBasePoiseDamage;
     CachedAttackRadius    = InAttackRadius;
+}
+
+void URVCombatStateComponent::SetHitFX(
+    UNiagaraSystem* InNiagara,
+    UParticleSystem* InCascade,
+    USoundBase* InSFX)
+{
+    HitImpactEffect        = InNiagara;
+    HitImpactEffectCascade = InCascade;
+    HitSFX                 = InSFX;
 }
 
 
@@ -168,6 +181,26 @@ void URVCombatStateComponent::PerformAttackTrace()
             HitInfo.HitDirection = (OwnerCharacter->GetActorLocation() - HitActor->GetActorLocation()).GetSafeNormal();
 
             Target->ApplyDamage(HitInfo);
+
+            // ---- Hit Impact VFX ----
+            const FVector ImpactLocation = HitActor->GetActorLocation();
+
+            if (IsValid(HitImpactEffect))
+            {
+                UNiagaraFunctionLibrary::SpawnSystemAtLocation(
+                    GetWorld(), HitImpactEffect, ImpactLocation);
+            }
+            else if (IsValid(HitImpactEffectCascade))
+            {
+                UGameplayStatics::SpawnEmitterAtLocation(
+                    GetWorld(), HitImpactEffectCascade, ImpactLocation);
+            }
+
+            // ---- Hit SFX ----
+            if (IsValid(HitSFX))
+            {
+                UGameplayStatics::PlaySoundAtLocation(GetWorld(), HitSFX, ImpactLocation);
+            }
         }
     }
 }

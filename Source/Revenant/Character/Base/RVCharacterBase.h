@@ -43,6 +43,10 @@ public:
     void OpenAttackHitWindow();
     void CloseAttackHitWindow();
 
+    // Called by AnimNotifyState_WeaponTrailFX. No-op by default (boss has no weapon mesh).
+    virtual void ActivateWeaponTrail()   {}
+    virtual void DeactivateWeaponTrail() {}
+
     //--- State query facades (AnimInstance) ----------------------------------
 
     bool  IsInCombatState(ERVCombatState InState) const;

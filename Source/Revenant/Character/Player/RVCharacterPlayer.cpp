@@ -160,6 +160,16 @@ UMeshComponent* ARVCharacterPlayer::GetWeaponTraceMesh() const
     return EquipmentComponent->GetWeaponMeshComponent();
 }
 
+void ARVCharacterPlayer::ActivateWeaponTrail()
+{
+    EquipmentComponent->ActivateWeaponTrail();
+}
+
+void ARVCharacterPlayer::DeactivateWeaponTrail()
+{
+    EquipmentComponent->DeactivateWeaponTrail();
+}
+
 void ARVCharacterPlayer::OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData)
 {
     URVHitReactionAnimDataAsset* NewCombatData = IsValid(NewWeaponData) ? NewWeaponData->HitReactionAnimData : nullptr;
@@ -173,6 +183,11 @@ void ARVCharacterPlayer::OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponDat
             WeaponStat->BasePoiseDamage,
             WeaponStat->AttackRadius);
     }
+
+    CombatStateComponent->SetHitFX(
+        IsValid(NewWeaponData) ? NewWeaponData->HitImpactEffect : nullptr,
+        nullptr,
+        IsValid(NewWeaponData) ? NewWeaponData->HitSFX          : nullptr);
 }
 
 //--- IRVDamageable -----------------------------------------------------------

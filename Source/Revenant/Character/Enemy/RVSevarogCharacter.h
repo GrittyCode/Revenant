@@ -5,6 +5,7 @@
 #include "RVSevarogCharacter.generated.h"
 
 class URVSevarogDataAsset;
+class UNiagaraComponent;
 
 UENUM(BlueprintType)
 enum class ERVBossPhase : uint8
@@ -82,10 +83,16 @@ protected:
     virtual void InitStats() override;
     virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const override;
 
+    virtual void ActivateWeaponTrail()   override;
+    virtual void DeactivateWeaponTrail() override;
+
 private:
     // Cached cast of CharacterData. Assigned in InitStats() — not exposed to the editor.
     UPROPERTY()
     TObjectPtr<URVSevarogDataAsset> SevarogData;
+
+    UPROPERTY()
+    TObjectPtr<UNiagaraComponent> MeleeTrailNC;
 
     ERVBossPhase CurrentPhase     = ERVBossPhase::Phase1;
     // bIsGroggy mirrors ERVCombatState::Groggy on CombatStateComponent.

@@ -49,6 +49,8 @@ protected:
 
     virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const override;
     virtual UMeshComponent* GetWeaponTraceMesh() const override;
+    virtual void ActivateWeaponTrail()   override;
+    virtual void DeactivateWeaponTrail() override;
 
     UFUNCTION()
     void OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData);

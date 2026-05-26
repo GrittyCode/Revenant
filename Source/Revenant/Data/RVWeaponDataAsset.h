@@ -9,6 +9,8 @@
 class URVLocomotionAnimDataAsset;
 class URVPlayerCombatAnimDataAsset;
 class URVHitReactionAnimDataAsset;
+class UNiagaraSystem;
+class USoundBase;
 struct FRVWeaponStatRow;
 
 UCLASS(BlueprintType)
@@ -18,7 +20,7 @@ class REVENANT_API URVWeaponDataAsset : public UPrimaryDataAsset
 
 public:
 
-	// -- Stat ----------------------------------------------------------------
+	//--- Stat ----------------------------------------------------------------
 
 	// Points to a row in DT_WeaponStats.
 	// Final hit values = WeaponStat.Base* × DT_AttackStats.Multiplier (via URVMontageStatData).
@@ -43,6 +45,26 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
 	TObjectPtr<URVHitReactionAnimDataAsset> HitReactionAnimData;
+
+	//--- VFX / SFX -----------------------------------------------------------
+
+	// Weapon trail Niagara system.
+	// Activated during AttackHitCheck window via AnimNotifyState_WeaponTrailFX.
+	// Must expose User Parameters: TrailWorldStart (Vector), TrailWorldEnd (Vector), TrailWidth (Float).
+	UPROPERTY(EditDefaultsOnly, Category = "RV|VFX")
+	TObjectPtr<UNiagaraSystem> TrailEffect;
+
+	// Ribbon width of the blade trail. Injected into TrailWidth Niagara parameter.
+	UPROPERTY(EditDefaultsOnly, Category = "RV|VFX", meta = (ClampMin = "0.0"))
+	float TrailWidth = 10.f;
+
+	// Niagara hit impact spawned at the struck actor's location on each confirmed hit.
+	UPROPERTY(EditDefaultsOnly, Category = "RV|VFX")
+	TObjectPtr<UNiagaraSystem> HitImpactEffect;
+
+	// Sound played at the struck actor's location on each confirmed hit.
+	UPROPERTY(EditDefaultsOnly, Category = "RV|SFX")
+	TObjectPtr<USoundBase> HitSFX;
 
 	//--- Per-Instance Montage Overrides --------------------------------------
 

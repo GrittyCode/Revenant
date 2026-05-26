@@ -4,25 +4,36 @@
 #include "RVFXEntry.generated.h"
 
 class UParticleSystem;
+class UNiagaraSystem;
+class USoundBase;
 
 USTRUCT(BlueprintType)
 struct FRVFXEntry
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
-    UPROPERTY(EditAnywhere, Category = "RV|FX")
-    TObjectPtr<UParticleSystem> FX;
+	// Cascade particle. Used when NiagaraFX is null.
+	UPROPERTY(EditAnywhere, Category = "RV|FX")
+	TObjectPtr<UParticleSystem> FX;
 
-    // Attach to this socket. If None, attaches to mesh root.
-    UPROPERTY(EditAnywhere, Category = "RV|FX")
-    FName SocketName = NAME_None;
+	// Niagara system. Takes priority over FX when both are set.
+	UPROPERTY(EditAnywhere, Category = "RV|FX")
+	TObjectPtr<UNiagaraSystem> NiagaraFX;
 
-    UPROPERTY(EditAnywhere, Category = "RV|FX")
-    FVector LocationOffset = FVector::ZeroVector;
+	// Optional SFX played at the spawn location.
+	UPROPERTY(EditAnywhere, Category = "RV|FX")
+	TObjectPtr<USoundBase> SFX;
 
-    UPROPERTY(EditAnywhere, Category = "RV|FX")
-    FRotator RotationOffset = FRotator::ZeroRotator;
+	// Attach to this socket. NAME_None attaches to mesh root.
+	UPROPERTY(EditAnywhere, Category = "RV|FX")
+	FName SocketName = NAME_None;
 
-    UPROPERTY(EditAnywhere, Category = "RV|FX")
-    FVector Scale = FVector::OneVector;
+	UPROPERTY(EditAnywhere, Category = "RV|FX")
+	FVector LocationOffset = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere, Category = "RV|FX")
+	FRotator RotationOffset = FRotator::ZeroRotator;
+
+	UPROPERTY(EditAnywhere, Category = "RV|FX")
+	FVector Scale = FVector::OneVector;
 };

@@ -8,6 +8,9 @@
 class ACharacter;
 class UMeshComponent;
 class UCharacterMovementComponent;
+class UNiagaraSystem;
+class UParticleSystem;
+class USoundBase;
 
 UENUM(meta=(Bitflags))
 enum class ERVCombatState : uint16
@@ -85,6 +88,14 @@ public:
      */
     void SetCombatStat(float InBaseDamage, float InBasePoiseDamage, float InAttackRadius);
 
+    /**
+     * Injects hit impact VFX and SFX used by PerformAttackTrace.
+     * Player: called from OnWeaponChangedHandler (per weapon).
+     * Boss:   called from InitStats (once at BeginPlay).
+     * Pass nullptr for unused slots.
+     */
+    void SetHitFX(UNiagaraSystem* InNiagara, UParticleSystem* InCascade, USoundBase* InSFX);
+
     //--- Attack State Handlers -----------------------------------------------
 
     void OnAttackStarted();
@@ -111,6 +122,16 @@ private:
     float CachedBaseDamage      = 0.f;
     float CachedBasePoiseDamage = 0.f;
     float CachedAttackRadius    = 40.f;
+
+    // Cached hit impact VFX / SFX. Injected via SetHitFX().
+    UPROPERTY()
+    TObjectPtr<UNiagaraSystem>  HitImpactEffect;
+
+    UPROPERTY()
+    TObjectPtr<UParticleSystem> HitImpactEffectCascade;
+
+    UPROPERTY()
+    TObjectPtr<USoundBase> HitSFX;
 
     TSet<TWeakObjectPtr<AActor>> HitActors;
 };

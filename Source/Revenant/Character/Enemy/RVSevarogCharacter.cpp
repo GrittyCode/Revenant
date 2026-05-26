@@ -16,6 +16,8 @@
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Particles/ParticleSystem.h"
+#include "NiagaraComponent.h"
+#include "NiagaraFunctionLibrary.h"
 
 ARVSevarogCharacter::ARVSevarogCharacter()
 {
@@ -46,6 +48,11 @@ void ARVSevarogCharacter::InitStats()
         SevarogData->BaseDamage,
         SevarogData->BasePoiseDamage,
         SevarogData->AttackRadius);
+
+    CombatStateComponent->SetHitFX(
+        nullptr,
+        SevarogData->MeleeHitImpact,
+        SevarogData->MeleeHitSFX);
 }
 
 void ARVSevarogCharacter::BeginPlay()
@@ -58,6 +65,27 @@ void ARVSevarogCharacter::BeginPlay()
 
     AttributeComponent->OnHealthChanged.AddDynamic(this, &ARVSevarogCharacter::CheckPhaseTransition);
     AttributeComponent->OnPoiseDepleted.AddDynamic(this, &ARVSevarogCharacter::OnPoiseDepleted);
+
+    // ---- Melee weapon trail ----
+    // Same approach as player: UNiagaraComponent attached to WeaponTip socket.
+    // Activated only during AnimNotifyState_WeaponTrailFX window.
+    if (IsValid(SevarogData) && IsValid(SevarogData->MeleeTrailEffect))
+    {
+        MeleeTrailNC = UNiagaraFunctionLibrary::SpawnSystemAttached(
+            SevarogData->MeleeTrailEffect,
+            GetMesh(),
+            TEXT("WeaponTip"),
+            FVector::ZeroVector,
+            FRotator::ZeroRotator,
+            EAttachLocation::KeepRelativeOffset,
+            false); // bAutoDestroy = false
+
+        if (IsValid(MeleeTrailNC))
+        {
+            MeleeTrailNC->SetVariableFloat(TEXT("Width"), SevarogData->MeleeTrailWidth);
+            MeleeTrailNC->DeactivateImmediate();
+        }
+    }
 }
 
 URVHitReactionAnimDataAsset* ARVSevarogCharacter::GetHitReactionAnimData() const
@@ -346,6 +374,11 @@ void ARVSevarogCharacter::SpawnSubjugationBlast()
     const FVector Origin = GetGroundOrigin();
     SpawnFXAtLocation(SevarogData->Subjugation.BlastFX, Origin);
 
+    if (IsValid(SevarogData->Subjugation.BlastSFX))
+    {
+        UGameplayStatics::PlaySoundAtLocation(this, SevarogData->Subjugation.BlastSFX, Origin);
+    }
+
     const float MinSeparation = SevarogData->Subjugation.SwirlDamageRadius * 2.f;
     const TArray<FVector> SwirlLocations = GenerateSwirlLocations(
         Origin,
@@ -462,6 +495,18 @@ void ARVSevarogCharacter::ApplyRadialDamageAt(const FVector& InLocation, float I
             }
         }
     }
+}
+
+//--- Weapon trail ------------------------------------------------------------
+
+void ARVSevarogCharacter::ActivateWeaponTrail()
+{
+    if (IsValid(MeleeTrailNC)) { MeleeTrailNC->Activate(true); }
+}
+
+void ARVSevarogCharacter::DeactivateWeaponTrail()
+{
+    if (IsValid(MeleeTrailNC)) { MeleeTrailNC->DeactivateImmediate(); }
 }
 
 //--- VFX helpers -------------------------------------------------------------
