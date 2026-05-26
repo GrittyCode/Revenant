@@ -1,5 +1,5 @@
 #include "Animation/AnimNotifyState_ComboWindow.h"
-#include "Component/RVComboComponent.h"
+#include "Component/RVWeaponAttackComponent.h"
 
 void UAnimNotifyState_ComboWindow::NotifyBegin(USkeletalMeshComponent* MeshComp,
 	UAnimSequenceBase* Animation, float TotalDuration,
@@ -10,11 +10,12 @@ void UAnimNotifyState_ComboWindow::NotifyBegin(USkeletalMeshComponent* MeshComp,
 	AActor* Owner = MeshComp->GetOwner();
 	if (!IsValid(Owner)) { return; }
 
-	URVComboComponent* ComboComp = Owner->FindComponentByClass<URVComboComponent>();
-	if (!IsValid(ComboComp)) { return; }
+	URVWeaponAttackComponent* WeaponAttackComp =
+		Owner->FindComponentByClass<URVWeaponAttackComponent>();
+	if (!IsValid(WeaponAttackComp)) { return; }
 
-	CachedComboComps.Add(MeshComp, ComboComp);
-	ComboComp->OpenComboWindow();
+	CachedComboComps.Add(MeshComp, WeaponAttackComp);
+	WeaponAttackComp->OpenComboWindow();
 }
 
 void UAnimNotifyState_ComboWindow::NotifyEnd(USkeletalMeshComponent* MeshComp,
@@ -23,11 +24,11 @@ void UAnimNotifyState_ComboWindow::NotifyEnd(USkeletalMeshComponent* MeshComp,
 {
 	Super::NotifyEnd(MeshComp, Animation, EventReference);
 
-	URVComboComponent* ComboComp = CachedComboComps.FindRef(MeshComp);
+	URVWeaponAttackComponent* WeaponAttackComp = CachedComboComps.FindRef(MeshComp);
 	CachedComboComps.Remove(MeshComp);
 
-	if (!IsValid(ComboComp)) { return; }
-	ComboComp->CloseComboWindow();
+	if (!IsValid(WeaponAttackComp)) { return; }
+	WeaponAttackComp->CloseComboWindow();
 }
 
 FString UAnimNotifyState_ComboWindow::GetNotifyName_Implementation() const

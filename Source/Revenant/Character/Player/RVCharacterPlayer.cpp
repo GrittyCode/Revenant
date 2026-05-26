@@ -1,11 +1,9 @@
 #include "Character/Player/RVCharacterPlayer.h"
 #include "Camera/CameraComponent.h"
 #include "Component/RVCombatStateComponent.h"
-#include "Component/RVComboComponent.h"
-#include "Component/RVHeavyAttackComponent.h"
+#include "Component/RVWeaponAttackComponent.h"
 #include "Component/RVDodgeComponent.h"
 #include "Component/RVGuardComponent.h"
-#include "Component/RVSprintComponent.h"
 #include "Component/RVAttributeComponent.h"
 #include "Component/RVHitReactionComponent.h"
 #include "Component/RVLockOnComponent.h"
@@ -19,9 +17,13 @@
 #include "InputMappingContext.h"
 #include "Input/RVInputConfig.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Data/RVHitReactionAnimDataAsset.h"
 #include "Data/RVWeaponStatRow.h"
+
+// Must be moving at least this fast before sprint can activate.
+static constexpr float MinSpeedToStartSprint = 10.f;
 
 ARVCharacterPlayer::ARVCharacterPlayer()
 {
@@ -41,13 +43,11 @@ ARVCharacterPlayer::ARVCharacterPlayer()
     FollowCamera->bUsePawnControlRotation = false;
     FollowCamera->FieldOfView = 75.f;
 
-    LockOnComponent      = CreateDefaultSubobject<URVLockOnComponent>      (TEXT("LockOnComponent"));
-    ComboComponent       = CreateDefaultSubobject<URVComboComponent>       (TEXT("ComboComponent"));
-    HeavyAttackComponent = CreateDefaultSubobject<URVHeavyAttackComponent> (TEXT("HeavyAttackComponent"));
-    DodgeComponent       = CreateDefaultSubobject<URVDodgeComponent>       (TEXT("DodgeComponent"));
-    GuardComponent       = CreateDefaultSubobject<URVGuardComponent>       (TEXT("GuardComponent"));
-    SprintComponent      = CreateDefaultSubobject<URVSprintComponent>      (TEXT("SprintComponent"));
-    EquipmentComponent   = CreateDefaultSubobject<URVEquipmentComponent>   (TEXT("EquipmentComponent"));
+    LockOnComponent       = CreateDefaultSubobject<URVLockOnComponent>      (TEXT("LockOnComponent"));
+    WeaponAttackComponent = CreateDefaultSubobject<URVWeaponAttackComponent>(TEXT("WeaponAttackComponent"));
+    DodgeComponent        = CreateDefaultSubobject<URVDodgeComponent>       (TEXT("DodgeComponent"));
+    GuardComponent        = CreateDefaultSubobject<URVGuardComponent>       (TEXT("GuardComponent"));
+    EquipmentComponent    = CreateDefaultSubobject<URVEquipmentComponent>   (TEXT("EquipmentComponent"));
 }
 
 void ARVCharacterPlayer::InitStats()
@@ -87,11 +87,9 @@ void ARVCharacterPlayer::BeginPlay()
     const float DodgeStaminaCost = IsValid(PlayerData) ? PlayerData->DodgeStaminaCost : 30.f;
 
     LockOnComponent->InitReferences(this, PC, CombatStateComponent);
-    ComboComponent->InitReferences(this, CombatStateComponent, AttributeComponent, EquipmentComponent);
-    HeavyAttackComponent->InitReferences(this, CombatStateComponent, AttributeComponent, EquipmentComponent);
+    WeaponAttackComponent->InitReferences(this, CombatStateComponent, AttributeComponent, EquipmentComponent);
     DodgeComponent->InitReferences(this, CombatStateComponent, AttributeComponent, DodgeStaminaCost);
     GuardComponent->InitReferences(this, CombatStateComponent, AttributeComponent, EquipmentComponent);
-    SprintComponent->InitReferences(this, CombatStateComponent, AttributeComponent);
 
     //--- Delegate Wiring -----------------------------------------------------
 
@@ -101,12 +99,17 @@ void ARVCharacterPlayer::BeginPlay()
     GuardComponent->OnGuardBreakTriggered.AddUObject(
         HitReactionComponent, &URVHitReactionComponent::TriggerStaggerWithMontage);
 
-    ComboComponent->OnComboStarted.AddUObject(CombatStateComponent, &URVCombatStateComponent::OnAttackStarted);
-    ComboComponent->OnComboEnded.AddUObject  (CombatStateComponent, &URVCombatStateComponent::OnAttackEnded);
+    WeaponAttackComponent->OnLightAttackStarted.AddUObject(
+        CombatStateComponent, &URVCombatStateComponent::OnAttackStarted);
+    WeaponAttackComponent->OnLightAttackEnded.AddUObject(
+        CombatStateComponent, &URVCombatStateComponent::OnAttackEnded);
 
-    CombatStateComponent->OnForceEnd.AddUObject(HeavyAttackComponent, &URVHeavyAttackComponent::ForceEndHeavyAttack);
-    CombatStateComponent->OnForceEnd.AddUObject(DodgeComponent,       &URVDodgeComponent::ForceEndDodge);
-    CombatStateComponent->OnForceEnd.AddUObject(GuardComponent,       &URVGuardComponent::EndGuard);
+    CombatStateComponent->OnForceEnd.AddUObject(DodgeComponent, &URVDodgeComponent::ForceEndDodge);
+    CombatStateComponent->OnForceEnd.AddUObject(GuardComponent,  &URVGuardComponent::EndGuard);
+
+    // Sprint self-termination — ends automatically when any blocking combat state becomes active.
+    CombatStateComponent->OnStateChanged.AddUObject(this, &ARVCharacterPlayer::OnCombatStateChangedForSprint);
+    CombatStateComponent->OnForceEnd.AddUObject(this, &ARVCharacterPlayer::EndSprint);
 
     EquipmentComponent->OnWeaponChanged.AddDynamic(this, &ARVCharacterPlayer::OnWeaponChangedHandler);
     OnWeaponChangedHandler(EquipmentComponent->GetCurrentWeaponData());
@@ -126,17 +129,17 @@ URVWeaponDataAsset* ARVCharacterPlayer::GetCurrentWeaponData() const
 
 bool ARVCharacterPlayer::IsComboActive() const
 {
-    return ComboComponent->IsComboActive();
+    return WeaponAttackComponent->IsComboActive();
 }
 
 float ARVCharacterPlayer::GetSprintSpeed() const
 {
-    return SprintComponent->GetSprintSpeed();
+    return SprintSpeed;
 }
 
 bool ARVCharacterPlayer::IsSprinting() const
 {
-    return SprintComponent->IsSprinting();
+    return bIsSprinting;
 }
 
 bool ARVCharacterPlayer::IsLockedOn() const
@@ -224,6 +227,12 @@ void ARVCharacterPlayer::SnapToAttackDirection()
     AttackStartYaw = GetActorRotation().Yaw;
 }
 
+void ARVCharacterPlayer::Landed(const FHitResult& Hit)
+{
+    Super::Landed(Hit);
+    WeaponAttackComponent->OnPlayerLanded();
+}
+
 void ARVCharacterPlayer::OnDeath()
 {
     APlayerController* PC = Cast<APlayerController>(GetController());
@@ -278,6 +287,7 @@ void ARVCharacterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 void ARVCharacterPlayer::InputMove(const FInputActionValue& Value)
 {
     if (CombatStateComponent->HasState(ERVCombatState::HitReaction)) { return; }
+    if (WeaponAttackComponent->IsJumpAttackLanding()) { return; }
 
     const FVector2D Axis = Value.Get<FVector2D>();
     const FRotator YawOnly(0.f, GetControlRotation().Yaw, 0.f);
@@ -306,18 +316,18 @@ void ARVCharacterPlayer::InputJump(const FInputActionValue& Value)
 void ARVCharacterPlayer::InputAttack(const FInputActionValue& Value)
 {
     SnapToAttackDirection();
-    ComboComponent->HandleComboInput();
+    WeaponAttackComponent->HandleLightAttackInput(bIsSprinting);
 }
 
 void ARVCharacterPlayer::InputHeavyAttackStarted(const FInputActionValue& Value)
 {
     SnapToAttackDirection();
-    HeavyAttackComponent->StartHeavyAttack();
+    WeaponAttackComponent->StartHeavyAttack();
 }
 
 void ARVCharacterPlayer::InputHeavyAttackCompleted(const FInputActionValue& Value)
 {
-    HeavyAttackComponent->ReleaseHeavyAttack();
+    WeaponAttackComponent->ReleaseHeavyAttack();
 }
 
 void ARVCharacterPlayer::InputDodge(const FInputActionValue& Value)
@@ -360,13 +370,12 @@ void ARVCharacterPlayer::InputDodge(const FInputActionValue& Value)
 
 void ARVCharacterPlayer::InputSprintStarted(const FInputActionValue& Value)
 {
-    if (LockOnComponent->IsLockedOn()) { return; }
-    SprintComponent->StartSprint();
+    StartSprint();
 }
 
 void ARVCharacterPlayer::InputSprintCompleted(const FInputActionValue& Value)
 {
-    SprintComponent->EndSprint();
+    EndSprint();
 }
 
 void ARVCharacterPlayer::InputGuardStarted(const FInputActionValue& Value)
@@ -381,8 +390,40 @@ void ARVCharacterPlayer::InputGuardCompleted(const FInputActionValue& Value)
 
 void ARVCharacterPlayer::InputLockOn(const FInputActionValue& Value)
 {
-    if (SprintComponent->IsSprinting()) { SprintComponent->EndSprint(); }
+    if (bIsSprinting) { EndSprint(); }
     LockOnComponent->ToggleLockOn();
+}
+
+//--- Sprint ------------------------------------------------------------------
+
+void ARVCharacterPlayer::StartSprint()
+{
+    if (bIsSprinting) { return; }
+    if (LockOnComponent->IsLockedOn()) { return; }
+    if (!CombatStateComponent->CheckAvailableState()) { return; }
+    if (!CombatStateComponent->IsGrounded()) { return; }
+    if (AttributeComponent->GetCurrentStamina() <= 0.f) { return; }
+
+    // Require actual movement — prevents sprint activating from a standstill
+    // when Space is held through an attack (InputSprintStarted fires every frame).
+    if (GetCharacterMovement()->Velocity.Size2D() < MinSpeedToStartSprint) { return; }
+
+    OriginalWalkSpeed = GetCharacterMovement()->MaxWalkSpeed;
+    GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;
+    bIsSprinting = true;
+}
+
+void ARVCharacterPlayer::EndSprint()
+{
+    if (!bIsSprinting) { return; }
+    bIsSprinting = false;
+    GetCharacterMovement()->MaxWalkSpeed = OriginalWalkSpeed;
+}
+
+void ARVCharacterPlayer::OnCombatStateChangedForSprint(ERVCombatState InNewState)
+{
+    if (!bIsSprinting) { return; }
+    if (!CombatStateComponent->CheckAvailableState()) { EndSprint(); }
 }
 
 //--- Weapon Swap -------------------------------------------------------------

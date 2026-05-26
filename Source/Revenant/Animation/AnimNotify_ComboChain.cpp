@@ -1,5 +1,5 @@
 #include "Animation/AnimNotify_ComboChain.h"
-#include "Component/RVComboComponent.h"
+#include "Component/RVWeaponAttackComponent.h"
 
 void UAnimNotify_ComboChain::Notify(USkeletalMeshComponent* MeshComp,
 									UAnimSequenceBase* Animation,
@@ -8,8 +8,9 @@ void UAnimNotify_ComboChain::Notify(USkeletalMeshComponent* MeshComp,
 	AActor* Owner = MeshComp->GetOwner();
 	if (!IsValid(Owner)) { return; }
 
-	URVComboComponent* ComboComp = Owner->FindComponentByClass<URVComboComponent>();
-	if (!IsValid(ComboComp)) { return; }
+	URVWeaponAttackComponent* WeaponAttackComp =
+		Owner->FindComponentByClass<URVWeaponAttackComponent>();
+	if (!IsValid(WeaponAttackComp)) { return; }
 
-	ComboComp->TryChainNextCombo();
+	WeaponAttackComp->TryChainNextCombo();
 }

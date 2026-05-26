@@ -4,7 +4,7 @@
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "AnimNotifyState_ComboWindow.generated.h"
 
-class URVComboComponent;
+class URVWeaponAttackComponent;
 
 UCLASS()
 class REVENANT_API UAnimNotifyState_ComboWindow : public UAnimNotifyState
@@ -22,5 +22,5 @@ public:
 
 private:
 	UPROPERTY()
-	TMap<USkeletalMeshComponent*, URVComboComponent*> CachedComboComps;
+	TMap<USkeletalMeshComponent*, URVWeaponAttackComponent*> CachedComboComps;
 };

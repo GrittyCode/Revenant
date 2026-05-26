@@ -1,5 +1,5 @@
 #include "Animation/AnimNotify_HeavyAttackReady.h"
-#include "Component/RVHeavyAttackComponent.h"
+#include "Component/RVWeaponAttackComponent.h"
 
 void UAnimNotify_HeavyAttackReady::Notify(USkeletalMeshComponent* MeshComp,
 	UAnimSequenceBase* Animation,
@@ -10,11 +10,11 @@ void UAnimNotify_HeavyAttackReady::Notify(USkeletalMeshComponent* MeshComp,
 	AActor* Owner = MeshComp->GetOwner();
 	if (!IsValid(Owner)) { return; }
 
-	URVHeavyAttackComponent* HeavyAttackComp =
-		Owner->FindComponentByClass<URVHeavyAttackComponent>();
-	if (!IsValid(HeavyAttackComp)) { return; }
+	URVWeaponAttackComponent* WeaponAttackComp =
+		Owner->FindComponentByClass<URVWeaponAttackComponent>();
+	if (!IsValid(WeaponAttackComp)) { return; }
 
-	HeavyAttackComp->SetHeavyAttackReady(true);
+	WeaponAttackComp->SetHeavyAttackReady(true);
 }
 
 FString UAnimNotify_HeavyAttackReady::GetNotifyName_Implementation() const

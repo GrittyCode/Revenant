@@ -11,11 +11,9 @@ class USpringArmComponent;
 class UCameraComponent;
 class URVWeaponDataAsset;
 class URVLockOnComponent;
-class URVComboComponent;
-class URVHeavyAttackComponent;
+class URVWeaponAttackComponent;
 class URVDodgeComponent;
 class URVGuardComponent;
-class URVSprintComponent;
 class URVHitReactionAnimDataAsset;
 class URVPlayerDataAsset;
 
@@ -47,6 +45,7 @@ protected:
     virtual void BeginPlay() override;
     virtual void OnDeath() override;
     virtual void InitStats() override;
+    virtual void Landed(const FHitResult& Hit) override;
 
     virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const override;
     virtual UMeshComponent* GetWeaponTraceMesh() const override;
@@ -56,20 +55,15 @@ protected:
 
     //--- Player-only Action Components ---------------------------------------
 
+    // Handles all weapon attack actions: combo, run attack, jump attack, heavy attack.
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-    TObjectPtr<URVComboComponent> ComboComponent;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-    TObjectPtr<URVHeavyAttackComponent> HeavyAttackComponent;
+    TObjectPtr<URVWeaponAttackComponent> WeaponAttackComponent;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
     TObjectPtr<URVDodgeComponent> DodgeComponent;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
     TObjectPtr<URVGuardComponent> GuardComponent;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-    TObjectPtr<URVSprintComponent> SprintComponent;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
     TObjectPtr<URVEquipmentComponent> EquipmentComponent;
@@ -125,4 +119,16 @@ private:
 
     UPROPERTY(EditDefaultsOnly, Category = "RV|Combat")
     float AttackRotationInterpSpeed = 10.f;
+
+    //--- Sprint --------------------------------------------------------------
+
+    void StartSprint();
+    void EndSprint();
+    void OnCombatStateChangedForSprint(ERVCombatState InNewState);
+
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Sprint")
+    float SprintSpeed = 1000.f;
+
+    float OriginalWalkSpeed = 0.f;
+    bool  bIsSprinting      = false;
 };
