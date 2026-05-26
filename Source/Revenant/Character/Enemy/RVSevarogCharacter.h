@@ -142,6 +142,18 @@ private:
 
     void OnDeathMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
 
+    //--- Dissolve ------------------------------------------------------------
+
+    void StartDissolve();
+    void TickDissolve();
+
+    UPROPERTY()
+    TArray<TObjectPtr<UMaterialInstanceDynamic>> DissolveMIDs;
+
+    FTimerHandle DissolveTimerHandle;
+    float        DissolveElapsed  = 0.f;
+    float        DissolveDuration = 2.f;
+
     UFUNCTION() void OnGroggySequenceCompleted();
     UFUNCTION() void OnAttackMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
     UFUNCTION() void OnSingleShotActionBlendingOut(UAnimMontage* InMontage, bool bInterrupted);

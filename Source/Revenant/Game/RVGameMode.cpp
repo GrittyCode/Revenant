@@ -16,6 +16,12 @@ void ARVGameMode::BeginPlay()
     ensureMsgf(IsValid(PC), TEXT("[ARVGameMode] No PlayerController at BeginPlay"));
     if (!IsValid(PC)) { return; }
 
+    // Restore game-only input and hide cursor after every level load.
+    // ShowGameResult() switches to UIOnly + cursor visible; OpenLevel triggers a new
+    // BeginPlay, so this call is the correct site to undo that state on retry.
+    PC->SetInputMode(FInputModeGameOnly());
+    PC->bShowMouseCursor = false;
+
     //--- Create widgets ------------------------------------------------------
 
     if (IsValid(HUDWidgetClass))

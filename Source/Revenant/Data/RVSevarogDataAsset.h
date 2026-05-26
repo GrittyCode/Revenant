@@ -166,6 +166,10 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AnimationAsset", meta = (DisplayPriority = 6))
     TObjectPtr<UBlendSpace> LocomotionBS;
 
+    // Duration (seconds) over which FadeOut 0→1 is driven on all mesh materials during death.
+    UPROPERTY(EditDefaultsOnly, Category = "AnimationAsset", meta = (DisplayPriority = 6, ClampMin = "0.1"))
+    float DissolveDuration = 2.f;
+
     UPROPERTY(EditDefaultsOnly, Category = "AnimationAsset", meta = (DisplayPriority = 6))
     TObjectPtr<URVHitReactionAnimDataAsset> HitReactionAnimData;
 

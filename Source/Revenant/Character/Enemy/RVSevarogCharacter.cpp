@@ -15,6 +15,7 @@
 #include "Interface/RVDamageable.h"
 #include "Kismet/GameplayStatics.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Particles/ParticleSystem.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
@@ -121,16 +122,17 @@ void ARVSevarogCharacter::OnDeath()
     UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
     if (IsValid(AnimInst) && IsValid(HitReactionData) && IsValid(HitReactionData->DeathMontage))
     {
+    	StartDissolve();
         AnimInst->Montage_Stop(0.1f);
         AnimInst->Montage_Play(HitReactionData->DeathMontage);
-
+    	
         FOnMontageBlendingOutStarted BlendOutDelegate;
         BlendOutDelegate.BindUObject(this, &ARVSevarogCharacter::OnDeathMontageBlendingOut);
         AnimInst->Montage_SetBlendingOutDelegate(BlendOutDelegate, HitReactionData->DeathMontage);
     }
     else
     {
-        SetLifeSpan(2.f);
+        StartDissolve();
     }
 
     OnBossDefeated.Broadcast();
@@ -138,7 +140,62 @@ void ARVSevarogCharacter::OnDeath()
 
 void ARVSevarogCharacter::OnDeathMontageBlendingOut(UAnimMontage* /*InMontage*/, bool /*bInterrupted*/)
 {
-    SetLifeSpan(1.f);
+    // Dissolve timer handles SetLifeSpan when complete.
+    // If dissolve wasn't started for any reason, fall back to a fixed lifetime.
+    if (!GetWorldTimerManager().IsTimerActive(DissolveTimerHandle))
+    {
+        SetLifeSpan(0.1f);
+    }
+}
+
+//--- Dissolve ----------------------------------------------------------------
+
+void ARVSevarogCharacter::StartDissolve()
+{
+    DissolveDuration = IsValid(SevarogData) ? SevarogData->DissolveDuration : 2.f;
+    DissolveElapsed  = 0.f;
+
+    USkeletalMeshComponent* SkelMesh = GetMesh();
+    if (!IsValid(SkelMesh)) { SetLifeSpan(0.1f); return; }
+
+    // Create a Dynamic Material Instance for every slot so FadeOut can be driven per-frame.
+    // Slots without MF_DeathFade will ignore the unknown parameter — safe to set on all.
+    const int32 NumMaterials = SkelMesh->GetNumMaterials();
+    DissolveMIDs.SetNum(NumMaterials);
+    for (int32 i = 0; i < NumMaterials; ++i)
+    {
+        UMaterialInstanceDynamic* MID = SkelMesh->CreateDynamicMaterialInstance(i);
+        DissolveMIDs[i] = MID;
+    }
+
+    // Tick at ~30 Hz — fine-grained enough for a smooth dissolve.
+    constexpr float TickInterval = 1.f / 30.f;
+    GetWorld()->GetTimerManager().SetTimer(
+        DissolveTimerHandle,
+        this,
+        &ARVSevarogCharacter::TickDissolve,
+        TickInterval,
+        true);
+}
+
+void ARVSevarogCharacter::TickDissolve()
+{
+    constexpr float TickInterval = 1.f / 30.f;
+    DissolveElapsed += TickInterval;
+
+    const float Alpha = FMath::Clamp(DissolveElapsed / DissolveDuration, 0.f, 1.f);
+
+    static const FName FadeOutParam(TEXT("FadeOut"));
+    for (UMaterialInstanceDynamic* MID : DissolveMIDs)
+    {
+        if (IsValid(MID)) { MID->SetScalarParameterValue(FadeOutParam, Alpha); }
+    }
+
+    if (Alpha >= 1.f)
+    {
+        GetWorld()->GetTimerManager().ClearTimer(DissolveTimerHandle);
+        SetLifeSpan(0.1f);
+    }
 }
 
 //--- BT task interface -------------------------------------------------------
@@ -483,9 +540,11 @@ void ARVSevarogCharacter::ApplyRadialDamageAt(const FVector& InLocation, float I
             FRVHitInfo HitInfo;
             HitInfo.Damage       = InDamage;
             HitInfo.PoiseDamage  = InPoiseDamage;
-            HitInfo.HitDirection = InOverrideDirection.IsNearlyZero()
-                ? (HitActor->GetActorLocation() - InLocation).GetSafeNormal()
+            // Z is zeroed on both paths so vertical angle never influences knockback trajectory.
+            const FVector RawDir = InOverrideDirection.IsNearlyZero()
+                ? (HitActor->GetActorLocation() - InLocation)
                 : InOverrideDirection;
+            HitInfo.HitDirection = FVector(RawDir.X, RawDir.Y, 0.f).GetSafeNormal();
             HitInfo.Instigator   = this;
 
             const bool bDamaged = Target->ApplyDamage(HitInfo);

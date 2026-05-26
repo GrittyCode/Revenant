@@ -178,7 +178,9 @@ void URVCombatStateComponent::PerformAttackTrace()
             HitInfo.Damage       = Damage;
             HitInfo.PoiseDamage  = PoiseDamage;
             HitInfo.Instigator   = OwnerCharacter;
-            HitInfo.HitDirection = (OwnerCharacter->GetActorLocation() - HitActor->GetActorLocation()).GetSafeNormal();
+            // Z is zeroed before normalizing so vertical angle never influences knockback trajectory.
+            const FVector RawDir = OwnerCharacter->GetActorLocation() - HitActor->GetActorLocation();
+            HitInfo.HitDirection = FVector(RawDir.X, RawDir.Y, 0.f).GetSafeNormal();
 
             Target->ApplyDamage(HitInfo);
 

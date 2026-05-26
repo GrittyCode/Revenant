@@ -32,7 +32,6 @@ bool URVDodgeComponent::CanStartDodge() const
     if (CombatStateComponent->HasState(ERVCombatState::Dodging)) { return false; }
     if (!CombatStateComponent->CheckAvailableState())            { return false; }
     if (!CombatStateComponent->IsGrounded())                     { return false; }
-    if (AttributeComponent->GetCurrentStamina() < DodgeStaminaCost) { return false; }
 
     return true;
 }
