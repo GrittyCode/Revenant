@@ -6,6 +6,8 @@
 
 class URVSevarogDataAsset;
 class UNiagaraComponent;
+class UParticleSystem;
+class USoundBase;
 
 UENUM(BlueprintType)
 enum class ERVBossPhase : uint8
@@ -45,7 +47,11 @@ public:
 
     void TryChainCombo();
 
-    void SpawnSubjugationBlast();
+    void InitSubjugationLocations(UParticleSystem* InCastFX);
+
+    // InDamageDelay: seconds after SwirlsFX spawns before damage + SFX fire.
+    void SpawnSubjugationBlast(UParticleSystem* InSwirlsFX, USoundBase* InSwirlsSFX);
+
     void ExecuteSoulSiphonHit();
 
     //--- State queries -------------------------------------------------------
@@ -87,7 +93,6 @@ protected:
     virtual void DeactivateWeaponTrail() override;
 
 private:
-    // Cached cast of CharacterData. Assigned in InitStats() — not exposed to the editor.
     UPROPERTY()
     TObjectPtr<URVSevarogDataAsset> SevarogData;
 
@@ -95,9 +100,6 @@ private:
     TObjectPtr<UNiagaraComponent> MeleeTrailNC;
 
     ERVBossPhase CurrentPhase     = ERVBossPhase::Phase1;
-    // bIsGroggy mirrors ERVCombatState::Groggy on CombatStateComponent.
-    // Both are maintained in sync: bIsGroggy for fast local checks,
-    // CombatStateComponent for external BT queries.
     bool         bIsGroggy        = false;
     bool         bIsRushing       = false;
     bool         bIsComboChaining = false;
@@ -123,10 +125,25 @@ private:
         const FVector& InOverrideDirection = FVector::ZeroVector,
         bool bUseCapsule = false);
 
-    //--- Subjugation helpers -------------------------------------------------
+    //--- Subjugation ---------------------------------------------------------
+
+    // Positions set by InitSubjugationLocations, read by SpawnSubjugationBlast
+    // and ApplySubjugationDamage. Cleared by ForceEndCurrentAction.
+    TArray<FVector> PendingSubjugationLocations;
+
+    // SFX stored from SpawnSubjugationBlast, played in ApplySubjugationDamage.
+    UPROPERTY()
+    TObjectPtr<USoundBase> PendingSwirlsSFX;
+
+    // Fires InDamageDelay seconds after SpawnSubjugationBlast.
+    FTimerHandle SubjugationDamageTimerHandle;
 
     static TArray<FVector> GenerateSwirlLocations(const FVector& InOrigin,
         float InSpreadRadius, float InMinSeparation, int32 InCount);
+
+    // Timer callback: applies damage + SFX at all pending swirl locations.
+    UFUNCTION()
+    void ApplySubjugationDamage();
 
     //--- VFX helpers ---------------------------------------------------------
 

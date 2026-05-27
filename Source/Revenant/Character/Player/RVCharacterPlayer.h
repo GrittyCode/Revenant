@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Character/Base/RVCharacterBase.h"
 #include "Component/RVEquipmentComponent.h"
+#include "Interface/RVWeaponUser.h"
 #include "RVCharacterPlayer.generated.h"
 
 class URVInputConfig;
@@ -12,7 +13,6 @@ class UCameraComponent;
 class URVWeaponDataAsset;
 class URVLockOnComponent;
 class URVWeaponAttackComponent;
-class URVDodgeComponent;
 class URVGuardComponent;
 class URVHitReactionAnimDataAsset;
 class URVPlayerDataAsset;
@@ -20,7 +20,7 @@ class URVPlayerDataAsset;
 struct FInputActionValue;
 
 UCLASS()
-class REVENANT_API ARVCharacterPlayer : public ARVCharacterBase
+class REVENANT_API ARVCharacterPlayer : public ARVCharacterBase, public IRVWeaponUser
 {
     GENERATED_BODY()
 
@@ -29,17 +29,29 @@ public:
 
     virtual void Tick(float DeltaTime) override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
-
     virtual bool ApplyDamage(const FRVHitInfo& InHitInfo) override;
 
-    //--- Component facades (AnimInstance uses these) -------------------------
+    //--- IRVWeaponUser -------------------------------------------------------
 
-    FRVOnWeaponChanged& GetOnWeaponChanged();
-    URVWeaponDataAsset* GetCurrentWeaponData() const;
+    virtual URVWeaponDataAsset* GetCurrentWeaponData() const override;
+
+    //--- AnimInstance accessors ----------------------------------------------
+
     bool  IsComboActive()  const;
     float GetSprintSpeed() const;
     bool  IsSprinting()    const;
     bool  IsLockedOn()     const;
+
+    //--- AnimNotify forwarding (AnimNotify → Player → WeaponAttackComponent) -
+
+    void OpenComboWindow();
+    void CloseComboWindow();
+    void TryChainNextCombo();
+    void SetHeavyAttackReady(bool bReady);
+
+    //--- Equipment -----------------------------------------------------------
+
+    FRVOnWeaponChanged& GetOnWeaponChanged();
 
 protected:
     virtual void BeginPlay() override;
@@ -55,14 +67,10 @@ protected:
     UFUNCTION()
     void OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData);
 
-    //--- Player-only Action Components ---------------------------------------
+    //--- Player-only components ----------------------------------------------
 
-    // Handles all weapon attack actions: combo, run attack, jump attack, heavy attack.
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
     TObjectPtr<URVWeaponAttackComponent> WeaponAttackComponent;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-    TObjectPtr<URVDodgeComponent> DodgeComponent;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
     TObjectPtr<URVGuardComponent> GuardComponent;
@@ -71,7 +79,7 @@ protected:
     TObjectPtr<URVEquipmentComponent> EquipmentComponent;
 
 private:
-    //--- Input Handlers ------------------------------------------------------
+    //--- Input ---------------------------------------------------------------
 
     void InputMove  (const FInputActionValue& Value);
     void InputLook  (const FInputActionValue& Value);
@@ -80,23 +88,45 @@ private:
     void InputHeavyAttackStarted  (const FInputActionValue& Value);
     void InputHeavyAttackCompleted(const FInputActionValue& Value);
     void InputDodge(const FInputActionValue& Value);
-
     void InputSprintStarted  (const FInputActionValue& Value);
     void InputSprintCompleted(const FInputActionValue& Value);
-
     void InputGuardStarted  (const FInputActionValue& Value);
     void InputGuardCompleted(const FInputActionValue& Value);
-
     void InputLockOn(const FInputActionValue& Value);
     void InputWeaponSwap(const FInputActionValue& Value);
 
-    //--- Attack Direction ----------------------------------------------------
+    //--- Attack direction ----------------------------------------------------
 
     void SnapToAttackDirection();
-
     float AttackStartYaw = 0.f;
 
-    //--- Input Config --------------------------------------------------------
+    //--- Sprint --------------------------------------------------------------
+
+    void StartSprint();
+    void EndSprint();
+    void OnCombatStateChangedForSprint(ERVCombatState InNewState);
+
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Sprint")
+    float SprintSpeed = 1000.f;
+
+    float OriginalWalkSpeed = 0.f;
+    bool  bIsSprinting      = false;
+
+    //--- Dodge (inlined — no dedicated DodgeComponent) -----------------------
+
+    bool CanStartDodge() const;
+    void StartDodge(UAnimMontage* InMontage);
+    void EndDodge();
+
+    UFUNCTION()
+    void OnDodgeMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
+
+    UPROPERTY()
+    TObjectPtr<UAnimMontage> ActiveDodgeMontage;
+
+    float DodgeStaminaCost = 30.f;
+
+    //--- Config --------------------------------------------------------------
 
     UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
     TObjectPtr<URVInputConfig> InputConfig;
@@ -117,20 +147,8 @@ private:
     UPROPERTY(VisibleAnywhere, Category = "RV|Components")
     TObjectPtr<URVLockOnComponent> LockOnComponent;
 
-    //--- Attack Rotation -----------------------------------------------------
+    //--- Attack rotation -----------------------------------------------------
 
     UPROPERTY(EditDefaultsOnly, Category = "RV|Combat")
     float AttackRotationInterpSpeed = 10.f;
-
-    //--- Sprint --------------------------------------------------------------
-
-    void StartSprint();
-    void EndSprint();
-    void OnCombatStateChangedForSprint(ERVCombatState InNewState);
-
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Sprint")
-    float SprintSpeed = 1000.f;
-
-    float OriginalWalkSpeed = 0.f;
-    bool  bIsSprinting      = false;
 };

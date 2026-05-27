@@ -2,7 +2,6 @@
 #include "Camera/CameraComponent.h"
 #include "Component/RVCombatStateComponent.h"
 #include "Component/RVWeaponAttackComponent.h"
-#include "Component/RVDodgeComponent.h"
 #include "Component/RVGuardComponent.h"
 #include "Component/RVAttributeComponent.h"
 #include "Component/RVHitReactionComponent.h"
@@ -11,7 +10,8 @@
 #include "Data/RVCharacterStatRow.h"
 #include "Data/RVWeaponDataAsset.h"
 #include "Data/RVPlayerCombatAnimDataAsset.h"
-#include "Interface/RVDamageable.h"
+#include "Data/RVHitReactionAnimDataAsset.h"
+#include "Data/RVWeaponStatRow.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputMappingContext.h"
@@ -19,10 +19,8 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Camera/PlayerCameraManager.h"
-#include "Data/RVHitReactionAnimDataAsset.h"
-#include "Data/RVWeaponStatRow.h"
+#include "Animation/AnimInstance.h"
 
-// Must be moving at least this fast before sprint can activate.
 static constexpr float MinSpeedToStartSprint = 10.f;
 
 ARVCharacterPlayer::ARVCharacterPlayer()
@@ -31,11 +29,11 @@ ARVCharacterPlayer::ARVCharacterPlayer()
 
     CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
     CameraBoom->SetupAttachment(RootComponent);
-    CameraBoom->TargetArmLength = 450.f;
-    CameraBoom->SocketOffset = FVector(0.f, 0.f, 80.f);
-    CameraBoom->bUsePawnControlRotation = true;
-    CameraBoom->bEnableCameraLag = true;
-    CameraBoom->CameraLagSpeed = 1.f;
+    CameraBoom->TargetArmLength          = 450.f;
+    CameraBoom->SocketOffset             = FVector(0.f, 0.f, 80.f);
+    CameraBoom->bUsePawnControlRotation  = true;
+    CameraBoom->bEnableCameraLag         = true;
+    CameraBoom->CameraLagSpeed           = 1.f;
     CameraBoom->bEnableCameraRotationLag = false;
 
     FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
@@ -45,7 +43,6 @@ ARVCharacterPlayer::ARVCharacterPlayer()
 
     LockOnComponent       = CreateDefaultSubobject<URVLockOnComponent>      (TEXT("LockOnComponent"));
     WeaponAttackComponent = CreateDefaultSubobject<URVWeaponAttackComponent>(TEXT("WeaponAttackComponent"));
-    DodgeComponent        = CreateDefaultSubobject<URVDodgeComponent>       (TEXT("DodgeComponent"));
     GuardComponent        = CreateDefaultSubobject<URVGuardComponent>       (TEXT("GuardComponent"));
     EquipmentComponent    = CreateDefaultSubobject<URVEquipmentComponent>   (TEXT("EquipmentComponent"));
 }
@@ -59,6 +56,7 @@ void ARVCharacterPlayer::InitStats()
     if (!StatRow) { return; }
 
     AttributeComponent->InitFromStatRow(*StatRow);
+    DodgeStaminaCost = PlayerData->DodgeStaminaCost;
 }
 
 void ARVCharacterPlayer::BeginPlay()
@@ -70,8 +68,10 @@ void ARVCharacterPlayer::BeginPlay()
 
     UEnhancedInputLocalPlayerSubsystem* Subsystem =
         ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(PC->GetLocalPlayer());
-    if (!ensureMsgf(IsValid(Subsystem), TEXT("[%s] EnhancedInputLocalPlayerSubsystem missing"), *GetName())) { return; }
-    if (!ensureMsgf(IsValid(DefaultMappingContext), TEXT("[%s] DefaultMappingContext not assigned"), *GetName())) { return; }
+    if (!ensureMsgf(IsValid(Subsystem),
+        TEXT("[%s] EnhancedInputLocalPlayerSubsystem missing"), *GetName())) { return; }
+    if (!ensureMsgf(IsValid(DefaultMappingContext),
+        TEXT("[%s] DefaultMappingContext not assigned"), *GetName())) { return; }
 
     Subsystem->AddMappingContext(DefaultMappingContext, 0);
 
@@ -81,73 +81,49 @@ void ARVCharacterPlayer::BeginPlay()
         PC->PlayerCameraManager->ViewPitchMax =  20.f;
     }
 
-    //--- Reference Injection -------------------------------------------------
+    //--- Sibling delegate wiring (Player owns both sides of each connection) -
+    // Components self-initialize their Owner reference in their own BeginPlay.
+    // All cross-component delegate connections are the Player's responsibility.
 
-    const URVPlayerDataAsset* PlayerData = Cast<URVPlayerDataAsset>(CharacterData);
-    const float DodgeStaminaCost = IsValid(PlayerData) ? PlayerData->DodgeStaminaCost : 30.f;
+    // ForceEnd cascades to all action components.
+    CombatStateComponent->OnForceEnd.AddUObject(WeaponAttackComponent, &URVWeaponAttackComponent::ForceEndAttack);
+    CombatStateComponent->OnForceEnd.AddUObject(GuardComponent,        &URVGuardComponent::EndGuard);
 
-    LockOnComponent->InitReferences(this, PC, CombatStateComponent);
-    WeaponAttackComponent->InitReferences(this, CombatStateComponent, AttributeComponent, EquipmentComponent);
-    DodgeComponent->InitReferences(this, CombatStateComponent, AttributeComponent, DodgeStaminaCost);
-    GuardComponent->InitReferences(this, CombatStateComponent, AttributeComponent, EquipmentComponent);
-
-    //--- Delegate Wiring -----------------------------------------------------
-
+    // Stamina depletion breaks guard.
     AttributeComponent->OnStaminaDepleted.AddDynamic(
         GuardComponent, &URVGuardComponent::OnStaminaDepletedHandler);
 
-    GuardComponent->OnGuardBreakTriggered.AddUObject(
-        HitReactionComponent, &URVHitReactionComponent::TriggerStaggerWithMontage);
-
-    WeaponAttackComponent->OnLightAttackStarted.AddUObject(
-        CombatStateComponent, &URVCombatStateComponent::OnAttackStarted);
-    WeaponAttackComponent->OnLightAttackEnded.AddUObject(
-        CombatStateComponent, &URVCombatStateComponent::OnAttackEnded);
-
-    CombatStateComponent->OnForceEnd.AddUObject(DodgeComponent, &URVDodgeComponent::ForceEndDodge);
-    CombatStateComponent->OnForceEnd.AddUObject(GuardComponent,  &URVGuardComponent::EndGuard);
-
-    // Sprint self-termination — ends automatically when any blocking combat state becomes active.
     CombatStateComponent->OnStateChanged.AddUObject(this, &ARVCharacterPlayer::OnCombatStateChangedForSprint);
-    CombatStateComponent->OnForceEnd.AddUObject(this, &ARVCharacterPlayer::EndSprint);
+    CombatStateComponent->OnForceEnd.AddUObject(this,     &ARVCharacterPlayer::EndSprint);
 
     EquipmentComponent->OnWeaponChanged.AddDynamic(this, &ARVCharacterPlayer::OnWeaponChangedHandler);
     OnWeaponChangedHandler(EquipmentComponent->GetCurrentWeaponData());
 }
 
-//--- Component facades -------------------------------------------------------
-
-FRVOnWeaponChanged& ARVCharacterPlayer::GetOnWeaponChanged()
-{
-    return EquipmentComponent->OnWeaponChanged;
-}
+//--- IRVWeaponUser -----------------------------------------------------------
 
 URVWeaponDataAsset* ARVCharacterPlayer::GetCurrentWeaponData() const
 {
     return EquipmentComponent->GetCurrentWeaponData();
 }
 
-bool ARVCharacterPlayer::IsComboActive() const
-{
-    return WeaponAttackComponent->IsComboActive();
-}
+//--- Facades -----------------------------------------------------------------
 
-float ARVCharacterPlayer::GetSprintSpeed() const
-{
-    return SprintSpeed;
-}
+FRVOnWeaponChanged& ARVCharacterPlayer::GetOnWeaponChanged(){ return EquipmentComponent->OnWeaponChanged;}
 
-bool ARVCharacterPlayer::IsSprinting() const
-{
-    return bIsSprinting;
-}
+bool ARVCharacterPlayer::IsComboActive()  const { return WeaponAttackComponent->IsComboActive(); }
+float ARVCharacterPlayer::GetSprintSpeed() const { return SprintSpeed; }
+bool  ARVCharacterPlayer::IsSprinting()    const { return bIsSprinting; }
+bool  ARVCharacterPlayer::IsLockedOn()     const { return LockOnComponent->IsLockedOn(); }
 
-bool ARVCharacterPlayer::IsLockedOn() const
-{
-    return LockOnComponent->IsLockedOn();
-}
+//--- AnimNotify forwarding ---------------------------------------------------
 
-//--- GetHitReactionAnim / GetWeaponTraceMesh ---------------------------------
+void ARVCharacterPlayer::OpenComboWindow()           { WeaponAttackComponent->OpenComboWindow(); }
+void ARVCharacterPlayer::CloseComboWindow()          { WeaponAttackComponent->CloseComboWindow(); }
+void ARVCharacterPlayer::TryChainNextCombo()         { WeaponAttackComponent->TryChainNextCombo(); }
+void ARVCharacterPlayer::SetHeavyAttackReady(bool bReady) { WeaponAttackComponent->SetHeavyAttackReady(bReady); }
+
+//--- Overrides ---------------------------------------------------------------
 
 URVHitReactionAnimDataAsset* ARVCharacterPlayer::GetHitReactionAnimData() const
 {
@@ -160,31 +136,24 @@ UMeshComponent* ARVCharacterPlayer::GetWeaponTraceMesh() const
     return EquipmentComponent->GetWeaponMeshComponent();
 }
 
-void ARVCharacterPlayer::ActivateWeaponTrail()
-{
-    EquipmentComponent->ActivateWeaponTrail();
-}
-
-void ARVCharacterPlayer::DeactivateWeaponTrail()
-{
-    EquipmentComponent->DeactivateWeaponTrail();
-}
+void ARVCharacterPlayer::ActivateWeaponTrail()   { EquipmentComponent->ActivateWeaponTrail(); }
+void ARVCharacterPlayer::DeactivateWeaponTrail() { EquipmentComponent->DeactivateWeaponTrail(); }
 
 void ARVCharacterPlayer::OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData)
 {
-    URVHitReactionAnimDataAsset* NewCombatData = IsValid(NewWeaponData) ? NewWeaponData->HitReactionAnimData : nullptr;
-    HitReactionComponent->SetHitReactionAnimData(NewCombatData);
+    HitReactionComponent->SetHitReactionAnimData(
+        IsValid(NewWeaponData) ? NewWeaponData->HitReactionAnimData : nullptr);
 
-    const FRVWeaponStatRow* WeaponStat = IsValid(NewWeaponData) ? NewWeaponData->GetWeaponStatRow() : nullptr;
+    const FRVWeaponStatRow* WeaponStat =
+        IsValid(NewWeaponData) ? NewWeaponData->GetWeaponStatRow() : nullptr;
+
     if (WeaponStat)
     {
-        CombatStateComponent->SetCombatStat(
-            WeaponStat->BaseDamage,
-            WeaponStat->BasePoiseDamage,
-            WeaponStat->AttackRadius);
+        // Route through CharacterBase facade — no direct component access from Player.
+        SetCombatStat(WeaponStat->BaseDamage, WeaponStat->BasePoiseDamage, WeaponStat->AttackRadius);
     }
 
-    CombatStateComponent->SetHitFX(
+    SetHitFX(
         IsValid(NewWeaponData) ? NewWeaponData->HitImpactEffect : nullptr,
         nullptr,
         IsValid(NewWeaponData) ? NewWeaponData->HitSFX          : nullptr);
@@ -194,9 +163,9 @@ void ARVCharacterPlayer::OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponDat
 
 bool ARVCharacterPlayer::ApplyDamage(const FRVHitInfo& InHitInfo)
 {
-    if (CombatStateComponent->IsInvincible()) { return false; }
+    if (IsInvincible()) { return false; }
 
-    if (CombatStateComponent->HasState(ERVCombatState::Guarding))
+    if (HasCombatState(ERVCombatState::Guarding))
     {
         GuardComponent->HandleGuardHit(InHitInfo.Damage);
         return true;
@@ -213,11 +182,10 @@ void ARVCharacterPlayer::Tick(float DeltaTime)
 
     if (LockOnComponent->IsLockedOn()) { return; }
 
-    if (CombatStateComponent->HasState(ERVCombatState::Attacking | ERVCombatState::HeavyCharging | ERVCombatState::HeavyAttacking))
+    if (HasCombatState(ERVCombatState::Attacking | ERVCombatState::HeavyCharging | ERVCombatState::HeavyAttacking))
     {
-        const FRotator CurrentRot = GetActorRotation();
-        const FRotator TargetRot  = FRotator(0.f, AttackStartYaw, 0.f);
-        SetActorRotation(FMath::RInterpTo(CurrentRot, TargetRot, DeltaTime, AttackRotationInterpSpeed));
+        SetActorRotation(FMath::RInterpTo(
+            GetActorRotation(), FRotator(0.f, AttackStartYaw, 0.f), DeltaTime, AttackRotationInterpSpeed));
     }
 }
 
@@ -238,9 +206,10 @@ void ARVCharacterPlayer::SnapToAttackDirection()
         }
         return;
     }
-
     AttackStartYaw = GetActorRotation().Yaw;
 }
+
+//--- Lifecycle ---------------------------------------------------------------
 
 void ARVCharacterPlayer::Landed(const FHitResult& Hit)
 {
@@ -254,7 +223,12 @@ void ARVCharacterPlayer::OnDeath()
     if (IsValid(PC)) { DisableInput(PC); }
 
     URVHitReactionAnimDataAsset* HitReactionData = GetHitReactionAnimData();
+    if (!ensureMsgf(IsValid(HitReactionData),
+        TEXT("[%s] OnDeath: HitReactionAnimData not assigned"), *GetName())) { return; }
+
     UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
+    if (!ensureMsgf(IsValid(AnimInst),
+        TEXT("[%s] OnDeath: AnimInstance missing"), *GetName())) { return; }
 
     AnimInst->Montage_Stop(0.1f);
     AnimInst->Montage_Play(HitReactionData->DeathMontage);
@@ -267,7 +241,8 @@ void ARVCharacterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputC
     Super::SetupPlayerInputComponent(PlayerInputComponent);
 
     UEnhancedInputComponent* Eic = Cast<UEnhancedInputComponent>(PlayerInputComponent);
-    if (!IsValid(Eic) || !IsValid(InputConfig)) { return; }
+    if (!ensureMsgf(IsValid(Eic) && IsValid(InputConfig),
+        TEXT("[%s] EnhancedInputComponent or InputConfig missing"), *GetName())) { return; }
 
     Eic->BindAction(InputConfig->MoveAction, ETriggerEvent::Triggered, this, &ARVCharacterPlayer::InputMove);
     Eic->BindAction(InputConfig->LookAction, ETriggerEvent::Triggered, this, &ARVCharacterPlayer::InputLook);
@@ -278,34 +253,31 @@ void ARVCharacterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputC
     Eic->BindAction(InputConfig->HeavyAttackAction,   ETriggerEvent::Completed, this, &ARVCharacterPlayer::InputHeavyAttackCompleted);
     Eic->BindAction(InputConfig->HeavyModifierAction, ETriggerEvent::Completed, this, &ARVCharacterPlayer::InputHeavyAttackCompleted);
 
-    Eic->BindAction(InputConfig->DodgeAction, ETriggerEvent::Triggered, this, &ARVCharacterPlayer::InputDodge);
-
+    Eic->BindAction(InputConfig->DodgeAction,  ETriggerEvent::Triggered, this, &ARVCharacterPlayer::InputDodge);
     Eic->BindAction(InputConfig->SprintAction, ETriggerEvent::Triggered, this, &ARVCharacterPlayer::InputSprintStarted);
     Eic->BindAction(InputConfig->SprintAction, ETriggerEvent::Completed, this, &ARVCharacterPlayer::InputSprintCompleted);
-
-    Eic->BindAction(InputConfig->GuardAction, ETriggerEvent::Started,   this, &ARVCharacterPlayer::InputGuardStarted);
-    Eic->BindAction(InputConfig->GuardAction, ETriggerEvent::Completed, this, &ARVCharacterPlayer::InputGuardCompleted);
+    Eic->BindAction(InputConfig->GuardAction,  ETriggerEvent::Started,   this, &ARVCharacterPlayer::InputGuardStarted);
+    Eic->BindAction(InputConfig->GuardAction,  ETriggerEvent::Completed, this, &ARVCharacterPlayer::InputGuardCompleted);
 
     if (IsValid(InputConfig->LockOnAction))
     {
         Eic->BindAction(InputConfig->LockOnAction, ETriggerEvent::Started, this, &ARVCharacterPlayer::InputLockOn);
     }
-
     if (IsValid(InputConfig->WeaponSwapAction))
     {
         Eic->BindAction(InputConfig->WeaponSwapAction, ETriggerEvent::Started, this, &ARVCharacterPlayer::InputWeaponSwap);
     }
 }
 
-//--- Movement ----------------------------------------------------------------
+//--- Input Handlers ----------------------------------------------------------
 
 void ARVCharacterPlayer::InputMove(const FInputActionValue& Value)
 {
-    if (CombatStateComponent->HasState(ERVCombatState::HitReaction)) { return; }
+    if (HasCombatState(ERVCombatState::HitReaction))      { return; }
     if (WeaponAttackComponent->IsJumpAttackLanding()) { return; }
 
-    const FVector2D Axis = Value.Get<FVector2D>();
-    const FRotator YawOnly(0.f, GetControlRotation().Yaw, 0.f);
+    const FVector2D Axis   = Value.Get<FVector2D>();
+    const FRotator  YawOnly(0.f, GetControlRotation().Yaw, 0.f);
 
     AddMovementInput(FRotationMatrix(YawOnly).GetUnitAxis(EAxis::X), Axis.X);
     AddMovementInput(FRotationMatrix(YawOnly).GetUnitAxis(EAxis::Y), Axis.Y);
@@ -314,7 +286,6 @@ void ARVCharacterPlayer::InputMove(const FInputActionValue& Value)
 void ARVCharacterPlayer::InputLook(const FInputActionValue& Value)
 {
     if (LockOnComponent->IsLockedOn()) { return; }
-
     const FVector2D Axis = Value.Get<FVector2D>();
     AddControllerYawInput  (Axis.X);
     AddControllerPitchInput(Axis.Y);
@@ -322,11 +293,9 @@ void ARVCharacterPlayer::InputLook(const FInputActionValue& Value)
 
 void ARVCharacterPlayer::InputJump(const FInputActionValue& Value)
 {
-    if (!CombatStateComponent->CheckAvailableState(ERVCombatState::Guarding)) { return; }
+    if (!CanAct(ERVCombatState::Guarding)) { return; }
     Jump();
 }
-
-//--- Combat ------------------------------------------------------------------
 
 void ARVCharacterPlayer::InputAttack(const FInputActionValue& Value)
 {
@@ -345,9 +314,65 @@ void ARVCharacterPlayer::InputHeavyAttackCompleted(const FInputActionValue& Valu
     WeaponAttackComponent->ReleaseHeavyAttack();
 }
 
+//--- Dodge (inlined from deleted URVDodgeComponent) --------------------------
+
+bool ARVCharacterPlayer::CanStartDodge() const
+{
+    if (HasCombatState(ERVCombatState::Dodging)) { return false; }
+    if (!CanAct())                               { return false; }
+    if (!IsGrounded())                           { return false; }
+    // Stamina gating delegated to TryConsumeStamina inside StartDodge.
+    return true;
+}
+
+void ARVCharacterPlayer::StartDodge(UAnimMontage* InMontage)
+{
+    if (!ensureMsgf(IsValid(InMontage),
+        TEXT("[%s] StartDodge: Montage is null — check WeaponDataAsset dodge montage assignments"),
+        *GetName())) { return; }
+
+    if (!TryConsumeStamina(DodgeStaminaCost)) { return; }
+
+    PauseStaminaRegen();
+    SetInvincible(true);
+    AddCombatState(ERVCombatState::Dodging);
+
+    GetCharacterMovement()->bOrientRotationToMovement = !IsLockedOn();
+
+    ActiveDodgeMontage = InMontage;
+
+    UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
+    ensureMsgf(IsValid(AnimInst), TEXT("[%s] StartDodge: AnimInstance missing"), *GetName());
+    if (!IsValid(AnimInst)) { return; }
+
+    AnimInst->Montage_Play(InMontage);
+
+    FOnMontageBlendingOutStarted BlendOutDelegate;
+    BlendOutDelegate.BindUObject(this, &ARVCharacterPlayer::OnDodgeMontageBlendingOut);
+    AnimInst->Montage_SetBlendingOutDelegate(BlendOutDelegate, InMontage);
+}
+
+void ARVCharacterPlayer::EndDodge()
+{
+    if (!HasCombatState(ERVCombatState::Dodging)) { return; }
+
+    SetInvincible(false);
+    RemoveCombatState(ERVCombatState::Dodging);
+    ResumeStaminaRegen();
+
+    // Restore orientation — LockOnComponent re-suppresses next tick if still locked on.
+    GetCharacterMovement()->bOrientRotationToMovement = true;
+    ActiveDodgeMontage = nullptr;
+}
+
+void ARVCharacterPlayer::OnDodgeMontageBlendingOut(UAnimMontage*, bool)
+{
+    EndDodge();
+}
+
 void ARVCharacterPlayer::InputDodge(const FInputActionValue& Value)
 {
-    if (!DodgeComponent->CanStartDodge()) { return; }
+    if (!CanStartDodge()) { return; }
 
     const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
     if (!IsValid(WeaponData)) { return; }
@@ -356,7 +381,7 @@ void ARVCharacterPlayer::InputDodge(const FInputActionValue& Value)
     if (DodgeDir.IsNearlyZero()) { DodgeDir = GetActorForwardVector(); }
     DodgeDir = DodgeDir.GetSafeNormal();
 
-    if (CombatStateComponent->HasState(ERVCombatState::Guarding)) { GuardComponent->EndGuard(); }
+    if (HasCombatState(ERVCombatState::Guarding)) { GuardComponent->EndGuard(); }
 
     UAnimMontage* Montage = nullptr;
 
@@ -364,15 +389,15 @@ void ARVCharacterPlayer::InputDodge(const FInputActionValue& Value)
     {
         const FVector Forward = GetActorForwardVector();
         const FVector Right   = GetActorRightVector();
-        const float Angle = FMath::RadiansToDegrees(
+        const float   Angle   = FMath::RadiansToDegrees(
             FMath::Atan2(FVector::DotProduct(Right, DodgeDir), FVector::DotProduct(Forward, DodgeDir)));
 
-        if      (Angle > -67.5f  && Angle <=  67.5f)  { SetActorRotation(DodgeDir.ToOrientationRotator());   Montage = WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::Forward);   }
-        else if (Angle >  67.5f  && Angle <= 112.5f)  {                                                       Montage = WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::Right);     }
-        else if (Angle > 112.5f  && Angle <= 157.5f)  { SetActorRotation((-DodgeDir).ToOrientationRotator()); Montage = WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::BackRight);  }
+        if      (Angle > -67.5f  && Angle <=  67.5f)  { SetActorRotation(DodgeDir.ToOrientationRotator());    Montage = WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::Forward);  }
+        else if (Angle >  67.5f  && Angle <= 112.5f)  {                                                        Montage = WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::Right);    }
+        else if (Angle > 112.5f  && Angle <= 157.5f)  { SetActorRotation((-DodgeDir).ToOrientationRotator()); Montage = WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::BackRight); }
         else if (Angle >  157.5f || Angle < -157.5f)  { SetActorRotation((-DodgeDir).ToOrientationRotator()); Montage = Angle > 0.f ? WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::BackRight) : WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::BackLeft); }
-        else if (Angle < -112.5f && Angle >= -157.5f) { SetActorRotation((-DodgeDir).ToOrientationRotator()); Montage = WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::BackLeft);   }
-        else                                           {                                                       Montage = WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::Left);      }
+        else if (Angle < -112.5f && Angle >= -157.5f) { SetActorRotation((-DodgeDir).ToOrientationRotator()); Montage = WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::BackLeft);  }
+        else                                           {                                                        Montage = WeaponData->GetLockOnDodgeMontage(ERVDodgeDirection::Left);     }
     }
     else
     {
@@ -380,30 +405,15 @@ void ARVCharacterPlayer::InputDodge(const FInputActionValue& Value)
         Montage = WeaponData->GetDodgeMontage();
     }
 
-    DodgeComponent->StartDodge(Montage);
+    StartDodge(Montage);
 }
 
-void ARVCharacterPlayer::InputSprintStarted(const FInputActionValue& Value)
-{
-    StartSprint();
-}
+void ARVCharacterPlayer::InputSprintStarted  (const FInputActionValue&) { StartSprint(); }
+void ARVCharacterPlayer::InputSprintCompleted(const FInputActionValue&) { EndSprint(); }
+void ARVCharacterPlayer::InputGuardStarted   (const FInputActionValue&) { GuardComponent->StartGuard(); }
+void ARVCharacterPlayer::InputGuardCompleted (const FInputActionValue&) { GuardComponent->EndGuard(); }
 
-void ARVCharacterPlayer::InputSprintCompleted(const FInputActionValue& Value)
-{
-    EndSprint();
-}
-
-void ARVCharacterPlayer::InputGuardStarted(const FInputActionValue& Value)
-{
-    GuardComponent->StartGuard();
-}
-
-void ARVCharacterPlayer::InputGuardCompleted(const FInputActionValue& Value)
-{
-    GuardComponent->EndGuard();
-}
-
-void ARVCharacterPlayer::InputLockOn(const FInputActionValue& Value)
+void ARVCharacterPlayer::InputLockOn(const FInputActionValue&)
 {
     if (bIsSprinting) { EndSprint(); }
     LockOnComponent->ToggleLockOn();
@@ -413,14 +423,11 @@ void ARVCharacterPlayer::InputLockOn(const FInputActionValue& Value)
 
 void ARVCharacterPlayer::StartSprint()
 {
-    if (bIsSprinting) { return; }
+    if (bIsSprinting)                  { return; }
     if (LockOnComponent->IsLockedOn()) { return; }
-    if (!CombatStateComponent->CheckAvailableState()) { return; }
-    if (!CombatStateComponent->IsGrounded()) { return; }
-    if (AttributeComponent->GetCurrentStamina() <= 0.f) { return; }
-
-    // Require actual movement — prevents sprint activating from a standstill
-    // when Space is held through an attack (InputSprintStarted fires every frame).
+    if (!CanAct())                     { return; }
+    if (!IsGrounded())                 { return; }
+    if (GetCurrentStamina() <= 0.f)    { return; }
     if (GetCharacterMovement()->Velocity.Size2D() < MinSpeedToStartSprint) { return; }
 
     OriginalWalkSpeed = GetCharacterMovement()->MaxWalkSpeed;
@@ -435,16 +442,16 @@ void ARVCharacterPlayer::EndSprint()
     GetCharacterMovement()->MaxWalkSpeed = OriginalWalkSpeed;
 }
 
-void ARVCharacterPlayer::OnCombatStateChangedForSprint(ERVCombatState InNewState)
+void ARVCharacterPlayer::OnCombatStateChangedForSprint(ERVCombatState)
 {
     if (!bIsSprinting) { return; }
-    if (!CombatStateComponent->CheckAvailableState()) { EndSprint(); }
+    if (!CanAct()) { EndSprint(); }
 }
 
 //--- Weapon Swap -------------------------------------------------------------
 
-void ARVCharacterPlayer::InputWeaponSwap(const FInputActionValue& Value)
+void ARVCharacterPlayer::InputWeaponSwap(const FInputActionValue&)
 {
-    if (!CombatStateComponent->CheckAvailableState(ERVCombatState::Guarding)) { return; }
+    if (!CanAct(ERVCombatState::Guarding)) { return; }
     EquipmentComponent->SwapWeapon();
 }

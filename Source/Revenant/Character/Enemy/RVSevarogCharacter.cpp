@@ -45,20 +45,13 @@ void ARVSevarogCharacter::InitStats()
     NormalWalkSpeed = StatRow->MoveSpeed;
     GetCharacterMovement()->MaxWalkSpeed = NormalWalkSpeed;
 
-    CombatStateComponent->SetCombatStat(
-        SevarogData->BaseDamage,
-        SevarogData->BasePoiseDamage,
-        SevarogData->AttackRadius);
-
-    CombatStateComponent->SetHitFX(
-        nullptr,
-        SevarogData->MeleeHitImpact,
-        SevarogData->MeleeHitSFX);
+    SetCombatStat(SevarogData->BaseDamage, SevarogData->BasePoiseDamage, SevarogData->AttackRadius);
+    SetHitFX(nullptr, SevarogData->MeleeHitImpact, SevarogData->MeleeHitSFX);
 }
 
 void ARVSevarogCharacter::BeginPlay()
 {
-    Super::BeginPlay(); // calls InitStats()
+    Super::BeginPlay();
 
     HitReactionComponent->SetHitReactCapability(ERVHitReactCapability::Groggy);
     HitReactionComponent->OnGroggySequenceCompleted.AddUObject(
@@ -67,9 +60,6 @@ void ARVSevarogCharacter::BeginPlay()
     AttributeComponent->OnHealthChanged.AddDynamic(this, &ARVSevarogCharacter::CheckPhaseTransition);
     AttributeComponent->OnPoiseDepleted.AddDynamic(this, &ARVSevarogCharacter::OnPoiseDepleted);
 
-    // ---- Melee weapon trail ----
-    // Same approach as player: UNiagaraComponent attached to WeaponTip socket.
-    // Activated only during AnimNotifyState_WeaponTrailFX window.
     if (IsValid(SevarogData) && IsValid(SevarogData->MeleeTrailEffect))
     {
         MeleeTrailNC = UNiagaraFunctionLibrary::SpawnSystemAttached(
@@ -79,7 +69,7 @@ void ARVSevarogCharacter::BeginPlay()
             FVector::ZeroVector,
             FRotator::ZeroRotator,
             EAttachLocation::KeepRelativeOffset,
-            false); // bAutoDestroy = false
+            false);
 
         if (IsValid(MeleeTrailNC))
         {
@@ -115,17 +105,17 @@ void ARVSevarogCharacter::OnDeath()
         HitReactionComponent->AbortGroggy();
     }
 
-    CombatStateComponent->RemoveState(ERVCombatState::Groggy);
+    RemoveCombatState(ERVCombatState::Groggy);
     GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
     URVHitReactionAnimDataAsset* HitReactionData = GetHitReactionAnimData();
     UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
     if (IsValid(AnimInst) && IsValid(HitReactionData) && IsValid(HitReactionData->DeathMontage))
     {
-    	StartDissolve();
+        StartDissolve();
         AnimInst->Montage_Stop(0.1f);
         AnimInst->Montage_Play(HitReactionData->DeathMontage);
-    	
+
         FOnMontageBlendingOutStarted BlendOutDelegate;
         BlendOutDelegate.BindUObject(this, &ARVSevarogCharacter::OnDeathMontageBlendingOut);
         AnimInst->Montage_SetBlendingOutDelegate(BlendOutDelegate, HitReactionData->DeathMontage);
@@ -138,10 +128,8 @@ void ARVSevarogCharacter::OnDeath()
     OnBossDefeated.Broadcast();
 }
 
-void ARVSevarogCharacter::OnDeathMontageBlendingOut(UAnimMontage* /*InMontage*/, bool /*bInterrupted*/)
+void ARVSevarogCharacter::OnDeathMontageBlendingOut(UAnimMontage*, bool)
 {
-    // Dissolve timer handles SetLifeSpan when complete.
-    // If dissolve wasn't started for any reason, fall back to a fixed lifetime.
     if (!GetWorldTimerManager().IsTimerActive(DissolveTimerHandle))
     {
         SetLifeSpan(0.1f);
@@ -158,24 +146,16 @@ void ARVSevarogCharacter::StartDissolve()
     USkeletalMeshComponent* SkelMesh = GetMesh();
     if (!IsValid(SkelMesh)) { SetLifeSpan(0.1f); return; }
 
-    // Create a Dynamic Material Instance for every slot so FadeOut can be driven per-frame.
-    // Slots without MF_DeathFade will ignore the unknown parameter — safe to set on all.
     const int32 NumMaterials = SkelMesh->GetNumMaterials();
     DissolveMIDs.SetNum(NumMaterials);
     for (int32 i = 0; i < NumMaterials; ++i)
     {
-        UMaterialInstanceDynamic* MID = SkelMesh->CreateDynamicMaterialInstance(i);
-        DissolveMIDs[i] = MID;
+        DissolveMIDs[i] = SkelMesh->CreateDynamicMaterialInstance(i);
     }
 
-    // Tick at ~30 Hz — fine-grained enough for a smooth dissolve.
     constexpr float TickInterval = 1.f / 30.f;
     GetWorld()->GetTimerManager().SetTimer(
-        DissolveTimerHandle,
-        this,
-        &ARVSevarogCharacter::TickDissolve,
-        TickInterval,
-        true);
+        DissolveTimerHandle, this, &ARVSevarogCharacter::TickDissolve, TickInterval, true);
 }
 
 void ARVSevarogCharacter::TickDissolve()
@@ -202,7 +182,7 @@ void ARVSevarogCharacter::TickDissolve()
 
 bool ARVSevarogCharacter::IsAttacking() const
 {
-    return CombatStateComponent->HasState(ERVCombatState::Attacking);
+    return HasCombatState(ERVCombatState::Attacking);
 }
 
 bool ARVSevarogCharacter::ExecutePhaseAttack()
@@ -234,15 +214,12 @@ bool ARVSevarogCharacter::ExecuteRushAttack()
 
 bool ARVSevarogCharacter::ExecuteSoulSiphon()
 {
-    // Cosmetic FX (cast trails, hand glow, body swirls) are placed as
-    // AnimNotify_SpawnFX / AnimNotifyState_LoopFX on AM_Boss_SoulSiphon.
     RotateToFacePlayer(ResolvePlayerPawn());
     return PlaySingleShotAction(SevarogData->SoulSiphon.Montage);
 }
 
 bool ARVSevarogCharacter::ExecuteSubjugation()
 {
-    // Cosmetic cast FX is placed as AnimNotify_SpawnFX on AM_Boss_Subjugation.
     RotateToFacePlayer(ResolvePlayerPawn());
     return PlaySingleShotAction(SevarogData->Subjugation.Montage);
 }
@@ -253,13 +230,15 @@ void ARVSevarogCharacter::ForceEndCurrentAction()
     ActiveComboMontages.Empty();
     ActiveComboIndex = 0;
 
-    // Stops all montages — intentional hard stop, not a graceful blend.
-    // AnimNotifyState_LoopFX.NotifyEnd fires automatically on montage stop,
-    // so looping cast FX are cleaned up without explicit tracking here.
+    // Cancel pending subjugation damage timer and clear state.
+    GetWorldTimerManager().ClearTimer(SubjugationDamageTimerHandle);
+    PendingSubjugationLocations.Empty();
+    PendingSwirlsSFX = nullptr;
+
     UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
     if (IsValid(AnimInst)) { AnimInst->Montage_Stop(0.2f); }
 
-    CombatStateComponent->RemoveState(ERVCombatState::Attacking);
+    RemoveCombatState(ERVCombatState::Attacking);
 }
 
 //--- Combo chain -------------------------------------------------------------
@@ -302,7 +281,7 @@ void ARVSevarogCharacter::PlayComboMontageAt(int32 InIndex)
     UAnimMontage* Montage = ActiveComboMontages[InIndex];
     if (!IsValid(Montage)) { return; }
 
-    CombatStateComponent->AddState(ERVCombatState::Attacking);
+    AddCombatState(ERVCombatState::Attacking);
     AnimInst->Montage_Play(Montage);
 
     FOnMontageBlendingOutStarted BlendOutDelegate;
@@ -319,17 +298,15 @@ void ARVSevarogCharacter::TryChainCombo()
     PlayComboMontageAt(ActiveComboIndex);
 }
 
-void ARVSevarogCharacter::OnAttackMontageBlendingOut(UAnimMontage* /*InMontage*/, bool bInterrupted)
+void ARVSevarogCharacter::OnAttackMontageBlendingOut(UAnimMontage*, bool bInterrupted)
 {
     if (bIsComboChaining)
     {
-        // Next montage in the chain is already playing — Attacking state and
-        // ActiveComboMontages remain valid until the chain ends normally.
         bIsComboChaining = false;
         return;
     }
 
-    CombatStateComponent->RemoveState(ERVCombatState::Attacking);
+    RemoveCombatState(ERVCombatState::Attacking);
     ActiveComboMontages.Empty();
     ActiveComboIndex = 0;
 
@@ -344,7 +321,7 @@ bool ARVSevarogCharacter::PlaySingleShotAction(UAnimMontage* InMontage)
     UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
     if (!IsValid(AnimInst))         { return false; }
 
-    CombatStateComponent->AddState(ERVCombatState::Attacking);
+    AddCombatState(ERVCombatState::Attacking);
     AnimInst->Montage_Play(InMontage);
 
     FOnMontageBlendingOutStarted BlendOutDelegate;
@@ -353,9 +330,9 @@ bool ARVSevarogCharacter::PlaySingleShotAction(UAnimMontage* InMontage)
     return true;
 }
 
-void ARVSevarogCharacter::OnSingleShotActionBlendingOut(UAnimMontage* /*InMontage*/, bool bInterrupted)
+void ARVSevarogCharacter::OnSingleShotActionBlendingOut(UAnimMontage*, bool bInterrupted)
 {
-    CombatStateComponent->RemoveState(ERVCombatState::Attacking);
+    RemoveCombatState(ERVCombatState::Attacking);
     if (!bInterrupted) { OnAttackFinished.Broadcast(); }
 }
 
@@ -369,8 +346,13 @@ void ARVSevarogCharacter::StartGroggy()
 
     if (IsAttacking()) { ForceEndCurrentAction(); }
 
-    CombatStateComponent->AddState(ERVCombatState::Groggy);
+    AddCombatState(ERVCombatState::Groggy);
     OnBossGroggyStarted.Broadcast();
+
+    if (IsValid(SevarogData) && IsValid(SevarogData->GroggyStartSFX))
+    {
+        UGameplayStatics::PlaySoundAtLocation(this, SevarogData->GroggyStartSFX, GetActorLocation());
+    }
 
     HitReactionComponent->TriggerGroggy(SevarogData->GroggyDuration);
 }
@@ -384,8 +366,8 @@ void ARVSevarogCharacter::EndGroggy()
 void ARVSevarogCharacter::OnGroggySequenceCompleted()
 {
     bIsGroggy = false;
-    CombatStateComponent->RemoveState(ERVCombatState::Groggy);
-    AttributeComponent->ResetPoise();
+    RemoveCombatState(ERVCombatState::Groggy);
+    ResetPoise();
     OnBossGroggyEnded.Broadcast();
 }
 
@@ -407,7 +389,6 @@ void ARVSevarogCharacter::EndRush()
 
 void ARVSevarogCharacter::ExecuteSoulSiphonHit()
 {
-    // Called from UAnimNotify_SoulSiphonHit — can fire during edge-case blend-out.
     if (!IsValid(SevarogData)) { return; }
 
     const FVector HitCenter = GetForwardLocation(SevarogData->SoulSiphon.HitForwardOffset);
@@ -417,47 +398,83 @@ void ARVSevarogCharacter::ExecuteSoulSiphonHit()
         SevarogData->SoulSiphon.HitDamage,
         SevarogData->SoulSiphon.HitPoiseDamage,
         SevarogData->SoulSiphon.ImpactFX,
-        GetActorForwardVector(), // forward thrust — player always knocked backward
+        GetActorForwardVector(),
         true);
 }
 
-//--- Subjugation blast -------------------------------------------------------
+//--- Subjugation -------------------------------------------------------------
 
-void ARVSevarogCharacter::SpawnSubjugationBlast()
+void ARVSevarogCharacter::InitSubjugationLocations(UParticleSystem* InCastFX)
 {
-    // Called from UAnimNotify_SubjugationBlast — can fire during edge-case blend-out.
     if (!IsValid(SevarogData)) { return; }
 
-    const FVector Origin = GetGroundOrigin();
-    SpawnFXAtLocation(SevarogData->Subjugation.BlastFX, Origin);
-
-    if (IsValid(SevarogData->Subjugation.BlastSFX))
-    {
-        UGameplayStatics::PlaySoundAtLocation(this, SevarogData->Subjugation.BlastSFX, Origin);
-    }
-
+    const FVector Origin      = GetGroundOrigin();
     const float MinSeparation = SevarogData->Subjugation.SwirlDamageRadius * 2.f;
-    const TArray<FVector> SwirlLocations = GenerateSwirlLocations(
-        Origin,
-        SevarogData->Subjugation.SwirlSpreadRadius,
-        MinSeparation,
-        3);
 
-    for (const FVector& SwirlLocation : SwirlLocations)
+    PendingSubjugationLocations = GenerateSwirlLocations(
+        Origin, SevarogData->Subjugation.SwirlSpreadRadius, MinSeparation, 3);
+
+    for (const FVector& Loc : PendingSubjugationLocations)
     {
-        SpawnFXAtLocation(SevarogData->Subjugation.SwirlsFX, SwirlLocation);
+        SpawnFXAtLocation(InCastFX, Loc);
+
+#if !UE_BUILD_SHIPPING
+        DrawDebugSphere(GetWorld(), Loc,
+            SevarogData->Subjugation.SwirlDamageRadius, 16, FColor::Yellow, false, 1.5f);
+#endif
+    }
+}
+
+void ARVSevarogCharacter::SpawnSubjugationBlast(UParticleSystem* InSwirlsFX, USoundBase* InSwirlsSFX)
+{
+    if (!IsValid(SevarogData) || PendingSubjugationLocations.IsEmpty()) { return; }
+
+    PendingSwirlsSFX = InSwirlsSFX;
+	
+	const float DamageDelay = 0.5f;
+	
+    for (const FVector& SwirlLocation : PendingSubjugationLocations)
+    {
+        SpawnFXAtLocation(InSwirlsFX, SwirlLocation);
 
 #if !UE_BUILD_SHIPPING
         DrawDebugSphere(GetWorld(), SwirlLocation,
-            SevarogData->Subjugation.SwirlDamageRadius, 16, FColor::Orange, false, 2.f);
+            SevarogData->Subjugation.SwirlDamageRadius, 16, FColor::Orange, false,
+              DamageDelay + 1.f);
 #endif
+    }
+
+    // Locations kept alive until ApplySubjugationDamage fires.
+    GetWorldTimerManager().SetTimer(
+        SubjugationDamageTimerHandle,
+        this,
+        &ARVSevarogCharacter::ApplySubjugationDamage,
+        FMath::Max(DamageDelay, KINDA_SMALL_NUMBER),
+        false);
+}
+
+void ARVSevarogCharacter::ApplySubjugationDamage()
+{
+    if (!IsValid(SevarogData)) { return; }
+
+    for (const FVector& SwirlLocation : PendingSubjugationLocations)
+    {
+        if (IsValid(PendingSwirlsSFX))
+        {
+            UGameplayStatics::PlaySoundAtLocation(this, PendingSwirlsSFX, SwirlLocation);
+        }
 
         ApplyRadialDamageAt(SwirlLocation,
             SevarogData->Subjugation.SwirlDamageRadius,
             SevarogData->Subjugation.BlastDamage,
             SevarogData->Subjugation.BlastPoiseDamage);
     }
+
+    PendingSubjugationLocations.Empty();
+    PendingSwirlsSFX = nullptr;
 }
+
+//--- Subjugation helpers -----------------------------------------------------
 
 TArray<FVector> ARVSevarogCharacter::GenerateSwirlLocations(const FVector& InOrigin,
     float InSpreadRadius, float InMinSeparation, int32 InCount)
@@ -477,9 +494,7 @@ TArray<FVector> ARVSevarogCharacter::GenerateSwirlLocations(const FVector& InOri
             const float Dist  = FMath::Sqrt(FMath::FRand()) * InSpreadRadius;
 
             const FVector Try = InOrigin + FVector(
-                FMath::Cos(Angle) * Dist,
-                FMath::Sin(Angle) * Dist,
-                0.f);
+                FMath::Cos(Angle) * Dist, FMath::Sin(Angle) * Dist, 0.f);
 
             bool bTooClose = false;
             for (const FVector& Placed : Result)
@@ -528,8 +543,7 @@ void ARVSevarogCharacter::ApplyRadialDamageAt(const FVector& InLocation, float I
     }
     else
     {
-        DrawDebugSphere(GetWorld(), InLocation,
-            InRadius, 16, FColor::Cyan, false, 2.f);
+        DrawDebugSphere(GetWorld(), InLocation, InRadius, 16, FColor::Cyan, false, 2.f);
     }
 #endif
 
@@ -538,9 +552,8 @@ void ARVSevarogCharacter::ApplyRadialDamageAt(const FVector& InLocation, float I
         if (IRVDamageable* Target = Cast<IRVDamageable>(HitActor))
         {
             FRVHitInfo HitInfo;
-            HitInfo.Damage       = InDamage;
-            HitInfo.PoiseDamage  = InPoiseDamage;
-            // Z is zeroed on both paths so vertical angle never influences knockback trajectory.
+            HitInfo.Damage      = InDamage;
+            HitInfo.PoiseDamage = InPoiseDamage;
             const FVector RawDir = InOverrideDirection.IsNearlyZero()
                 ? (HitActor->GetActorLocation() - InLocation)
                 : InOverrideDirection;
@@ -586,7 +599,7 @@ void ARVSevarogCharacter::SetBossPhase(ERVBossPhase InNewPhase)
     OnBossPhaseChanged.Broadcast(CurrentPhase);
 }
 
-void ARVSevarogCharacter::CheckPhaseTransition(float /*InNewHealth*/, float /*InDelta*/)
+void ARVSevarogCharacter::CheckPhaseTransition(float, float)
 {
     if (CurrentPhase == ERVBossPhase::Phase1
         && AttributeComponent->GetHealthPercent() <= SevarogData->Phase2Threshold)

@@ -5,21 +5,11 @@
 #include "Component/RVCombatStateComponent.h"
 #include "RVWeaponAttackComponent.generated.h"
 
-class ACharacter;
-class URVAttributeComponent;
-class URVEquipmentComponent;
+class ARVCharacterBase;
+class IRVWeaponUser;
 class URVWeaponDataAsset;
 class UAnimMontage;
 
-DECLARE_MULTICAST_DELEGATE(FRVOnLightAttackStarted);
-DECLARE_MULTICAST_DELEGATE(FRVOnLightAttackEnded);
-
-/**
- * Handles all weapon attack actions for the player:
- * light attack (combo / run / jump) and heavy attack (charge / release).
- * All attack data is read from the active URVWeaponDataAsset,
- * which is the natural owner of per-weapon attack definitions.
- */
 UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
 class REVENANT_API URVWeaponAttackComponent : public UActorComponent
 {
@@ -28,86 +18,41 @@ class REVENANT_API URVWeaponAttackComponent : public UActorComponent
 public:
     URVWeaponAttackComponent();
 
-    void InitReferences(ACharacter* InOwnerCharacter,
-                        URVCombatStateComponent* InCombatStateComponent,
-                        URVAttributeComponent* InAttributeComponent,
-                        URVEquipmentComponent* InEquipmentComponent);
-
-    //--- Light Attack --------------------------------------------------------
-
-    // Entry point for light attack input (combo / run attack / jump attack).
-    // bIsPlayerSprinting is passed from ARVCharacterPlayer — the character owns sprint state.
     void HandleLightAttackInput(bool bIsPlayerSprinting);
-
-    // Called by AnimNotify_ComboChain — chains to the next combo hit or ends combo.
     void TryChainNextCombo();
-
-    // Called by AnimNotifyState_ComboWindow Begin/End.
     void OpenComboWindow();
     void CloseComboWindow();
-
-    // Called by ARVCharacterPlayer::Landed.
-    // Transitions the jump attack Loop → Landing section if active,
-    // and resets the one-per-jump gate for the next airborne session.
     void OnPlayerLanded();
 
-    bool IsComboActive() const { return bIsComboActive; }
+    bool IsComboActive()       const { return bIsComboActive; }
     bool IsJumpAttackLanding() const { return bIsJumpAttackLanding; }
 
-    //--- Heavy Attack --------------------------------------------------------
-
-    // Begins heavy charge. Plays HeavyChargeMontage (loops until released).
     void StartHeavyAttack();
-
-    /**
-     * Requests heavy release.
-     * Buffered in bPendingRelease if Loop section not yet reached.
-     */
     void ReleaseHeavyAttack();
-
-    /**
-     * Called by AnimNotify_HeavyAttackReady on Loop section entry.
-     * Activates release gating and flushes buffered release.
-     */
     void SetHeavyAttackReady(bool bReady);
-
-    //--- Shared --------------------------------------------------------------
-
-    // Called via CombatStateComponent::OnForceEnd.
     void ForceEndAttack();
-
-    //--- Delegates -----------------------------------------------------------
-
-    // Fired when a light attack starts — CombatStateComponent subscribes to set Attacking bit.
-    FRVOnLightAttackStarted OnLightAttackStarted;
-    FRVOnLightAttackEnded   OnLightAttackEnded;
 
 protected:
     virtual void BeginPlay() override;
 
 private:
+    // Resolved in BeginPlay via GetOwner().
+    // OwnerBase handles all combat state and stamina operations.
+    // WeaponUser supplies weapon data — Owner must implement IRVWeaponUser.
     UPROPERTY()
-    TObjectPtr<ACharacter> OwnerCharacter;
+    TObjectPtr<ARVCharacterBase> OwnerBase;
 
-    UPROPERTY()
-    TObjectPtr<URVCombatStateComponent> CombatStateComponent;
-
-    UPROPERTY()
-    TObjectPtr<URVAttributeComponent> AttributeComponent;
-
-    UPROPERTY()
-    TObjectPtr<URVEquipmentComponent> EquipmentComponent;
+    IRVWeaponUser* WeaponUser = nullptr;
 
     //--- Light Attack State --------------------------------------------------
 
-    bool bIsComboActive      = false;
-    bool bComboWindowOpen    = false;
-    bool bHasComboInput      = false;
-    bool bHasUsedJumpAttack  = false;
-    bool bIsJumpAttackActive  = false; // true while jump attack Begin/Loop is playing
-    bool bIsJumpAttackLanding = false; // true during Landing section — blocks movement input
+    bool bIsComboActive       = false;
+    bool bComboWindowOpen     = false;
+    bool bHasComboInput       = false;
+    bool bHasUsedJumpAttack   = false;
+    bool bIsJumpAttackActive  = false;
+    bool bIsJumpAttackLanding = false;
 
-    // Root motion mode before jump attack overrides it — restored on EndCombo.
     TEnumAsByte<ERootMotionMode::Type> CachedRootMotionMode =
         ERootMotionMode::RootMotionFromMontagesOnly;
 
@@ -117,8 +62,9 @@ private:
     void EndCombo();
     void PlayLightAttackMontage(UAnimMontage* InMontage);
 
-    // Returns false if stamina was insufficient — caller should abort the attack.
     bool ConsumeAttackStamina(UAnimMontage* InMontage, const URVWeaponDataAsset* InWeaponData);
+
+    UAnimInstance* GetAnimInstance() const;
 
     UFUNCTION()
     void OnLightAttackMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted);
@@ -140,6 +86,6 @@ private:
     UFUNCTION()
     void OnChargeAutoRelease();
 
-    void OnChargeMontageBlendingOut(UAnimMontage*, bool bInterrupted);
+    void OnChargeMontageBlendingOut (UAnimMontage*, bool bInterrupted);
     void OnReleaseMontageBlendingOut(UAnimMontage*, bool bInterrupted);
 };

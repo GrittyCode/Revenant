@@ -1,4 +1,3 @@
-// Source/Revenant/Game/RVBossEncounterVolume.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -33,8 +32,15 @@ private:
 	UPROPERTY(EditInstanceOnly, Category = "RV|Boss")
 	TObjectPtr<AActor> BossSpawnPoint;
 
-	UPROPERTY(EditInstanceOnly, Category = "RV|Boss")
-	TObjectPtr<USoundBase> BossBGM;
+	// Played when the cutscene sequence begins.
+	// Assign a cinematic/intro track here.
+	UPROPERTY(EditInstanceOnly, Category = "RV|Boss|Audio")
+	TObjectPtr<USoundBase> CutsceneBGM;
+
+	// Played when the cutscene ends and combat begins.
+	// Assign the main boss battle BGM here.
+	UPROPERTY(EditInstanceOnly, Category = "RV|Boss|Audio")
+	TObjectPtr<USoundBase> CombatBGM;
 
 	UPROPERTY(EditInstanceOnly, Category = "RV|Boss|Cutscene")
 	TObjectPtr<ALevelSequenceActor> CutsceneSequenceActor;
@@ -46,13 +52,16 @@ private:
 
 	bool bTriggered = false;
 	TObjectPtr<ARVSevarogCharacter> SpawnedBoss;
-
+	
 	//--- Internal flow -------------------------------------------------------
 
 	UFUNCTION()
 	void OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor);
 
 	void BeginBossEncounter();
+
+	// Called after SpawnDelay. Starts the intro montage + cutscene sequence.
+	void StartCutscene();
 
 	void PauseBossAI();
 	void ResumeBossAI();

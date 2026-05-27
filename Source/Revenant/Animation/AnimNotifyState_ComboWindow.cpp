@@ -1,37 +1,36 @@
 #include "Animation/AnimNotifyState_ComboWindow.h"
-#include "Component/RVWeaponAttackComponent.h"
+#include "Character/Player/RVCharacterPlayer.h"
 
 void UAnimNotifyState_ComboWindow::NotifyBegin(USkeletalMeshComponent* MeshComp,
-	UAnimSequenceBase* Animation, float TotalDuration,
-	const FAnimNotifyEventReference& EventReference)
+    UAnimSequenceBase* Animation, float TotalDuration,
+    const FAnimNotifyEventReference& EventReference)
 {
-	Super::NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
+    Super::NotifyBegin(MeshComp, Animation, TotalDuration, EventReference);
 
-	AActor* Owner = MeshComp->GetOwner();
-	if (!IsValid(Owner)) { return; }
+    ARVCharacterPlayer* Player = Cast<ARVCharacterPlayer>(MeshComp->GetOwner());
+    ensureMsgf(IsValid(Player),
+        TEXT("[AnimNotifyState_ComboWindow] Owner is not ARVCharacterPlayer — check montage assignment"));
+    if (!IsValid(Player)) { return; }
 
-	URVWeaponAttackComponent* WeaponAttackComp =
-		Owner->FindComponentByClass<URVWeaponAttackComponent>();
-	if (!IsValid(WeaponAttackComp)) { return; }
-
-	CachedComboComps.Add(MeshComp, WeaponAttackComp);
-	WeaponAttackComp->OpenComboWindow();
+    CachedPlayers.Add(MeshComp, Player);
+    Player->OpenComboWindow();
 }
 
 void UAnimNotifyState_ComboWindow::NotifyEnd(USkeletalMeshComponent* MeshComp,
-	UAnimSequenceBase* Animation,
-	const FAnimNotifyEventReference& EventReference)
+    UAnimSequenceBase* Animation,
+    const FAnimNotifyEventReference& EventReference)
 {
-	Super::NotifyEnd(MeshComp, Animation, EventReference);
+    Super::NotifyEnd(MeshComp, Animation, EventReference);
 
-	URVWeaponAttackComponent* WeaponAttackComp = CachedComboComps.FindRef(MeshComp);
-	CachedComboComps.Remove(MeshComp);
+    ARVCharacterPlayer* Player = CachedPlayers.FindRef(MeshComp);
+    CachedPlayers.Remove(MeshComp);
 
-	if (!IsValid(WeaponAttackComp)) { return; }
-	WeaponAttackComp->CloseComboWindow();
+    // Player may have been destroyed between NotifyBegin and NotifyEnd — safe to skip.
+    if (!IsValid(Player)) { return; }
+    Player->CloseComboWindow();
 }
 
 FString UAnimNotifyState_ComboWindow::GetNotifyName_Implementation() const
 {
-	return FString(TEXT("ComboWindow"));
+    return FString(TEXT("ComboWindow"));
 }

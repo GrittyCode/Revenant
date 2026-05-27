@@ -19,7 +19,7 @@ void ARVBossEncounterVolume::BeginPlay()
     OnActorBeginOverlap.AddDynamic(this, &ARVBossEncounterVolume::OnOverlapBegin);
 }
 
-void ARVBossEncounterVolume::OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor)
+void ARVBossEncounterVolume::OnOverlapBegin(AActor* /*OverlappedActor*/, AActor* OtherActor)
 {
     if (bTriggered) { return; }
 
@@ -35,7 +35,8 @@ void ARVBossEncounterVolume::BeginBossEncounter()
 {
     //--- Spawn boss ----------------------------------------------------------
 
-    ensureMsgf(IsValid(BossCharacterClass), TEXT("[ARVBossEncounterVolume] BossCharacterClass is not assigned"));
+    ensureMsgf(IsValid(BossCharacterClass),
+        TEXT("[ARVBossEncounterVolume] BossCharacterClass is not assigned"));
     if (!IsValid(BossCharacterClass)) { return; }
 
     const FTransform SpawnTransform = IsValid(BossSpawnPoint)
@@ -45,6 +46,7 @@ void ARVBossEncounterVolume::BeginBossEncounter()
     FActorSpawnParameters Params;
     Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
     SpawnedBoss = GetWorld()->SpawnActor<ARVSevarogCharacter>(BossCharacterClass, SpawnTransform, Params);
+	SpawnedBoss->SetActorHiddenInGame(true);
 
     PauseBossAI();
 
@@ -61,18 +63,20 @@ void ARVBossEncounterVolume::BeginBossEncounter()
         GM->SetHUDVisible(false);
     }
 
-    //--- Play intro montage --------------------------------------------------
+	StartCutscene();
+	
+}
 
-    if (IsValid(SpawnedBoss) && IsValid(BossIntroMontage))
-    {
-        SpawnedBoss->PlayAnimMontage(BossIntroMontage);
-    }
-
+void ARVBossEncounterVolume::StartCutscene()
+{
+	
     //--- Start sequence ------------------------------------------------------
+
+    APlayerController* PC = GetWorld()->GetFirstPlayerController();
 
     if (!IsValid(CutsceneSequenceActor))
     {
-        // No sequence assigned — go straight to gameplay
+        // No sequence — go straight to gameplay.
         if (ARVGameMode* GM = GetWorld()->GetAuthGameMode<ARVGameMode>())
         {
             GM->SetHUDVisible(true);
@@ -80,6 +84,10 @@ void ARVBossEncounterVolume::BeginBossEncounter()
         if (ARVPlayerController* RVPC = Cast<ARVPlayerController>(PC))
         {
             RVPC->UnlockInputAfterCutscene();
+        }
+        if (IsValid(CombatBGM))
+        {
+            UGameplayStatics::SpawnSound2D(GetWorld(), CombatBGM);
         }
         ResumeBossAI();
         OnBossSpawned.Broadcast(SpawnedBoss);
@@ -96,10 +104,21 @@ void ARVBossEncounterVolume::BeginBossEncounter()
 
     SeqPlayer->OnStop.AddDynamic(this, &ARVBossEncounterVolume::OnCutsceneFinished);
     SeqPlayer->Play();
+	
+	//--- Play intro montage --------------------------------------------------
+	
 
-    if (IsValid(BossBGM))
+	if (IsValid(SpawnedBoss) && IsValid(BossIntroMontage))
+	{
+		SpawnedBoss->PlayAnimMontage(BossIntroMontage);
+	}
+	
+	SpawnedBoss->SetActorHiddenInGame(false);
+	
+    // Cinematic BGM plays with the cutscene.
+    if (IsValid(CutsceneBGM))
     {
-        UGameplayStatics::SpawnSound2D(GetWorld(), BossBGM);
+        UGameplayStatics::SpawnSound2D(GetWorld(), CutsceneBGM);
     }
 }
 
@@ -115,6 +134,12 @@ void ARVBossEncounterVolume::OnCutsceneFinished()
     if (ARVPlayerController* RVPC = Cast<ARVPlayerController>(PC))
     {
         RVPC->UnlockInputAfterCutscene();
+    }
+
+    // Combat BGM starts when the cutscene ends and the fight begins.
+    if (IsValid(CombatBGM))
+    {
+        UGameplayStatics::SpawnSound2D(GetWorld(), CombatBGM);
     }
 
     ResumeBossAI();

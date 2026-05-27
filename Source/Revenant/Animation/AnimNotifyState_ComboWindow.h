@@ -4,23 +4,25 @@
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "AnimNotifyState_ComboWindow.generated.h"
 
-class URVWeaponAttackComponent;
+class ARVCharacterPlayer;
 
 UCLASS()
 class REVENANT_API UAnimNotifyState_ComboWindow : public UAnimNotifyState
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	virtual void NotifyBegin(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
-		float TotalDuration, const FAnimNotifyEventReference& EventReference) override;
+    virtual void NotifyBegin(USkeletalMeshComponent* MeshComp,
+        UAnimSequenceBase* Animation, float TotalDuration,
+        const FAnimNotifyEventReference& EventReference) override;
 
-	virtual void NotifyEnd(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation,
-		const FAnimNotifyEventReference& EventReference) override;
+    virtual void NotifyEnd(USkeletalMeshComponent* MeshComp,
+        UAnimSequenceBase* Animation,
+        const FAnimNotifyEventReference& EventReference) override;
 
-	virtual FString GetNotifyName_Implementation() const override;
+    virtual FString GetNotifyName_Implementation() const override;
 
 private:
-	UPROPERTY()
-	TMap<USkeletalMeshComponent*, URVWeaponAttackComponent*> CachedComboComps;
+    // Keyed by mesh to support multiple simultaneous instances.
+    TMap<USkeletalMeshComponent*, ARVCharacterPlayer*> CachedPlayers;
 };

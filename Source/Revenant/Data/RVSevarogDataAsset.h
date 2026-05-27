@@ -47,10 +47,10 @@ struct FRVSoulSiphonData
     UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitRadius        = 300.f;
     UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitForwardOffset = 10.f;
 
-    // Spawned at computed hit center — position requires C++ calculation.
+    // Spawned at computed hit center on damage confirmation.
+    // Position requires C++ calculation (forward offset from boss), so this field stays here
+    // rather than moving to the montage notify. Cast FX assign via FXList on AnimNotify_SoulSiphonHit.
     UPROPERTY(EditDefaultsOnly) TObjectPtr<UParticleSystem> ImpactFX; // P_SiphonImpact
-
-    // Cast cosmetic FX — assign to AnimNotify_SpawnFX / AnimNotifyState_LoopFX on AM_Boss_SoulSiphon.
 };
 
 USTRUCT(BlueprintType)
@@ -67,11 +67,9 @@ struct FRVSubjugationData
     UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float SwirlSpreadRadius = 400.f;
     UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float SwirlDamageRadius = 150.f;
 
-    // Spawned at computed positions — position requires C++ calculation.
-    UPROPERTY(EditDefaultsOnly) TObjectPtr<UParticleSystem> BlastFX;  // P_Sevarog_Subjugate_Blast
-    UPROPERTY(EditDefaultsOnly) TObjectPtr<UParticleSystem> SwirlsFX; // P_SubjugateSwirls
-	UPROPERTY(EditDefaultsOnly) TObjectPtr<USoundBase> BlastSFX;
-    // Cast cosmetic FX — assign to AnimNotify_SpawnFX on AM_Boss_Subjugation.
+    // BlastFX  — moved to AnimNotify_SubjugationBlast::FXList (montage editor).
+    // SwirlsFX — moved to AnimNotify_SubjugationBlast::SwirlsFX (montage editor).
+    // BlastSFX — moved to AnimNotify_SubjugationBlast::FXList[0].SFX (montage editor).
 };
 
 UCLASS()
@@ -139,6 +137,11 @@ public:
     // Ribbon width injected into User.Width parameter of the trail Niagara system.
     UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4, ClampMin = "0.0"))
     float MeleeTrailWidth = 15.f;
+
+    // Played at boss location when Groggy state is entered.
+    // Assign a stagger grunt / roar from Paragon Sevarog audio assets.
+    UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4))
+    TObjectPtr<USoundBase> GroggyStartSFX;
 
     //--- Movement ------------------------------------------------------------
 

@@ -1,10 +1,8 @@
 #include "Component/RVHitReactionComponent.h"
-#include "Component/RVCombatStateComponent.h"
-#include "Component/RVAttributeComponent.h"
+#include "Character/Base/RVCharacterBase.h"
 #include "Data/RVHitReactionAnimDataAsset.h"
 #include "Animation/AnimMontage.h"
 #include "Animation/AnimInstance.h"
-#include "GameFramework/Character.h"
 #include "KismetAnimationLibrary.h"
 
 URVHitReactionComponent::URVHitReactionComponent()
@@ -15,47 +13,49 @@ URVHitReactionComponent::URVHitReactionComponent()
 void URVHitReactionComponent::BeginPlay()
 {
     Super::BeginPlay();
+
+    OwnerBase = Cast<ARVCharacterBase>(GetOwner());
+    ensureMsgf(IsValid(OwnerBase),
+        TEXT("[URVHitReactionComponent] Owner must be ARVCharacterBase"));
 }
 
-void URVHitReactionComponent::InitReferences(
-    ACharacter* InOwnerCharacter,
-    URVCombatStateComponent* InCombatStateComponent,
-    URVAttributeComponent* InAttributeComponent,
+void URVHitReactionComponent::InitParams(
     URVHitReactionAnimDataAsset* InHitReactionAnimData,
-    float InStaggerDuration,
-    float InStaggerThreshold,
-    float InKnockdownThreshold)
+    float InStaggerDuration, float InStaggerThreshold, float InKnockdownThreshold)
 {
-    OwnerCharacter       = InOwnerCharacter;
-    CombatStateComponent = InCombatStateComponent;
-    AttributeComponent   = InAttributeComponent;
     HitReactionAnimData  = InHitReactionAnimData;
     StaggerDuration      = InStaggerDuration;
     StaggerThreshold     = InStaggerThreshold;
     KnockdownThreshold   = InKnockdownThreshold;
 }
 
+UAnimInstance* URVHitReactionComponent::GetAnimInstance() const
+{
+    UAnimInstance* AnimInst = OwnerBase->GetMesh()->GetAnimInstance();
+    ensureMsgf(IsValid(AnimInst),
+        TEXT("[%s] URVHitReactionComponent: AnimInstance missing — check ABP assignment"),
+        *GetNameSafe(OwnerBase));
+    return AnimInst;
+}
+
 //--- Main Entry Point --------------------------------------------------------
 
 void URVHitReactionComponent::HandleHit(const FRVHitInfo& InHitInfo)
 {
-    if (CombatStateComponent->HasState(ERVCombatState::Knockdown)) { return; }
+    if (OwnerBase->HasCombatState(ERVCombatState::Knockdown)) { return; }
 
-    const float MaxPoise = AttributeComponent->GetMaxPoise();
+    const float MaxPoise = OwnerBase->GetMaxPoise();
 
-    // Single-hit knockdown: one attack delivers enough poise damage relative to MaxPoise.
     const bool bSingleHitKnockdown = MaxPoise > 0.f
         && (InHitInfo.PoiseDamage / MaxPoise) >= KnockdownThreshold;
 
-    // Apply poise damage. Also fires OnPoiseDepleted for boss groggy if poise hits 0.
-    AttributeComponent->ApplyPoiseDamage(InHitInfo.PoiseDamage);
+    OwnerBase->ApplyPoiseDamage(InHitInfo.PoiseDamage);
 
-    const float PoiseRatio = AttributeComponent->GetPoiseRatio();
+    const float PoiseRatio = OwnerBase->GetPoiseRatio();
 
-    // Escalate to knockdown if already staggering or airborne.
     const bool bShouldKnockdown = bSingleHitKnockdown
-        || !CombatStateComponent->IsGrounded()
-        || CombatStateComponent->HasState(ERVCombatState::HitReaction);
+        || !OwnerBase->IsGrounded()
+        || OwnerBase->HasCombatState(ERVCombatState::HitReaction);
 
     const bool bReactionNeeded = bShouldKnockdown || (PoiseRatio <= StaggerThreshold);
     if (!bReactionNeeded) { return; }
@@ -64,18 +64,17 @@ void URVHitReactionComponent::HandleHit(const FRVHitInfo& InHitInfo)
         ? ERVHitReactCapability::Knockdown
         : ERVHitReactCapability::Stagger;
 
-    // Poise damage accumulates even when reactions are disabled (e.g. boss Groggy capability only).
     if (!CanHitReact(Required)) { return; }
 
-    CombatStateComponent->ForceEndAllActions();
-    AttributeComponent->ResetPoise();
+    OwnerBase->ForceEndAllActions();
+    OwnerBase->ResetPoise();
 
     if (bShouldKnockdown)
     {
-        if (CombatStateComponent->HasState(ERVCombatState::HitReaction))
+        if (OwnerBase->HasCombatState(ERVCombatState::HitReaction))
         {
             GetWorld()->GetTimerManager().ClearTimer(StaggerHandle);
-            CombatStateComponent->RemoveState(ERVCombatState::HitReaction);
+            OwnerBase->RemoveCombatState(ERVCombatState::HitReaction);
         }
         TriggerKnockdown(InHitInfo.HitDirection);
     }
@@ -89,13 +88,14 @@ void URVHitReactionComponent::HandleHit(const FRVHitInfo& InHitInfo)
 
 void URVHitReactionComponent::TriggerStaggerWithMontage(UAnimMontage* InMontage)
 {
-    if (!IsValid(InMontage)) { return; }
+    if (!ensureMsgf(IsValid(InMontage),
+        TEXT("[%s] TriggerStaggerWithMontage: InMontage is null — check GuardBreakMontage assignment"),
+        *GetNameSafe(OwnerBase))) { return; }
 
-    UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
+    UAnimInstance* AnimInst = GetAnimInstance();
     if (!IsValid(AnimInst)) { return; }
 
-    CombatStateComponent->AddState(ERVCombatState::HitReaction);
-
+    OwnerBase->AddCombatState(ERVCombatState::HitReaction);
     AnimInst->Montage_Play(InMontage);
 
     FOnMontageBlendingOutStarted BlendingOutDelegate;
@@ -107,9 +107,11 @@ void URVHitReactionComponent::TriggerStaggerWithMontage(UAnimMontage* InMontage)
 
 void URVHitReactionComponent::TriggerGroggy(float InGroggyDuration)
 {
-    if (!IsValid(HitReactionAnimData)) { return; }
+    if (!ensureMsgf(IsValid(HitReactionAnimData),
+        TEXT("[%s] TriggerGroggy: HitReactionAnimData not assigned"),
+        *GetNameSafe(OwnerBase))) { return; }
 
-    UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
+    UAnimInstance* AnimInst = GetAnimInstance();
     if (!IsValid(AnimInst)) { return; }
 
     GroggyDuration = InGroggyDuration;
@@ -135,20 +137,18 @@ void URVHitReactionComponent::EndGroggy()
 {
     GetWorld()->GetTimerManager().ClearTimer(GroggyTimerHandle);
 
-    if (!IsValid(HitReactionAnimData)) { return; }
+    if (!ensureMsgf(IsValid(HitReactionAnimData),
+        TEXT("[%s] EndGroggy: HitReactionAnimData not assigned"),
+        *GetNameSafe(OwnerBase))) { return; }
 
-    UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
+    UAnimInstance* AnimInst = GetAnimInstance();
     if (!IsValid(AnimInst)) { return; }
 
     UAnimMontage* LoopMontage = HitReactionAnimData->GroggyStunLoopMontage;
     if (IsValid(LoopMontage)) { AnimInst->Montage_Stop(0.2f, LoopMontage); }
 
     UAnimMontage* EndMontage = HitReactionAnimData->GroggyStunEndMontage;
-    if (!IsValid(EndMontage))
-    {
-        OnGroggySequenceCompleted.Broadcast();
-        return;
-    }
+    if (!IsValid(EndMontage)) { OnGroggySequenceCompleted.Broadcast(); return; }
 
     AnimInst->Montage_Play(EndMontage);
 
@@ -167,30 +167,30 @@ void URVHitReactionComponent::AbortGroggy()
 void URVHitReactionComponent::TriggerStagger(const FVector& InHitDirection)
 {
     StaggerDirection = UKismetAnimationLibrary::CalculateDirection(
-        InHitDirection, OwnerCharacter->GetActorRotation());
+        InHitDirection, OwnerBase->GetActorRotation());
 
-    CombatStateComponent->AddState(ERVCombatState::HitReaction);
+    OwnerBase->AddCombatState(ERVCombatState::HitReaction);
 
     GetWorld()->GetTimerManager().SetTimer(
-        StaggerHandle,
-        this,
-        &URVHitReactionComponent::OnStaggerEnd,
-        StaggerDuration,
-        false);
+        StaggerHandle, this, &URVHitReactionComponent::OnStaggerEnd, StaggerDuration, false);
 }
 
 void URVHitReactionComponent::TriggerKnockdown(const FVector& InHitDirection)
 {
-    if (!IsValid(HitReactionAnimData)) { return; }
+    if (!ensureMsgf(IsValid(HitReactionAnimData),
+        TEXT("[%s] TriggerKnockdown: HitReactionAnimData not assigned"),
+        *GetNameSafe(OwnerBase))) { return; }
 
     UAnimMontage* KnockdownMontage = HitReactionAnimData->KnockdownMontage;
-    if (!IsValid(KnockdownMontage)) { return; }
+    if (!ensureMsgf(IsValid(KnockdownMontage),
+        TEXT("[%s] TriggerKnockdown: KnockdownMontage not assigned"),
+        *GetNameSafe(OwnerBase))) { return; }
 
-    UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
+    UAnimInstance* AnimInst = GetAnimInstance();
     if (!IsValid(AnimInst)) { return; }
 
-    OwnerCharacter->SetActorRotation(FRotationMatrix::MakeFromX(InHitDirection).Rotator());
-    CombatStateComponent->AddState(ERVCombatState::Knockdown);
+    OwnerBase->SetActorRotation(FRotationMatrix::MakeFromX(InHitDirection).Rotator());
+    OwnerBase->AddCombatState(ERVCombatState::Knockdown);
 
     AnimInst->Montage_Play(KnockdownMontage);
 
@@ -203,22 +203,26 @@ void URVHitReactionComponent::TriggerKnockdown(const FVector& InHitDirection)
 
 void URVHitReactionComponent::OnStaggerEnd()
 {
-    CombatStateComponent->RemoveState(ERVCombatState::HitReaction);
+    OwnerBase->RemoveCombatState(ERVCombatState::HitReaction);
 }
 
-void URVHitReactionComponent::OnStaggerMontageBlendingOut(UAnimMontage* /*Montage*/, bool /*bInterrupted*/)
+void URVHitReactionComponent::OnStaggerMontageBlendingOut(UAnimMontage*, bool)
 {
-    CombatStateComponent->RemoveState(ERVCombatState::HitReaction);
+    OwnerBase->RemoveCombatState(ERVCombatState::HitReaction);
 }
 
-void URVHitReactionComponent::OnKnockdownMontageBlendingOut(UAnimMontage* /*Montage*/, bool /*bInterrupted*/)
+void URVHitReactionComponent::OnKnockdownMontageBlendingOut(UAnimMontage*, bool)
 {
-    if (!IsValid(HitReactionAnimData)) { return; }
+    if (!ensureMsgf(IsValid(HitReactionAnimData),
+        TEXT("[%s] OnKnockdownMontageBlendingOut: HitReactionAnimData not assigned"),
+        *GetNameSafe(OwnerBase))) { return; }
 
     UAnimMontage* GetUpMontage = HitReactionAnimData->GetUpMontage;
-    if (!IsValid(GetUpMontage)) { return; }
+    if (!ensureMsgf(IsValid(GetUpMontage),
+        TEXT("[%s] OnKnockdownMontageBlendingOut: GetUpMontage not assigned"),
+        *GetNameSafe(OwnerBase))) { return; }
 
-    UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
+    UAnimInstance* AnimInst = GetAnimInstance();
     if (!IsValid(AnimInst)) { return; }
 
     AnimInst->Montage_Play(GetUpMontage);
@@ -228,22 +232,26 @@ void URVHitReactionComponent::OnKnockdownMontageBlendingOut(UAnimMontage* /*Mont
     AnimInst->Montage_SetBlendingOutDelegate(GetUpDelegate, GetUpMontage);
 }
 
-void URVHitReactionComponent::OnGetUpMontageBlendingOut(UAnimMontage* /*Montage*/, bool /*bInterrupted*/)
+void URVHitReactionComponent::OnGetUpMontageBlendingOut(UAnimMontage*, bool)
 {
-    CombatStateComponent->RemoveState(ERVCombatState::Knockdown);
+    OwnerBase->RemoveCombatState(ERVCombatState::Knockdown);
 }
 
-void URVHitReactionComponent::OnGroggyStartMontageBlendingOut(UAnimMontage* /*Montage*/, bool bInterrupted)
+void URVHitReactionComponent::OnGroggyStartMontageBlendingOut(UAnimMontage*, bool bInterrupted)
 {
     if (bInterrupted) { return; }
 
-    if (!IsValid(HitReactionAnimData)) { return; }
-
-    UAnimInstance* AnimInst = OwnerCharacter->GetMesh()->GetAnimInstance();
-    if (!IsValid(AnimInst)) { return; }
+    if (!ensureMsgf(IsValid(HitReactionAnimData),
+        TEXT("[%s] OnGroggyStartMontageBlendingOut: HitReactionAnimData not assigned"),
+        *GetNameSafe(OwnerBase))) { return; }
 
     UAnimMontage* LoopMontage = HitReactionAnimData->GroggyStunLoopMontage;
-    if (!IsValid(LoopMontage)) { return; }
+    if (!ensureMsgf(IsValid(LoopMontage),
+        TEXT("[%s] OnGroggyStartMontageBlendingOut: GroggyStunLoopMontage not assigned"),
+        *GetNameSafe(OwnerBase))) { return; }
+
+    UAnimInstance* AnimInst = GetAnimInstance();
+    if (!IsValid(AnimInst)) { return; }
 
     AnimInst->Montage_Play(LoopMontage);
 
@@ -251,7 +259,7 @@ void URVHitReactionComponent::OnGroggyStartMontageBlendingOut(UAnimMontage* /*Mo
         GroggyTimerHandle, this, &URVHitReactionComponent::EndGroggy, GroggyDuration, false);
 }
 
-void URVHitReactionComponent::OnGroggyEndMontageBlendingOut(UAnimMontage* /*Montage*/, bool /*bInterrupted*/)
+void URVHitReactionComponent::OnGroggyEndMontageBlendingOut(UAnimMontage*, bool)
 {
     OnGroggySequenceCompleted.Broadcast();
 }

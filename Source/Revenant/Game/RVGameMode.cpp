@@ -22,8 +22,6 @@ void ARVGameMode::BeginPlay()
     PC->SetInputMode(FInputModeGameOnly());
     PC->bShowMouseCursor = false;
 
-    //--- Create widgets ------------------------------------------------------
-
     if (IsValid(HUDWidgetClass))
     {
         HUDWidget = CreateWidget<URVHUDWidget>(PC, HUDWidgetClass);
@@ -40,8 +38,6 @@ void ARVGameMode::BeginPlay()
         GameResultWidget = CreateWidget<URVGameResultWidget>(PC, GameResultWidgetClass);
     }
 
-    //--- Bind player delegates via CharacterBase facade ----------------------
-
     if (ARVCharacterBase* PlayerChar = Cast<ARVCharacterBase>(PC->GetPawn()))
     {
         PlayerCharRef = PlayerChar;
@@ -49,9 +45,6 @@ void ARVGameMode::BeginPlay()
         PlayerChar->GetOnStaminaChanged().AddDynamic(this, &ARVGameMode::OnPlayerStaminaChanged);
         PlayerChar->GetOnDeath().AddDynamic(this, &ARVGameMode::OnPlayerDeath);
     }
-	
-	
-    //--- Subscribe to BossEncounterVolume ------------------------------------
 
     AActor* VolumeActor = UGameplayStatics::GetActorOfClass(GetWorld(), ARVBossEncounterVolume::StaticClass());
     if (ARVBossEncounterVolume* Volume = Cast<ARVBossEncounterVolume>(VolumeActor))
@@ -99,20 +92,20 @@ void ARVGameMode::ShowGameResult(bool bVictory)
 
 void ARVGameMode::SetHUDVisible(bool bVisible)
 {
-	if (!IsValid(HUDWidget)) { return; }
-	HUDWidget->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
+    if (!IsValid(HUDWidget)) { return; }
+    HUDWidget->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
 }
 
-void ARVGameMode::OnPlayerHealthChanged(float NewHealth, float InDelta)
+void ARVGameMode::OnPlayerHealthChanged(float, float)
 {
     if (!IsValid(HUDWidget) || !PlayerCharRef.IsValid()) { return; }
     HUDWidget->SetHPPercent(PlayerCharRef->GetHealthRatio());
 }
 
-void ARVGameMode::OnPlayerStaminaChanged(float NewStamina, float InDelta)
+void ARVGameMode::OnPlayerStaminaChanged(float, float)
 {
-	if (!IsValid(HUDWidget) || !PlayerCharRef.IsValid()) { return; }
-	HUDWidget->SetStaminaPercent(PlayerCharRef->GetStaminaRatio());
+    if (!IsValid(HUDWidget) || !PlayerCharRef.IsValid()) { return; }
+    HUDWidget->SetStaminaPercent(PlayerCharRef->GetStaminaRatio());
 }
 
 void ARVGameMode::OnPlayerDeath()

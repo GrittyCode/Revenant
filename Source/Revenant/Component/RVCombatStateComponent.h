@@ -1,16 +1,10 @@
-// Source/Revenant/Component/RVCombatStateComponent.h
 #pragma once
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "RVCombatStateComponent.generated.h"
 
-class ACharacter;
-class UMeshComponent;
 class UCharacterMovementComponent;
-class UNiagaraSystem;
-class UParticleSystem;
-class USoundBase;
 
 UENUM(meta=(Bitflags))
 enum class ERVCombatState : uint16
@@ -30,6 +24,8 @@ ENUM_CLASS_FLAGS(ERVCombatState);
 DECLARE_MULTICAST_DELEGATE_OneParam(FRVOnCombatStateChanged, ERVCombatState);
 DECLARE_MULTICAST_DELEGATE(FRVOnForceEnd);
 
+// Pure state authority — owns the combat state bitmask and broadcasts changes.
+// Attack trace logic lives in URVAttackTraceComponent.
 UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
 class REVENANT_API URVCombatStateComponent : public UActorComponent
 {
@@ -43,20 +39,31 @@ public:
     FRVOnCombatStateChanged OnStateChanged;
     FRVOnForceEnd           OnForceEnd;
 
-    //--- Attack Trace --------------------------------------------------------
+    //--- State Mutators ------------------------------------------------------
 
-    void OpenHitWindow();
-    void CloseHitWindow();
-    void PerformAttackTrace();
+    FORCEINLINE void AddState(ERVCombatState InState)
+    {
+        CurrentStates |= InState;
+        OnStateChanged.Broadcast(CurrentStates);
+    }
 
-    //--- State Control -------------------------------------------------------
+    FORCEINLINE void RemoveState(ERVCombatState InState)
+    {
+        CurrentStates &= ~InState;
+        OnStateChanged.Broadcast(CurrentStates);
+    }
 
-    void ForceEndAllActions();
+    FORCEINLINE bool HasState(ERVCombatState InState) const
+    {
+        return (CurrentStates & InState) != ERVCombatState::None;
+    }
+
+    void SetInvincible(bool bInInvincible) { bIsInvincible = bInInvincible; }
 
     //--- State Queries -------------------------------------------------------
 
     UFUNCTION(BlueprintCallable, Category = "RV|Combat")
-    bool IsInState(ERVCombatState InState) const { return (CurrentStates & InState) != ERVCombatState::None; }
+    bool IsInState(ERVCombatState InState) const { return HasState(InState); }
 
     UFUNCTION(BlueprintCallable, Category = "RV|Combat")
     bool IsInvincible() const { return bIsInvincible; }
@@ -66,72 +73,23 @@ public:
 
     ERVCombatState GetActiveStates() const { return CurrentStates; }
 
+    // Returns true when no blocking state is active (optionally excluding InCoexistableStates).
     bool CheckAvailableState(ERVCombatState InCoexistableStates = ERVCombatState::None) const;
 
-    //--- State Mutators ------------------------------------------------------
+    //--- State Control -------------------------------------------------------
 
-    FORCEINLINE void AddState(ERVCombatState InState) { CurrentStates |= InState; OnStateChanged.Broadcast(CurrentStates); }
-    FORCEINLINE void RemoveState(ERVCombatState InState) { CurrentStates &= ~InState; OnStateChanged.Broadcast(CurrentStates); }
-    FORCEINLINE bool HasState(ERVCombatState InState) const { return (CurrentStates & InState) != ERVCombatState::None; }
-
-    void SetInvincible(bool bInInvincible) { bIsInvincible = bInInvincible; }
-
-    //--- Reference Injection -------------------------------------------------
-
-    void InitReferences(ACharacter* InOwnerCharacter,
-                        UMeshComponent* InTraceMesh,
-                        UCharacterMovementComponent* InMovementComponent);
-
-    /**
-     * Injects attack base stats from the current weapon (player) or enemy stat row (boss).
-     * Called by ARVCharacterPlayer::OnWeaponChangedHandler and ARVBossCharacter::BeginPlay.
-     */
-    void SetCombatStat(float InBaseDamage, float InBasePoiseDamage, float InAttackRadius);
-
-    /**
-     * Injects hit impact VFX and SFX used by PerformAttackTrace.
-     * Player: called from OnWeaponChangedHandler (per weapon).
-     * Boss:   called from InitStats (once at BeginPlay).
-     * Pass nullptr for unused slots.
-     */
-    void SetHitFX(UNiagaraSystem* InNiagara, UParticleSystem* InCascade, USoundBase* InSFX);
-
-    //--- Attack State Handlers -----------------------------------------------
-
-    void OnAttackStarted();
-    void OnAttackEnded();
+    // Broadcasts OnForceEnd — subscribers (WeaponAttackComponent, GuardComponent, etc.)
+    // each terminate their own action. Wired by the owning Actor in BeginPlay.
+    void ForceEndAllActions();
 
 protected:
     virtual void BeginPlay() override;
 
 private:
-    UPROPERTY()
-    TObjectPtr<ACharacter> OwnerCharacter;
-
-    UPROPERTY()
-    TObjectPtr<UMeshComponent> TraceMesh;
-
+    // Resolved in BeginPlay via Cast<ACharacter>(GetOwner())->GetCharacterMovement().
     UPROPERTY()
     TObjectPtr<UCharacterMovementComponent> MovementComponent;
 
     ERVCombatState CurrentStates = ERVCombatState::None;
     bool           bIsInvincible = false;
-
-    // Cached attack base stats. Set via SetCombatStat().
-    // Player: updated on weapon swap. Boss: set once in BeginPlay.
-    float CachedBaseDamage      = 0.f;
-    float CachedBasePoiseDamage = 0.f;
-    float CachedAttackRadius    = 40.f;
-
-    // Cached hit impact VFX / SFX. Injected via SetHitFX().
-    UPROPERTY()
-    TObjectPtr<UNiagaraSystem>  HitImpactEffect;
-
-    UPROPERTY()
-    TObjectPtr<UParticleSystem> HitImpactEffectCascade;
-
-    UPROPERTY()
-    TObjectPtr<USoundBase> HitSFX;
-
-    TSet<TWeakObjectPtr<AActor>> HitActors;
 };

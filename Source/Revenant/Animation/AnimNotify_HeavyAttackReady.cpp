@@ -1,23 +1,20 @@
 #include "Animation/AnimNotify_HeavyAttackReady.h"
-#include "Component/RVWeaponAttackComponent.h"
+#include "Character/Player/RVCharacterPlayer.h"
 
 void UAnimNotify_HeavyAttackReady::Notify(USkeletalMeshComponent* MeshComp,
-	UAnimSequenceBase* Animation,
-	const FAnimNotifyEventReference& EventReference)
+    UAnimSequenceBase* /*Animation*/, const FAnimNotifyEventReference& /*EventReference*/)
 {
-	Super::Notify(MeshComp, Animation, EventReference);
+    Super::Notify(MeshComp, nullptr, FAnimNotifyEventReference());
 
-	AActor* Owner = MeshComp->GetOwner();
-	if (!IsValid(Owner)) { return; }
+    ARVCharacterPlayer* Player = Cast<ARVCharacterPlayer>(MeshComp->GetOwner());
+    ensureMsgf(IsValid(Player),
+        TEXT("[AnimNotify_HeavyAttackReady] Owner is not ARVCharacterPlayer — check montage assignment"));
+    if (!IsValid(Player)) { return; }
 
-	URVWeaponAttackComponent* WeaponAttackComp =
-		Owner->FindComponentByClass<URVWeaponAttackComponent>();
-	if (!IsValid(WeaponAttackComp)) { return; }
-
-	WeaponAttackComp->SetHeavyAttackReady(true);
+    Player->SetHeavyAttackReady(true);
 }
 
 FString UAnimNotify_HeavyAttackReady::GetNotifyName_Implementation() const
 {
-	return FString(TEXT("HeavyAttackReady"));
+    return FString(TEXT("HeavyAttackReady"));
 }

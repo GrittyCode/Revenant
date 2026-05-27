@@ -9,9 +9,13 @@
 #include "RVCharacterBase.generated.h"
 
 class URVHitReactionComponent;
+class URVAttackTraceComponent;
 class URVCharacterDataAsset;
 class URVHitReactionAnimDataAsset;
 class UMeshComponent;
+class UNiagaraSystem;
+class UParticleSystem;
+class USoundBase;
 
 UCLASS()
 class REVENANT_API ARVCharacterBase : public ACharacter, public IRVHitCheckTarget, public IRVDamageable
@@ -24,13 +28,15 @@ public:
     virtual void ActivateHitCheck() override;
     virtual bool ApplyDamage(const FRVHitInfo& InHitInfo) override;
 
+    //--- Attribute queries (external: GameMode, Widget) ----------------------
+
     UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
     float GetHealthRatio() const;
 
     UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
     float GetStaminaRatio() const;
 
-    //--- Attribute event facades ---------------------------------------------
+    //--- Attribute event facades (external: GameMode, Widget) ----------------
 
     FRVOnHealthChanged&  GetOnHealthChanged();
     FRVOnStaminaChanged& GetOnStaminaChanged();
@@ -38,19 +44,54 @@ public:
     FRVOnPoiseDepleted&  GetOnPoiseDepleted();
     FRVOnPoiseChanged&   GetOnPoiseChanged();
 
-    //--- Combat state facades (AnimNotify) -----------------------------------
+    //--- AnimNotify entry points (CharacterBase interface for polymorphic notify dispatch) ---
 
     void OpenAttackHitWindow();
     void CloseAttackHitWindow();
 
-    // Called by AnimNotifyState_WeaponTrailFX. No-op by default (boss has no weapon mesh).
     virtual void ActivateWeaponTrail()   {}
     virtual void DeactivateWeaponTrail() {}
 
-    //--- State query facades (AnimInstance) ----------------------------------
+    //--- AnimInstance state queries ------------------------------------------
 
     bool  IsInCombatState(ERVCombatState InState) const;
     float GetStaggerDirection() const;
+
+    //--- Combat state operations (components and subclasses call through here) ---
+
+    void AddCombatState(ERVCombatState InState);
+    void RemoveCombatState(ERVCombatState InState);
+    bool HasCombatState(ERVCombatState InState) const;
+    bool CanAct(ERVCombatState InCoexistableStates = ERVCombatState::None) const;
+    bool IsGrounded() const;
+    void SetInvincible(bool bInvincible);
+    bool IsInvincible() const;
+    void ForceEndAllActions();
+
+    //--- Stamina operations --------------------------------------------------
+
+    bool  TryConsumeStamina(float InAmount);
+    float GetCurrentStamina() const;
+    void  PauseStaminaRegen();
+    void  ResumeStaminaRegen();
+    void  ResetStaminaRegenDelay();
+    bool  ApplyStaminaDamage(float InAmount);
+
+    //--- Poise operations ----------------------------------------------------
+
+    float GetMaxPoise() const;
+    float GetPoiseRatio() const;
+    bool  ApplyPoiseDamage(float InAmount);
+    void  ResetPoise();
+
+    //--- Attack trace operations (routes to URVAttackTraceComponent) ---------
+
+    void SetCombatStat(float InBaseDamage, float InBasePoiseDamage, float InAttackRadius);
+    void SetHitFX(UNiagaraSystem* InNiagara, UParticleSystem* InCascade, USoundBase* InSFX);
+
+    //--- Hit reaction operations (routes to URVHitReactionComponent) ---------
+
+    void TriggerStaggerWithMontage(UAnimMontage* InMontage);
 
 protected:
     virtual void BeginPlay() override;
@@ -58,17 +99,14 @@ protected:
     virtual void Landed(const FHitResult& Hit) override;
 
     virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const { return nullptr; }
-
-    // Called from BeginPlay before HitReactionComponent is initialized.
-    // Subclass initializes AttributeComponent and any character-specific stats here.
     virtual void InitStats() {}
 
     UFUNCTION()
     virtual void OnDeath();
 
+    // Override to supply a different trace mesh (e.g. weapon mesh for Player).
+    // Base implementation returns the skeletal mesh.
     virtual UMeshComponent* GetWeaponTraceMesh() const { return GetMesh(); }
-
-    //--- Spatial helpers -----------------------------------------------------
 
     FVector GetForwardLocation(float InOffset = 1.f) const;
     FVector GetGroundOrigin() const;
@@ -83,6 +121,9 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
     TObjectPtr<URVHitReactionComponent> HitReactionComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVAttackTraceComponent> AttackTraceComponent;
 
     //--- Data ----------------------------------------------------------------
 

@@ -1,16 +1,14 @@
 #include "Animation/AnimNotify_ComboChain.h"
-#include "Component/RVWeaponAttackComponent.h"
+#include "Character/Player/RVCharacterPlayer.h"
 
 void UAnimNotify_ComboChain::Notify(USkeletalMeshComponent* MeshComp,
-									UAnimSequenceBase* Animation,
-									const FAnimNotifyEventReference& EventReference)
+    UAnimSequenceBase* /*Animation*/, const FAnimNotifyEventReference& /*EventReference*/)
 {
-	AActor* Owner = MeshComp->GetOwner();
-	if (!IsValid(Owner)) { return; }
+    ARVCharacterPlayer* Player = Cast<ARVCharacterPlayer>(MeshComp->GetOwner());
+    // Notify is placed on player montages only — null here means incorrect montage assignment.
+    ensureMsgf(IsValid(Player),
+        TEXT("[AnimNotify_ComboChain] Owner is not ARVCharacterPlayer — check montage assignment"));
+    if (!IsValid(Player)) { return; }
 
-	URVWeaponAttackComponent* WeaponAttackComp =
-		Owner->FindComponentByClass<URVWeaponAttackComponent>();
-	if (!IsValid(WeaponAttackComp)) { return; }
-
-	WeaponAttackComp->TryChainNextCombo();
+    Player->TryChainNextCombo();
 }
