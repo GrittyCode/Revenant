@@ -11,6 +11,7 @@ class URVPlayerCombatAnimDataAsset;
 class URVHitReactionAnimDataAsset;
 class UNiagaraSystem;
 class USoundBase;
+class UTexture2D;
 struct FRVWeaponStatRow;
 
 UCLASS(BlueprintType)
@@ -45,6 +46,13 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Animation")
 	TObjectPtr<URVHitReactionAnimDataAsset> HitReactionAnimData;
+
+	//--- UI ------------------------------------------------------------------
+
+	// Icon displayed in the weapon quickslot HUD.
+	// Assign a 64×64 (or similar) square texture in DA_WeaponData_GreatSword_A/B.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|UI")
+	TObjectPtr<UTexture2D> WeaponIcon;
 
 	//--- VFX / SFX -----------------------------------------------------------
 

@@ -53,6 +53,9 @@ public:
 
     FRVOnWeaponChanged& GetOnWeaponChanged();
 
+    // Exposed for ARVPlayerController weapon quickslot wiring.
+    URVEquipmentComponent* GetEquipmentComponent() const { return EquipmentComponent; }
+
 protected:
     virtual void BeginPlay() override;
     virtual void OnDeath() override;

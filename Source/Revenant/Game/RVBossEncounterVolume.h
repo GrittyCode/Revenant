@@ -36,6 +36,9 @@ private:
 	// Assign a cinematic/intro track here.
 	UPROPERTY(EditInstanceOnly, Category = "RV|Boss|Audio")
 	TObjectPtr<USoundBase> CutsceneBGM;
+	
+	UPROPERTY()
+	TObjectPtr<UAudioComponent> CutsceneBGMAudioComponent;
 
 	// Played when the cutscene ends and combat begins.
 	// Assign the main boss battle BGM here.
@@ -47,6 +50,7 @@ private:
 
 	UPROPERTY(EditInstanceOnly, Category = "RV|Boss|Cutscene")
 	TObjectPtr<UAnimMontage> BossIntroMontage;
+	
 
 	//--- Runtime state -------------------------------------------------------
 

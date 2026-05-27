@@ -1,11 +1,11 @@
 #include "Game/RVBossEncounterVolume.h"
-#include "Game/RVGameMode.h"
 #include "Character/Enemy/RVSevarogCharacter.h"
 #include "Player/RVPlayerController.h"
 #include "AIController.h"
 #include "BrainComponent.h"
 #include "LevelSequenceActor.h"
 #include "LevelSequencePlayer.h"
+#include "Components/AudioComponent.h"
 #include "Kismet/GameplayStatics.h"
 
 ARVBossEncounterVolume::ARVBossEncounterVolume()
@@ -46,43 +46,31 @@ void ARVBossEncounterVolume::BeginBossEncounter()
     FActorSpawnParameters Params;
     Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
     SpawnedBoss = GetWorld()->SpawnActor<ARVSevarogCharacter>(BossCharacterClass, SpawnTransform, Params);
-	SpawnedBoss->SetActorHiddenInGame(true);
+    SpawnedBoss->SetActorHiddenInGame(true);
 
     PauseBossAI();
 
-    //--- Lock input + hide HUD -----------------------------------------------
+    //--- Lock input + hide HUD (all routed through ARVPlayerController) ------
 
-    APlayerController* PC = GetWorld()->GetFirstPlayerController();
-    if (ARVPlayerController* RVPC = Cast<ARVPlayerController>(PC))
+    if (ARVPlayerController* RVPC = Cast<ARVPlayerController>(GetWorld()->GetFirstPlayerController()))
     {
         RVPC->LockInputForCutscene();
+        RVPC->SetHUDVisible(false);
     }
 
-    if (ARVGameMode* GM = GetWorld()->GetAuthGameMode<ARVGameMode>())
-    {
-        GM->SetHUDVisible(false);
-    }
-
-	StartCutscene();
-	
+    StartCutscene();
 }
 
 void ARVBossEncounterVolume::StartCutscene()
 {
-	
-    //--- Start sequence ------------------------------------------------------
-
-    APlayerController* PC = GetWorld()->GetFirstPlayerController();
+    ARVPlayerController* RVPC = Cast<ARVPlayerController>(GetWorld()->GetFirstPlayerController());
 
     if (!IsValid(CutsceneSequenceActor))
     {
         // No sequence — go straight to gameplay.
-        if (ARVGameMode* GM = GetWorld()->GetAuthGameMode<ARVGameMode>())
+        if (IsValid(RVPC))
         {
-            GM->SetHUDVisible(true);
-        }
-        if (ARVPlayerController* RVPC = Cast<ARVPlayerController>(PC))
-        {
+            RVPC->SetHUDVisible(true);
             RVPC->UnlockInputAfterCutscene();
         }
         if (IsValid(CombatBGM))
@@ -104,39 +92,32 @@ void ARVBossEncounterVolume::StartCutscene()
 
     SeqPlayer->OnStop.AddDynamic(this, &ARVBossEncounterVolume::OnCutsceneFinished);
     SeqPlayer->Play();
-	
-	//--- Play intro montage --------------------------------------------------
-	
 
-	if (IsValid(SpawnedBoss) && IsValid(BossIntroMontage))
-	{
-		SpawnedBoss->PlayAnimMontage(BossIntroMontage);
-	}
-	
-	SpawnedBoss->SetActorHiddenInGame(false);
-	
-    // Cinematic BGM plays with the cutscene.
+    //--- Play intro montage --------------------------------------------------
+
+    if (IsValid(SpawnedBoss) && IsValid(BossIntroMontage))
+    {
+        SpawnedBoss->PlayAnimMontage(BossIntroMontage);
+    }
+
+    SpawnedBoss->SetActorHiddenInGame(false);
+
     if (IsValid(CutsceneBGM))
     {
-        UGameplayStatics::SpawnSound2D(GetWorld(), CutsceneBGM);
+        CutsceneBGMAudioComponent = UGameplayStatics::SpawnSound2D(GetWorld(), CutsceneBGM);
     }
 }
 
 void ARVBossEncounterVolume::OnCutsceneFinished()
 {
-    APlayerController* PC = GetWorld()->GetFirstPlayerController();
-
-    if (ARVGameMode* GM = GetWorld()->GetAuthGameMode<ARVGameMode>())
+	CutsceneBGMAudioComponent->Stop();
+	
+    if (ARVPlayerController* RVPC = Cast<ARVPlayerController>(GetWorld()->GetFirstPlayerController()))
     {
-        GM->SetHUDVisible(true);
-    }
-
-    if (ARVPlayerController* RVPC = Cast<ARVPlayerController>(PC))
-    {
+        RVPC->SetHUDVisible(true);
         RVPC->UnlockInputAfterCutscene();
     }
 
-    // Combat BGM starts when the cutscene ends and the fight begins.
     if (IsValid(CombatBGM))
     {
         UGameplayStatics::SpawnSound2D(GetWorld(), CombatBGM);

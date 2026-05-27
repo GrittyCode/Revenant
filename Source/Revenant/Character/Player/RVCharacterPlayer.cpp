@@ -32,9 +32,17 @@ ARVCharacterPlayer::ARVCharacterPlayer()
     CameraBoom->TargetArmLength          = 450.f;
     CameraBoom->SocketOffset             = FVector(0.f, 0.f, 80.f);
     CameraBoom->bUsePawnControlRotation  = true;
-    CameraBoom->bEnableCameraLag         = true;
-    CameraBoom->CameraLagSpeed           = 1.f;
-    CameraBoom->bEnableCameraRotationLag = false;
+
+    // Position lag: moderate catch-up speed gives a natural soulsy follow feel.
+    // CameraLagMaxDistance caps rubber-banding on sudden large displacements (e.g. knockback).
+    CameraBoom->bEnableCameraLag     = true;
+    CameraBoom->CameraLagSpeed       = 7.f;
+    CameraBoom->CameraLagMaxDistance = 150.f;
+
+    // Rotation lag: adds a subtle delay when the player pans the camera,
+    // preventing jarring snaps and improving cinematic polish.
+    CameraBoom->bEnableCameraRotationLag = true;
+    CameraBoom->CameraRotationLagSpeed   = 10.f;
 
     FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
     FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);

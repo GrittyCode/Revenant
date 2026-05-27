@@ -1,118 +1,16 @@
 #include "Game/RVGameMode.h"
-#include "Game/RVBossEncounterVolume.h"
-#include "UI/RVHUDWidget.h"
-#include "UI/RVBossHPBarWidget.h"
-#include "UI/RVGameResultWidget.h"
-#include "Character/Base/RVCharacterBase.h"
-#include "Character/Enemy/RVSevarogCharacter.h"
-#include "Blueprint/UserWidget.h"
+#include "Player/RVPlayerController.h"
 #include "Kismet/GameplayStatics.h"
 
 void ARVGameMode::BeginPlay()
 {
-    Super::BeginPlay();
+	Super::BeginPlay();
 
-    APlayerController* PC = GetWorld()->GetFirstPlayerController();
-    ensureMsgf(IsValid(PC), TEXT("[ARVGameMode] No PlayerController at BeginPlay"));
-    if (!IsValid(PC)) { return; }
-
-    // Restore game-only input and hide cursor after every level load.
-    // ShowGameResult() switches to UIOnly + cursor visible; OpenLevel triggers a new
-    // BeginPlay, so this call is the correct site to undo that state on retry.
-    PC->SetInputMode(FInputModeGameOnly());
-    PC->bShowMouseCursor = false;
-
-    if (IsValid(HUDWidgetClass))
-    {
-        HUDWidget = CreateWidget<URVHUDWidget>(PC, HUDWidgetClass);
-        HUDWidget->AddToViewport();
-    }
-
-    if (IsValid(BossHPBarWidgetClass))
-    {
-        BossHPBarWidget = CreateWidget<URVBossHPBarWidget>(PC, BossHPBarWidgetClass);
-    }
-
-    if (IsValid(GameResultWidgetClass))
-    {
-        GameResultWidget = CreateWidget<URVGameResultWidget>(PC, GameResultWidgetClass);
-    }
-
-    if (ARVCharacterBase* PlayerChar = Cast<ARVCharacterBase>(PC->GetPawn()))
-    {
-        PlayerCharRef = PlayerChar;
-        PlayerChar->GetOnHealthChanged().AddDynamic(this, &ARVGameMode::OnPlayerHealthChanged);
-        PlayerChar->GetOnStaminaChanged().AddDynamic(this, &ARVGameMode::OnPlayerStaminaChanged);
-        PlayerChar->GetOnDeath().AddDynamic(this, &ARVGameMode::OnPlayerDeath);
-    }
-
-    AActor* VolumeActor = UGameplayStatics::GetActorOfClass(GetWorld(), ARVBossEncounterVolume::StaticClass());
-    if (ARVBossEncounterVolume* Volume = Cast<ARVBossEncounterVolume>(VolumeActor))
-    {
-        Volume->OnBossSpawned.AddUObject(this, &ARVGameMode::OnBossSpawnedHandler);
-    }
-}
-
-void ARVGameMode::OnBossSpawnedHandler(ARVSevarogCharacter* InBoss)
-{
-    if (!IsValid(InBoss)) { return; }
-
-    if (IsValid(BossHPBarWidget))
-    {
-        BossHPBarWidget->SetBoss(InBoss);
-        BossHPBarWidget->AddToViewport();
-    }
-
-    InBoss->OnBossDefeated.AddDynamic(this, &ARVGameMode::OnBossDefeated);
-}
-
-void ARVGameMode::OnBossDefeated()
-{
-    if (IsValid(BossHPBarWidget) && BossHPBarWidget->IsInViewport())
-    {
-        BossHPBarWidget->RemoveFromParent();
-    }
-    ShowGameResult(true);
-}
-
-void ARVGameMode::ShowGameResult(bool bVictory)
-{
-    if (!IsValid(GameResultWidget)) { return; }
-
-    GameResultWidget->SetResult(bVictory);
-    GameResultWidget->AddToViewport();
-
-    APlayerController* PC = GetWorld()->GetFirstPlayerController();
-    if (IsValid(PC))
-    {
-        PC->SetInputMode(FInputModeUIOnly());
-        PC->bShowMouseCursor = true;
-    }
-}
-
-void ARVGameMode::SetHUDVisible(bool bVisible)
-{
-    if (!IsValid(HUDWidget)) { return; }
-    HUDWidget->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
-}
-
-void ARVGameMode::OnPlayerHealthChanged(float, float)
-{
-    if (!IsValid(HUDWidget) || !PlayerCharRef.IsValid()) { return; }
-    HUDWidget->SetHPPercent(PlayerCharRef->GetHealthRatio());
-}
-
-void ARVGameMode::OnPlayerStaminaChanged(float, float)
-{
-    if (!IsValid(HUDWidget) || !PlayerCharRef.IsValid()) { return; }
-    HUDWidget->SetStaminaPercent(PlayerCharRef->GetStaminaRatio());
-}
-
-void ARVGameMode::OnPlayerDeath()
-{
-    if (IsValid(BossHPBarWidget) && BossHPBarWidget->IsInViewport())
-    {
-        BossHPBarWidget->RemoveFromParent();
-    }
-    ShowGameResult(false);
+	// Restore game-only input and hide cursor after every level load (including Retry).
+	// ShowGameResult() in ARVPlayerController switches to UIOnly + cursor visible;
+	// OpenLevel triggers a fresh BeginPlay, so this is the correct site to undo that state.
+	if (ARVPlayerController* PC = Cast<ARVPlayerController>(GetWorld()->GetFirstPlayerController()))
+	{
+		PC->RestoreGameInput();
+	}
 }
