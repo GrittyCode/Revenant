@@ -2,9 +2,9 @@
 #include "Character/Player/RVCharacterPlayer.h"
 
 void UAnimNotify_HeavyAttackReady::Notify(USkeletalMeshComponent* MeshComp,
-    UAnimSequenceBase* /*Animation*/, const FAnimNotifyEventReference& /*EventReference*/)
+    UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
 {
-    Super::Notify(MeshComp, nullptr, FAnimNotifyEventReference());
+    Super::Notify(MeshComp, Animation, EventReference);
 
     ARVCharacterPlayer* Player = Cast<ARVCharacterPlayer>(MeshComp->GetOwner());
     ensureMsgf(IsValid(Player),

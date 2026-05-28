@@ -11,37 +11,37 @@ class ARVSevarogCharacter;
 UCLASS(Abstract)
 class REVENANT_API URVBossHPBarWidget : public UUserWidget
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	void SetBoss(ARVSevarogCharacter* InBoss);
+    void SetBoss(ARVSevarogCharacter* InBoss);
 
 protected:
-	virtual void NativeDestruct() override;
+    virtual void NativeDestruct() override;
 
 private:
-	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UTextBlock> BossNameText;
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UTextBlock> BossNameText;
 
-	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UProgressBar> HPBar;
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UProgressBar> HPBar;
 
-	// Fills as poise is consumed (0 = full poise, 1 = poise depleted → Groggy).
-	// Resets to 0 when Groggy ends.
-	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UProgressBar> PoiseBar;
+    // Fills as poise is consumed (0 = full poise, 1 = poise depleted → Groggy).
+    // Resets to 0 when Groggy ends.
+    UPROPERTY(meta = (BindWidget))
+    TObjectPtr<UProgressBar> PoiseBar;
 
-	TWeakObjectPtr<ARVSevarogCharacter> BossRef;
+    TWeakObjectPtr<ARVSevarogCharacter> BossRef;
 
-	//--- Delegate handlers ---------------------------------------------------
+    //--- Delegate handlers ---------------------------------------------------
 
-	UFUNCTION()
-	void OnBossHealthChanged(float NewHealth, float InDelta);
+    // [설계-5] 정규화 비율(NewHealthRatio)을 직접 받아 사용 — BossRef 재조회 불필요.
+    UFUNCTION()
+    void OnBossHealthChanged(float NewHealthRatio);
 
-	// Tracks every poise change for real-time gauge update.
-	UFUNCTION()
-	void OnBossPoiseChangedHandler(float NewPoiseRatio);
+    UFUNCTION()
+    void OnBossPoiseChangedHandler(float NewPoiseRatio);
 
-	void OnGroggyStarted();
-	void OnGroggyEnded();
+    void OnGroggyStarted();
+    void OnGroggyEnded();
 };

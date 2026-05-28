@@ -1,8 +1,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/DataAsset.h"
+#include "Engine/DataTable.h"
 #include "Camera/CameraShakeBase.h"
-#include "Data/RVCharacterDataAsset.h"
+#include "Data/RVCharacterStatRow.h"
 #include "RVSevarogDataAsset.generated.h"
 
 class UBlendSpace;
@@ -15,172 +17,171 @@ class USoundBase;
 USTRUCT(BlueprintType)
 struct FRVBossAttackPattern
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-    TArray<TObjectPtr<UAnimMontage>> ComboMontages;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	TArray<TObjectPtr<UAnimMontage>> ComboMontages;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (ClampMin = "1"))
-    int32 Weight = 1;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (ClampMin = "1"))
+	int32 Weight = 1;
 };
 
 USTRUCT(BlueprintType)
 struct FRVBossPhaseAttacks
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-    TArray<FRVBossAttackPattern> Patterns;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	TArray<FRVBossAttackPattern> Patterns;
 };
 
 USTRUCT(BlueprintType)
 struct FRVSoulSiphonData
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
-    UPROPERTY(EditDefaultsOnly) TObjectPtr<UAnimMontage> Montage;
+	UPROPERTY(EditDefaultsOnly) TObjectPtr<UAnimMontage> Montage;
 
-    UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float EngagementRange  = 200.f;
-    UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float Cooldown         = 20.f;
-    UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitDamage        = 40.f;
-    UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitPoiseDamage   = 30.f;
-    UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitRadius        = 300.f;
-    UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitForwardOffset = 10.f;
-
-    // Spawned at computed hit center on damage confirmation.
-    // Position requires C++ calculation (forward offset from boss), so this field stays here
-    // rather than moving to the montage notify. Cast FX assign via FXList on AnimNotify_SoulSiphonHit.
-    UPROPERTY(EditDefaultsOnly) TObjectPtr<UParticleSystem> ImpactFX; // P_SiphonImpact
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float EngagementRange  = 200.f;
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float Cooldown         = 20.f;
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitDamage        = 40.f;
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitPoiseDamage   = 30.f;
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitRadius        = 300.f;
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitForwardOffset = 10.f;
+	
+	
+	UPROPERTY(EditDefaultsOnly) TObjectPtr<UParticleSystem> ImpactFX;
 };
 
 USTRUCT(BlueprintType)
 struct FRVSubjugationData
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
-    UPROPERTY(EditDefaultsOnly) TObjectPtr<UAnimMontage> Montage;
+	UPROPERTY(EditDefaultsOnly) TObjectPtr<UAnimMontage> Montage;
 
-    UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float EngagementRange   = 400.f;
-    UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float Cooldown          = 30.f;
-    UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float BlastDamage       = 60.f;
-    UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float BlastPoiseDamage  = 40.f;
-    UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float SwirlSpreadRadius = 400.f;
-    UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float SwirlDamageRadius = 150.f;
-
-    // BlastFX  — moved to AnimNotify_SubjugationBlast::FXList (montage editor).
-    // SwirlsFX — moved to AnimNotify_SubjugationBlast::SwirlsFX (montage editor).
-    // BlastSFX — moved to AnimNotify_SubjugationBlast::FXList[0].SFX (montage editor).
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float EngagementRange   = 400.f;
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float Cooldown          = 30.f;
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float BlastDamage       = 60.f;
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float BlastPoiseDamage  = 40.f;
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float SwirlSpreadRadius = 400.f;
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float SwirlDamageRadius = 150.f;
+	
 };
 
 UCLASS()
-class REVENANT_API URVSevarogDataAsset : public URVCharacterDataAsset
+class REVENANT_API URVSevarogDataAsset : public UPrimaryDataAsset
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    //--- Identity ------------------------------------------------------------
+	//--- Stat ----------------------------------------------------------------
 
-    UPROPERTY(EditDefaultsOnly, Category = "Name", meta = (DisplayPriority = 1))
-    FText BossName;
+	// Points to a row in DT_BossStats.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stats", meta = (DisplayPriority = 0))
+	FDataTableRowHandle StatRowHandle;
 
-    //--- Phase ---------------------------------------------------------------
+	FORCEINLINE const FRVCharacterStatRow* GetStatRow() const
+	{
+		if (StatRowHandle.IsNull()) { return nullptr; }
+		return StatRowHandle.GetRow<FRVCharacterStatRow>(TEXT("URVSevarogDataAsset::GetBossStatRow"));
+	}
 
-    UPROPERTY(EditDefaultsOnly, Category = "Phase", meta = (DisplayPriority = 2,
-        ClampMin = "0.0", ClampMax = "1.0"))
-    float Phase2Threshold = 0.50f;
+	//--- Identity ------------------------------------------------------------
 
-    UPROPERTY(EditDefaultsOnly, Category = "Attacks", meta = (DisplayPriority = 3))
-    FRVBossPhaseAttacks Phase1Attacks;
+	UPROPERTY(EditDefaultsOnly, Category = "Name", meta = (DisplayPriority = 1))
+	FText BossName;
 
-    UPROPERTY(EditDefaultsOnly, Category = "Attacks", meta = (DisplayPriority = 3))
-    FRVBossPhaseAttacks Phase2Attacks;
+	//--- Phase ---------------------------------------------------------------
 
-    //--- Combat --------------------------------------------------------------
+	UPROPERTY(EditDefaultsOnly, Category = "Phase", meta = (DisplayPriority = 2,
+		ClampMin = "0.0", ClampMax = "1.0"))
+	float Phase2Threshold = 0.50f;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat", meta = (DisplayPriority = 4,
-        ClampMin = "0.0"))
-    float MeleeEngagementRange = 250.f;
+	UPROPERTY(EditDefaultsOnly, Category = "Attacks", meta = (DisplayPriority = 3))
+	FRVBossPhaseAttacks Phase1Attacks;
 
-    UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4,
-        ClampMin = "0.0", ClampMax = "180.0"))
-    float MaxComboTurnDegrees = 60.f;
+	UPROPERTY(EditDefaultsOnly, Category = "Attacks", meta = (DisplayPriority = 3))
+	FRVBossPhaseAttacks Phase2Attacks;
 
-    UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4))
-    float GroggyDuration = 4.f;
+	//--- Combat --------------------------------------------------------------
 
-    // Final damage = BaseDamage x DT_AttackStats.DamageMultiplier (via URVMontageStatData).
-    UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4,
-        ClampMin = "0.0"))
-    float BaseDamage = 80.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat", meta = (DisplayPriority = 4,
+		ClampMin = "0.0"))
+	float MeleeEngagementRange = 250.f;
 
-    UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4,
-        ClampMin = "0.0"))
-    float BasePoiseDamage = 40.f;
+	UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4,
+		ClampMin = "0.0", ClampMax = "180.0"))
+	float MaxComboTurnDegrees = 60.f;
 
-    UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4,
-        ClampMin = "0.0"))
-    float AttackRadius = 55.f;
+	// Final damage = BaseDamage x DT_AttackStats.DamageMultiplier (via URVMontageStatData).
+	UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4,
+		ClampMin = "0.0"))
+	float BaseDamage = 80.f;
 
-    // Cascade hit impact spawned at the struck actor's location on confirmed melee hits.
-    UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4))
-    TObjectPtr<UParticleSystem> MeleeHitImpact; // P_Sevarog_Melee_SucessfulImpact
+	UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4,
+		ClampMin = "0.0"))
+	float BasePoiseDamage = 40.f;
 
-    // Sound played at the struck actor's location on each confirmed melee hit.
-    UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4))
-    TObjectPtr<USoundBase> MeleeHitSFX;
+	UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4,
+		ClampMin = "0.0"))
+	float AttackRadius = 55.f;
 
-    // Niagara trail attached to WeaponTip socket on melee swing.
-    // Activated via AnimNotifyState_WeaponTrailFX. Same approach as player weapon trail.
-    UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4))
-    TObjectPtr<UNiagaraSystem> MeleeTrailEffect;
+	// Cascade hit impact spawned at the struck actor's location on confirmed melee hits.
+	UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4))
+	TObjectPtr<UParticleSystem> MeleeHitImpact; // P_Sevarog_Melee_SucessfulImpact
 
-    // Ribbon width injected into User.Width parameter of the trail Niagara system.
-    UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4, ClampMin = "0.0"))
-    float MeleeTrailWidth = 15.f;
+	// Sound played at the struck actor's location on each confirmed melee hit.
+	UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4))
+	TObjectPtr<USoundBase> MeleeHitSFX;
 
-    // Played at boss location when Groggy state is entered.
-    // Assign a stagger grunt / roar from Paragon Sevarog audio assets.
-    UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4))
-    TObjectPtr<USoundBase> GroggyStartSFX;
+	// Niagara trail attached to WeaponTip socket on melee swing.
+	// Activated via AnimNotifyState_WeaponTrailFX. Same approach as player weapon trail.
+	UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4))
+	TObjectPtr<UNiagaraSystem> MeleeTrailEffect;
 
-    //--- Movement ------------------------------------------------------------
+	// Ribbon width injected into User.Width parameter of the trail Niagara system.
+	UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4, ClampMin = "0.0"))
+	float MeleeTrailWidth = 15.f;
 
-    UPROPERTY(EditDefaultsOnly, Category = "Movement", meta = (DisplayPriority = 5,
-        ClampMin = "0.0"))
-    float ArrivalRange = 200.f;
+	//--- Movement ------------------------------------------------------------
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement", meta = (DisplayPriority = 5,
-        ClampMin = "0.0"))
-    float RushTriggerRadius = 700.f;
+	UPROPERTY(EditDefaultsOnly, Category = "Movement", meta = (DisplayPriority = 5,
+		ClampMin = "0.0"))
+	float ArrivalRange = 200.f;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement", meta = (DisplayPriority = 5,
-        ClampMin = "0.0"))
-    float RushSpeed = 700.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement", meta = (DisplayPriority = 5,
+		ClampMin = "0.0"))
+	float RushTriggerRadius = 700.f;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement", meta = (DisplayPriority = 5,
-        ClampMin = "0.0"))
-    float RushCooldown = 5.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement", meta = (DisplayPriority = 5,
+		ClampMin = "0.0"))
+	float RushSpeed = 700.f;
 
-    UPROPERTY(EditDefaultsOnly, Category = "Movement", meta = (DisplayPriority = 5))
-    TObjectPtr<UAnimMontage> RushAttackMontage;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement", meta = (DisplayPriority = 5,
+		ClampMin = "0.0"))
+	float RushCooldown = 5.f;
 
-    //--- Animation -----------------------------------------------------------
+	UPROPERTY(EditDefaultsOnly, Category = "Movement", meta = (DisplayPriority = 5))
+	TObjectPtr<UAnimMontage> RushAttackMontage;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "AnimationAsset", meta = (DisplayPriority = 6))
-    TObjectPtr<UBlendSpace> LocomotionBS;
+	//--- Animation -----------------------------------------------------------
 
-    // Duration (seconds) over which FadeOut 0→1 is driven on all mesh materials during death.
-    UPROPERTY(EditDefaultsOnly, Category = "AnimationAsset", meta = (DisplayPriority = 6, ClampMin = "0.1"))
-    float DissolveDuration = 2.f;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation", meta = (DisplayPriority = 6))
+	TObjectPtr<UBlendSpace> LocomotionBS;
 
-    UPROPERTY(EditDefaultsOnly, Category = "AnimationAsset", meta = (DisplayPriority = 6))
-    TObjectPtr<URVHitReactionAnimDataAsset> HitReactionAnimData;
+	// Duration (seconds) over which FadeOut 0→1 is driven on all mesh materials during death.
+	UPROPERTY(EditDefaultsOnly, Category = "Animation", meta = (DisplayPriority = 6, ClampMin = "0.1"))
+	float DissolveDuration = 2.f;
 
-    //--- Special Attacks -----------------------------------------------------
+	UPROPERTY(EditDefaultsOnly, Category = "Animation", meta = (DisplayPriority = 6))
+	TObjectPtr<URVHitReactionAnimDataAsset> HitReactionAnimData;
 
-    UPROPERTY(EditDefaultsOnly, Category = "SoulSiphon", meta = (DisplayPriority = 7))
-    FRVSoulSiphonData SoulSiphon;
+	//--- Special Attacks -----------------------------------------------------
 
-    UPROPERTY(EditDefaultsOnly, Category = "Subjugation", meta = (DisplayPriority = 8))
-    FRVSubjugationData Subjugation;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SoulSiphon", meta = (DisplayPriority = 7))
+	FRVSoulSiphonData SoulSiphon;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Subjugation", meta = (DisplayPriority = 8))
+	FRVSubjugationData Subjugation;
 };

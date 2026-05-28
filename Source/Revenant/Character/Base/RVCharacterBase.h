@@ -4,20 +4,19 @@
 #include "GameFramework/Character.h"
 #include "Interface/RVHitCheckTarget.h"
 #include "Interface/RVDamageable.h"
-#include "Component/RVAttributeComponent.h"
+#include "Component/RVVitalComponent.h"
 #include "Component/RVCombatStateComponent.h"
 #include "RVCharacterBase.generated.h"
 
 class URVHitReactionComponent;
 class URVAttackTraceComponent;
-class URVCharacterDataAsset;
 class URVHitReactionAnimDataAsset;
 class UMeshComponent;
 class UNiagaraSystem;
 class UParticleSystem;
 class USoundBase;
 
-UCLASS()
+UCLASS(Abstract)
 class REVENANT_API ARVCharacterBase : public ACharacter, public IRVHitCheckTarget, public IRVDamageable
 {
     GENERATED_BODY()
@@ -28,23 +27,17 @@ public:
     virtual void ActivateHitCheck() override;
     virtual bool ApplyDamage(const FRVHitInfo& InHitInfo) override;
 
-    //--- Attribute queries (external: GameMode, Widget) ----------------------
+    //--- Health queries (external: GameMode, Widget) -------------------------
 
-    UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
+    UFUNCTION(BlueprintCallable, Category = "RV|Vital")
     float GetHealthRatio() const;
 
-    UFUNCTION(BlueprintCallable, Category = "RV|Attribute")
-    float GetStaminaRatio() const;
+    FRVOnHealthChanged& GetOnHealthChanged();
+    FRVOnDeath&         GetOnDeath();
+    FRVOnPoiseDepleted& GetOnPoiseDepleted();
+    FRVOnPoiseChanged&  GetOnPoiseChanged();
 
-    //--- Attribute event facades (external: GameMode, Widget) ----------------
-
-    FRVOnHealthChanged&  GetOnHealthChanged();
-    FRVOnStaminaChanged& GetOnStaminaChanged();
-    FRVOnDeath&          GetOnDeath();
-    FRVOnPoiseDepleted&  GetOnPoiseDepleted();
-    FRVOnPoiseChanged&   GetOnPoiseChanged();
-
-    //--- AnimNotify entry points (CharacterBase interface for polymorphic notify dispatch) ---
+    //--- AnimNotify entry points ---------------------------------------------
 
     void OpenAttackHitWindow();
     void CloseAttackHitWindow();
@@ -57,7 +50,7 @@ public:
     bool  IsInCombatState(ERVCombatState InState) const;
     float GetStaggerDirection() const;
 
-    //--- Combat state operations (components and subclasses call through here) ---
+    //--- Combat state operations ---------------------------------------------
 
     void AddCombatState(ERVCombatState InState);
     void RemoveCombatState(ERVCombatState InState);
@@ -68,44 +61,36 @@ public:
     bool IsInvincible() const;
     void ForceEndAllActions();
 
-    //--- Stamina operations --------------------------------------------------
-
-    bool  TryConsumeStamina(float InAmount);
-    float GetCurrentStamina() const;
-    void  PauseStaminaRegen();
-    void  ResumeStaminaRegen();
-    void  ResetStaminaRegenDelay();
-    bool  ApplyStaminaDamage(float InAmount);
-
     //--- Poise operations ----------------------------------------------------
 
-    float GetMaxPoise() const;
+    float GetMaxPoise()   const;
     float GetPoiseRatio() const;
-    bool  ApplyPoiseDamage(float InAmount);
+    void  ApplyPoiseDamage(float InAmount);
     void  ResetPoise();
 
-    //--- Attack trace operations (routes to URVAttackTraceComponent) ---------
+    //--- Attack trace operations ---------------------------------------------
 
     void SetCombatStat(float InBaseDamage, float InBasePoiseDamage, float InAttackRadius);
     void SetHitFX(UNiagaraSystem* InNiagara, UParticleSystem* InCascade, USoundBase* InSFX);
 
-    //--- Hit reaction operations (routes to URVHitReactionComponent) ---------
+    //--- Hit reaction operations ---------------------------------------------
 
     void TriggerStaggerWithMontage(UAnimMontage* InMontage);
 
 protected:
     virtual void BeginPlay() override;
-    virtual void Falling() override;
+    virtual void Falling()   override;
     virtual void Landed(const FHitResult& Hit) override;
 
-    virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const { return nullptr; }
+    // Final classes own their DataAsset and are responsible for all stat init,
+    // including VitalComponent::InitFromStatRow and HitReactionComponent::InitParams.
     virtual void InitStats() {}
+
+    virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const { return nullptr; }
 
     UFUNCTION()
     virtual void OnDeath();
 
-    // Override to supply a different trace mesh (e.g. weapon mesh for Player).
-    // Base implementation returns the skeletal mesh.
     virtual UMeshComponent* GetWeaponTraceMesh() const { return GetMesh(); }
 
     FVector GetForwardLocation(float InOffset = 1.f) const;
@@ -114,7 +99,7 @@ protected:
     //--- Components ----------------------------------------------------------
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-    TObjectPtr<URVAttributeComponent> AttributeComponent;
+    TObjectPtr<URVVitalComponent> VitalComponent;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
     TObjectPtr<URVCombatStateComponent> CombatStateComponent;
@@ -124,11 +109,6 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
     TObjectPtr<URVAttackTraceComponent> AttackTraceComponent;
-
-    //--- Data ----------------------------------------------------------------
-
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "RV|Data")
-    TObjectPtr<URVCharacterDataAsset> CharacterData;
 
     //--- Movement ------------------------------------------------------------
 

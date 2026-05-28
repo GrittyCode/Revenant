@@ -67,7 +67,7 @@ void URVAttackTraceComponent::PerformAttackTrace()
     if (!IsValid(AnimInst)) { return; }
 
     UAnimMontage* CurrentMontage = AnimInst->GetCurrentActiveMontage();
-	
+
     const URVMontageStatData* StatData = CurrentMontage
         ? CurrentMontage->GetAssetUserData<URVMontageStatData>()
         : nullptr;
@@ -92,9 +92,13 @@ void URVAttackTraceComponent::PerformAttackTrace()
     const FVector Root = TraceMesh->GetSocketLocation(FName("WeaponRoot"));
     const FVector Tip  = TraceMesh->GetSocketLocation(FName("WeaponTip"));
 
-    const FVector Center     = (Root + Tip) * 0.5f;
-    const float   HalfHeight = FVector::Dist(Root, Tip) * 0.5f;
-    const FQuat   Rotation   = FRotationMatrix::MakeFromZ(Tip - Root).ToQuat();
+    const float HalfHeight = FVector::Dist(Root, Tip) * 0.5f;
+
+    // sockets return coincident positions until the animation graph evaluates — skip degenerate capsule
+    if (HalfHeight < KINDA_SMALL_NUMBER) { return; }
+
+    const FVector Center   = (Root + Tip) * 0.5f;
+    const FQuat   Rotation = FRotationMatrix::MakeFromZ(Tip - Root).ToQuat();
 
     FCollisionQueryParams Params;
     Params.AddIgnoredActor(OwnerCharacter);
@@ -114,10 +118,9 @@ void URVAttackTraceComponent::PerformAttackTrace()
     {
         AActor* HitActor = Overlap.GetActor();
         if (!IsValid(HitActor)) { continue; }
+        if (HitActors.Contains(HitActor)) { continue; }
 
-        TWeakObjectPtr<AActor> WeakHitActor(HitActor);
-        if (HitActors.Contains(WeakHitActor)) { continue; }
-        HitActors.Add(WeakHitActor);
+        HitActors.Add(HitActor);
 
         if (IRVDamageable* Target = Cast<IRVDamageable>(HitActor))
         {

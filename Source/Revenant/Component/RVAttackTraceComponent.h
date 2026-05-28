@@ -69,5 +69,7 @@ private:
     TObjectPtr<USoundBase> HitSFX;
 
     // Actors already hit in the current window — prevents multi-hit per swing.
-    TSet<TWeakObjectPtr<AActor>> HitActors;
+    // Entries are live actors (cleared each swing), so strong refs are correct here.
+    UPROPERTY()
+    TSet<TObjectPtr<AActor>> HitActors;
 };

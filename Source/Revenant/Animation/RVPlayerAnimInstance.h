@@ -2,11 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "Animation/AnimInstance.h"
-#include "Character/Player/RVCharacterPlayer.h"
 #include "RVPlayerAnimInstance.generated.h"
 
 class URVWeaponDataAsset;
 class UBlendSpace;
+class ARVCharacterPlayer;
 
 UCLASS()
 class REVENANT_API URVPlayerAnimInstance : public UAnimInstance

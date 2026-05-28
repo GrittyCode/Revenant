@@ -2,8 +2,6 @@
 #include "Component/RVHitReactionComponent.h"
 #include "Component/RVAttackTraceComponent.h"
 #include "Components/CapsuleComponent.h"
-#include "Data/RVCharacterDataAsset.h"
-#include "Data/RVCharacterStatRow.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
 ARVCharacterBase::ARVCharacterBase()
@@ -20,47 +18,32 @@ ARVCharacterBase::ARVCharacterBase()
 
     GetCapsuleComponent()->CanCharacterStepUpOn = ECB_No;
 
-    AttributeComponent    = CreateDefaultSubobject<URVAttributeComponent>   (TEXT("AttributeComponent"));
-    CombatStateComponent  = CreateDefaultSubobject<URVCombatStateComponent> (TEXT("CombatStateComponent"));
-    HitReactionComponent  = CreateDefaultSubobject<URVHitReactionComponent> (TEXT("HitReactionComponent"));
-    AttackTraceComponent  = CreateDefaultSubobject<URVAttackTraceComponent> (TEXT("AttackTraceComponent"));
+    VitalComponent       = CreateDefaultSubobject<URVVitalComponent>      (TEXT("VitalComponent"));
+    CombatStateComponent = CreateDefaultSubobject<URVCombatStateComponent>(TEXT("CombatStateComponent"));
+    HitReactionComponent = CreateDefaultSubobject<URVHitReactionComponent>(TEXT("HitReactionComponent"));
+    AttackTraceComponent = CreateDefaultSubobject<URVAttackTraceComponent>(TEXT("AttackTraceComponent"));
 }
 
 void ARVCharacterBase::BeginPlay()
 {
-    Super::BeginPlay(); // Dispatches BeginPlay to all components first.
+    Super::BeginPlay();
 
     GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
     GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 
-    // Components are created via CreateDefaultSubobject — null here is an engine-level failure.
-    ensureMsgf(IsValid(AttributeComponent),   TEXT("[%s] AttributeComponent missing"),   *GetName());
+    ensureMsgf(IsValid(VitalComponent),       TEXT("[%s] VitalComponent missing"),       *GetName());
     ensureMsgf(IsValid(CombatStateComponent), TEXT("[%s] CombatStateComponent missing"), *GetName());
     ensureMsgf(IsValid(HitReactionComponent), TEXT("[%s] HitReactionComponent missing"), *GetName());
     ensureMsgf(IsValid(AttackTraceComponent), TEXT("[%s] AttackTraceComponent missing"), *GetName());
 
-    // TraceMesh supplied by CharacterBase because only CharacterBase knows GetWeaponTraceMesh().
-    // All four components have already self-initialized their Owner references in their own BeginPlay.
     AttackTraceComponent->InitTraceMesh(GetWeaponTraceMesh());
 
+    // Final classes (ARVCharacterPlayer, ARVSevarogCharacter) own their DataAssets.
+    // All stat init — including VitalComponent and HitReactionComponent::InitParams — is their responsibility.
     InitStats();
 
-    // HitReactionComponent self-initializes Owner via GetOwner().
-    // Float params are data-driven from CharacterData — owned by Base, passed here.
-    const FRVCharacterStatRow* StatRow        = IsValid(CharacterData) ? CharacterData->GetStatRow() : nullptr;
-    const float StaggerDuration    = StatRow ? StatRow->StaggerDuration    : 0.5f;
-    const float StaggerThreshold   = StatRow ? StatRow->StaggerThreshold   : 0.5f;
-    const float KnockdownThreshold = StatRow ? StatRow->KnockdownThreshold : 0.4f;
+    VitalComponent->OnDeath.AddDynamic(this, &ARVCharacterBase::OnDeath);
 
-    HitReactionComponent->InitParams(
-        GetHitReactionAnimData(), StaggerDuration, StaggerThreshold, KnockdownThreshold);
-
-    //--- Base-level delegate wiring (CharacterBase owns both sides) ----------
-
-    // Death — actor subscribes to its own component.
-    AttributeComponent->OnDeath.AddDynamic(this, &ARVCharacterBase::OnDeath);
-
-    // ForceEnd → close hit window so interrupted attacks don't ghost-hit.
     CombatStateComponent->OnForceEnd.AddUObject(
         AttackTraceComponent, &URVAttackTraceComponent::CloseHitWindow);
 }
@@ -76,25 +59,19 @@ bool ARVCharacterBase::ApplyDamage(const FRVHitInfo& InHitInfo)
 {
     if (CombatStateComponent->IsInvincible()) { return false; }
 
-    const bool bSurvived = AttributeComponent->ApplyDamage(InHitInfo.Instigator, InHitInfo.Damage);
-
+    const bool bSurvived = VitalComponent->ApplyDamage(InHitInfo.Instigator, InHitInfo.Damage);
     if (bSurvived) { HitReactionComponent->HandleHit(InHitInfo); }
-
     return bSurvived;
 }
 
-//--- Attribute queries -------------------------------------------------------
+//--- Health queries ----------------------------------------------------------
 
-float ARVCharacterBase::GetHealthRatio()  const { return AttributeComponent->GetHealthPercent(); }
-float ARVCharacterBase::GetStaminaRatio() const { return AttributeComponent->GetStaminaPercent(); }
+float ARVCharacterBase::GetHealthRatio() const { return VitalComponent->GetHealthPercent(); }
 
-//--- Attribute event facades -------------------------------------------------
-
-FRVOnHealthChanged&  ARVCharacterBase::GetOnHealthChanged()  { return AttributeComponent->OnHealthChanged; }
-FRVOnStaminaChanged& ARVCharacterBase::GetOnStaminaChanged() { return AttributeComponent->OnStaminaChanged; }
-FRVOnDeath&          ARVCharacterBase::GetOnDeath()          { return AttributeComponent->OnDeath; }
-FRVOnPoiseDepleted&  ARVCharacterBase::GetOnPoiseDepleted()  { return AttributeComponent->OnPoiseDepleted; }
-FRVOnPoiseChanged&   ARVCharacterBase::GetOnPoiseChanged()   { return AttributeComponent->OnPoiseChanged; }
+FRVOnHealthChanged& ARVCharacterBase::GetOnHealthChanged() { return VitalComponent->OnHealthChanged; }
+FRVOnDeath&         ARVCharacterBase::GetOnDeath()         { return VitalComponent->OnDeath; }
+FRVOnPoiseDepleted& ARVCharacterBase::GetOnPoiseDepleted() { return VitalComponent->OnPoiseDepleted; }
+FRVOnPoiseChanged&  ARVCharacterBase::GetOnPoiseChanged()  { return VitalComponent->OnPoiseChanged; }
 
 //--- AnimNotify entry points -------------------------------------------------
 
@@ -108,8 +85,8 @@ float ARVCharacterBase::GetStaggerDirection() const                    { return 
 
 //--- Combat state operations -------------------------------------------------
 
-void ARVCharacterBase::AddCombatState(ERVCombatState InState)    { CombatStateComponent->AddState(InState); }
-void ARVCharacterBase::RemoveCombatState(ERVCombatState InState) { CombatStateComponent->RemoveState(InState); }
+void ARVCharacterBase::AddCombatState(ERVCombatState InState)       { CombatStateComponent->AddState(InState); }
+void ARVCharacterBase::RemoveCombatState(ERVCombatState InState)    { CombatStateComponent->RemoveState(InState); }
 bool ARVCharacterBase::HasCombatState(ERVCombatState InState) const { return CombatStateComponent->HasState(InState); }
 
 bool ARVCharacterBase::CanAct(ERVCombatState InCoexistableStates) const
@@ -117,27 +94,17 @@ bool ARVCharacterBase::CanAct(ERVCombatState InCoexistableStates) const
     return CombatStateComponent->CheckAvailableState(InCoexistableStates);
 }
 
-bool ARVCharacterBase::IsGrounded()  const { return CombatStateComponent->IsGrounded(); }
-
-void ARVCharacterBase::SetInvincible(bool bInvincible) { CombatStateComponent->SetInvincible(bInvincible); }
-bool ARVCharacterBase::IsInvincible() const            { return CombatStateComponent->IsInvincible(); }
-void ARVCharacterBase::ForceEndAllActions()             { CombatStateComponent->ForceEndAllActions(); }
-
-//--- Stamina operations ------------------------------------------------------
-
-bool  ARVCharacterBase::TryConsumeStamina(float InAmount)  { return AttributeComponent->ConsumeStamina(InAmount); }
-float ARVCharacterBase::GetCurrentStamina() const          { return AttributeComponent->GetCurrentStamina(); }
-void  ARVCharacterBase::PauseStaminaRegen()                { AttributeComponent->PauseStaminaRegen(); }
-void  ARVCharacterBase::ResumeStaminaRegen()               { AttributeComponent->ResumeStaminaRegen(); }
-void  ARVCharacterBase::ResetStaminaRegenDelay()           { AttributeComponent->ResetStaminaRegenDelay(); }
-bool  ARVCharacterBase::ApplyStaminaDamage(float InAmount) { return AttributeComponent->ApplyStaminaDamage(InAmount); }
+bool ARVCharacterBase::IsGrounded()    const { return CombatStateComponent->IsGrounded(); }
+void ARVCharacterBase::SetInvincible(bool b) { CombatStateComponent->SetInvincible(b); }
+bool ARVCharacterBase::IsInvincible()  const { return CombatStateComponent->IsInvincible(); }
+void ARVCharacterBase::ForceEndAllActions()  { CombatStateComponent->ForceEndAllActions(); }
 
 //--- Poise operations --------------------------------------------------------
 
-float ARVCharacterBase::GetMaxPoise()   const          { return AttributeComponent->GetMaxPoise(); }
-float ARVCharacterBase::GetPoiseRatio() const          { return AttributeComponent->GetPoiseRatio(); }
-bool  ARVCharacterBase::ApplyPoiseDamage(float InAmt)  { return AttributeComponent->ApplyPoiseDamage(InAmt); }
-void  ARVCharacterBase::ResetPoise()                   { AttributeComponent->ResetPoise(); }
+float ARVCharacterBase::GetMaxPoise()    const        { return VitalComponent->GetMaxPoise(); }
+float ARVCharacterBase::GetPoiseRatio()  const        { return VitalComponent->GetPoiseRatio(); }
+void  ARVCharacterBase::ApplyPoiseDamage(float InAmt) { VitalComponent->ApplyPoiseDamage(InAmt); }
+void  ARVCharacterBase::ResetPoise()                  { VitalComponent->ResetPoise(); }
 
 //--- Attack trace operations -------------------------------------------------
 

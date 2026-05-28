@@ -1,2 +1,2 @@
-Name,MaxHealth,MaxPoise,MaxStamina,StaminaRegenRate,StaminaRegenDelay,MoveSpeed,StaggerDuration,StaggerThreshold,KnockdownThreshold,PoiseRegenDelay
-Player,500,100,100,20,1.5,500,0.4,0.5,0.4,3.0
+Name,MaxHealth,MaxPoise,MoveSpeed,StaggerDuration,StaggerThreshold,KnockdownThreshold,PoiseRegenDelay,MaxStamina,StaminaRegenRate,StaminaRegenDelay,DodgeStaminaCost, GroggyDuration
+Player,500,100,500,0.4,0.5,0.4,3.0,120,40,1.5,20,0

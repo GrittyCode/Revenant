@@ -1,6 +1,8 @@
 #include "Component/RVGuardComponent.h"
 #include "Character/Base/RVCharacterBase.h"
-#include "Interface/RVWeaponUser.h"
+#include "Character/Player/RVCharacterPlayer.h"
+#include "Component/RVStaminaComponent.h"
+#include "Component/RVEquipmentComponent.h"
 #include "Data/RVWeaponDataAsset.h"
 #include "Data/RVPlayerCombatAnimDataAsset.h"
 #include "Animation/AnimInstance.h"
@@ -14,21 +16,21 @@ void URVGuardComponent::BeginPlay()
 {
     Super::BeginPlay();
 
-    OwnerBase  = Cast<ARVCharacterBase>(GetOwner());
-    WeaponUser = Cast<IRVWeaponUser>(GetOwner());
-
+    OwnerBase = Cast<ARVCharacterBase>(GetOwner());
     ensureMsgf(IsValid(OwnerBase),
         TEXT("[URVGuardComponent] Owner must be ARVCharacterBase"));
-    ensureMsgf(WeaponUser != nullptr,
-        TEXT("[URVGuardComponent] Owner must implement IRVWeaponUser (e.g. ARVCharacterPlayer)"));
 
-    // OnStaminaDepleted and OnForceEnd subscriptions are wired by ARVCharacterPlayer::BeginPlay.
-    // Components do not self-subscribe to sibling component delegates.
+    ARVCharacterPlayer* OwnerPlayer = Cast<ARVCharacterPlayer>(GetOwner());
+    ensureMsgf(IsValid(OwnerPlayer),
+        TEXT("[URVGuardComponent] Player-only component — owner must be ARVCharacterPlayer"));
+
+    StaminaComponent   = OwnerPlayer->GetStaminaComponent();
+    EquipmentComponent = OwnerPlayer->GetEquipmentComponent();
 }
 
 void URVGuardComponent::StartGuard()
 {
-    if (!OwnerBase->CanAct())    { return; }
+    if (!OwnerBase->CanAct())     { return; }
     if (!OwnerBase->IsGrounded()) { return; }
     OwnerBase->AddCombatState(ERVCombatState::Guarding);
 }
@@ -41,21 +43,22 @@ void URVGuardComponent::EndGuard()
 
 void URVGuardComponent::HandleGuardHit(float InDamageAmount)
 {
-    const bool bGuardHeld = OwnerBase->ApplyStaminaDamage(InDamageAmount);
+    const bool bGuardHeld = StaminaComponent->ApplyStaminaDamage(InDamageAmount);
     if (!bGuardHeld) { return; }
 
-    const URVWeaponDataAsset* WeaponData = WeaponUser->GetCurrentWeaponData();
+    const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
     if (!ensureMsgf(IsValid(WeaponData),
         TEXT("[%s] HandleGuardHit: WeaponData not assigned"), *GetNameSafe(OwnerBase))) { return; }
+    if (!ensureMsgf(IsValid(WeaponData->CombatAnimData),
+        TEXT("[%s] HandleGuardHit: CombatAnimData not assigned"), *GetNameSafe(OwnerBase))) { return; }
 
     UAnimMontage* GuardHitMontage = WeaponData->CombatAnimData->GuardHitMontage;
     if (!ensureMsgf(IsValid(GuardHitMontage),
         TEXT("[%s] HandleGuardHit: GuardHitMontage not assigned"), *GetNameSafe(OwnerBase))) { return; }
 
     UAnimInstance* AnimInst = OwnerBase->GetMesh()->GetAnimInstance();
-    ensureMsgf(IsValid(AnimInst),
-        TEXT("[%s] HandleGuardHit: AnimInstance missing"), *GetNameSafe(OwnerBase));
-    if (!IsValid(AnimInst)) { return; }
+    if (!ensureMsgf(IsValid(AnimInst),
+        TEXT("[%s] HandleGuardHit: AnimInstance missing"), *GetNameSafe(OwnerBase))) { return; }
 
     AnimInst->Montage_Play(GuardHitMontage);
 }
@@ -66,11 +69,9 @@ void URVGuardComponent::OnStaminaDepletedHandler()
 
     OwnerBase->RemoveCombatState(ERVCombatState::Guarding);
 
-    const URVWeaponDataAsset* WeaponData = WeaponUser->GetCurrentWeaponData();
-    UAnimMontage* GuardBreakMontage = IsValid(WeaponData)
+    const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
+    UAnimMontage* GuardBreakMontage = (IsValid(WeaponData) && IsValid(WeaponData->CombatAnimData))
         ? WeaponData->CombatAnimData->GuardBreakMontage : nullptr;
 
-    // Route through CharacterBase interface — GuardComponent does not hold
-    // a reference to HitReactionComponent.
     OwnerBase->TriggerStaggerWithMontage(GuardBreakMontage);
 }

@@ -6,19 +6,20 @@
 
 class UCharacterMovementComponent;
 
-UENUM(meta=(Bitflags))
-enum class ERVCombatState : uint16
+UENUM(BlueprintType, meta=(Bitflags, UseEnumValuesAsMaskValuesInEditor="true"))
+enum class ERVCombatState : uint8
 {
-    None           = 0,
-    Attacking      = 1 << 0,
-    HeavyAttacking = 1 << 1,
-    Dodging        = 1 << 2,
-    Guarding       = 1 << 3,
-    HeavyCharging  = 1 << 4,
-    HitReaction    = 1 << 5,
-    Groggy         = 1 << 6,
-    Knockdown      = 1 << 7,
+	None           = 0,
+	Attacking      = 1 << 0,
+	HeavyAttacking = 1 << 1,
+	Dodging        = 1 << 2,
+	Guarding       = 1 << 3,
+	HeavyCharging  = 1 << 4,
+	HitReaction    = 1 << 5,
+	Groggy         = 1 << 6,
+	Knockdown      = 1 << 7,
 };
+
 ENUM_CLASS_FLAGS(ERVCombatState);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FRVOnCombatStateChanged, ERVCombatState);

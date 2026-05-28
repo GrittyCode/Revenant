@@ -3,11 +3,23 @@
 #include "Particles/ParticleSystem.h"
 #include "Particles/ParticleSystemComponent.h"
 
+static void CleanupParticleComponents(TArray<TObjectPtr<UParticleSystemComponent>>& InPSCs)
+{
+	for (UParticleSystemComponent* PSC : InPSCs)
+	{
+		if (IsValid(PSC)) { PSC->DeactivateSystem(); PSC->DestroyComponent(); }
+	}
+	InPSCs.Empty();
+}
+
 void UAnimNotifyState_LoopCascadeFX::NotifyBegin(USkeletalMeshComponent* MeshComp,
 	UAnimSequenceBase* /*Animation*/, float /*TotalDuration*/,
 	const FAnimNotifyEventReference& /*EventReference*/)
 {
 	if (!IsValid(MeshComp)) { return; }
+
+	// Clean up leftovers from a previous interrupted play before spawning new ones.
+	CleanupParticleComponents(ActivePSCs);
 
 	for (const FRVCascadeFXEntry& Entry : FXList)
 	{
@@ -35,9 +47,5 @@ void UAnimNotifyState_LoopCascadeFX::NotifyBegin(USkeletalMeshComponent* MeshCom
 void UAnimNotifyState_LoopCascadeFX::NotifyEnd(USkeletalMeshComponent* /*MeshComp*/,
 	UAnimSequenceBase* /*Animation*/, const FAnimNotifyEventReference& /*EventReference*/)
 {
-	for (UParticleSystemComponent* PSC : ActivePSCs)
-	{
-		if (IsValid(PSC)) { PSC->DeactivateSystem(); PSC->DestroyComponent(); }
-	}
-	ActivePSCs.Empty();
+	CleanupParticleComponents(ActivePSCs);
 }

@@ -5,35 +5,29 @@
 
 void URVGameResultWidget::NativeConstruct()
 {
-	Super::NativeConstruct();
+    Super::NativeConstruct();
 
-	if (RetryButton)
-	{
-		RetryButton->OnClicked.AddDynamic(this, &URVGameResultWidget::OnRetryClicked);
-	}
+    // [IsValid-10] BindWidget 계약 — RetryButton은 항상 non-null.
+    RetryButton->OnClicked.AddDynamic(this, &URVGameResultWidget::OnRetryClicked);
 }
 
 void URVGameResultWidget::NativeDestruct()
 {
-	if (RetryButton)
-	{
-		RetryButton->OnClicked.RemoveDynamic(this, &URVGameResultWidget::OnRetryClicked);
-	}
+    // [IsValid-10] 동일.
+    RetryButton->OnClicked.RemoveDynamic(this, &URVGameResultWidget::OnRetryClicked);
 
-	Super::NativeDestruct();
+    Super::NativeDestruct();
 }
 
 void URVGameResultWidget::SetResult(bool bVictory)
 {
-	if (ResultText)
-	{
-		ResultText->SetText(bVictory
-			? FText::FromString(TEXT("Victory"))
-			: FText::FromString(TEXT("Defeat")));
-	}
+    // [IsValid-10] BindWidget — ResultText 항상 non-null.
+    ResultText->SetText(bVictory
+        ? FText::FromString(TEXT("Victory"))
+        : FText::FromString(TEXT("Defeat")));
 }
 
 void URVGameResultWidget::OnRetryClicked()
 {
-	UGameplayStatics::OpenLevel(GetWorld(), FName(*GetWorld()->GetName()));
+    UGameplayStatics::OpenLevel(GetWorld(), FName(*GetWorld()->GetName()));
 }

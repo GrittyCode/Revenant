@@ -3,7 +3,8 @@
 #include "CoreMinimal.h"
 #include "Character/Base/RVCharacterBase.h"
 #include "Component/RVEquipmentComponent.h"
-#include "Interface/RVWeaponUser.h"
+#include "Data/RVPlayerDataAsset.h"
+#include "Component/RVStaminaComponent.h"
 #include "RVCharacterPlayer.generated.h"
 
 class URVInputConfig;
@@ -20,7 +21,7 @@ class URVPlayerDataAsset;
 struct FInputActionValue;
 
 UCLASS()
-class REVENANT_API ARVCharacterPlayer : public ARVCharacterBase, public IRVWeaponUser
+class REVENANT_API ARVCharacterPlayer : public ARVCharacterBase
 {
     GENERATED_BODY()
 
@@ -31,10 +32,6 @@ public:
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
     virtual bool ApplyDamage(const FRVHitInfo& InHitInfo) override;
 
-    //--- IRVWeaponUser -------------------------------------------------------
-
-    virtual URVWeaponDataAsset* GetCurrentWeaponData() const override;
-
     //--- AnimInstance accessors ----------------------------------------------
 
     bool  IsComboActive()  const;
@@ -42,7 +39,16 @@ public:
     bool  IsSprinting()    const;
     bool  IsLockedOn()     const;
 
-    //--- AnimNotify forwarding (AnimNotify → Player → WeaponAttackComponent) -
+    //--- Stamina queries (external: PlayerController, HUD) -------------------
+
+    UFUNCTION(BlueprintCallable, Category = "RV|Stamina")
+    float GetStaminaRatio() const;
+
+    FRVOnStaminaChanged& GetOnStaminaChanged();
+
+    URVStaminaComponent* GetStaminaComponent() const { return StaminaComponent; }
+
+    //--- AnimNotify forwarding -----------------------------------------------
 
     void OpenComboWindow();
     void CloseComboWindow();
@@ -52,18 +58,16 @@ public:
     //--- Equipment -----------------------------------------------------------
 
     FRVOnWeaponChanged& GetOnWeaponChanged();
-
-    // Exposed for ARVPlayerController weapon quickslot wiring.
     URVEquipmentComponent* GetEquipmentComponent() const { return EquipmentComponent; }
 
 protected:
-    virtual void BeginPlay() override;
-    virtual void OnDeath() override;
-    virtual void InitStats() override;
+    virtual void BeginPlay()  override;
+    virtual void OnDeath()    override;
+    virtual void InitStats()  override;
     virtual void Landed(const FHitResult& Hit) override;
 
     virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const override;
-    virtual UMeshComponent* GetWeaponTraceMesh() const override;
+    virtual UMeshComponent* GetWeaponTraceMesh()   const override;
     virtual void ActivateWeaponTrail()   override;
     virtual void DeactivateWeaponTrail() override;
 
@@ -73,6 +77,9 @@ protected:
     //--- Player-only components ----------------------------------------------
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVStaminaComponent> StaminaComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
     TObjectPtr<URVWeaponAttackComponent> WeaponAttackComponent;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
@@ -80,6 +87,9 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
     TObjectPtr<URVEquipmentComponent> EquipmentComponent;
+	
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+	TObjectPtr<URVLockOnComponent> LockOnComponent;
 
 private:
     //--- Input ---------------------------------------------------------------
@@ -100,7 +110,7 @@ private:
 
     //--- Attack direction ----------------------------------------------------
 
-    void SnapToAttackDirection();
+    void  SnapToAttackDirection();
     float AttackStartYaw = 0.f;
 
     //--- Sprint --------------------------------------------------------------
@@ -115,7 +125,7 @@ private:
     float OriginalWalkSpeed = 0.f;
     bool  bIsSprinting      = false;
 
-    //--- Dodge (inlined — no dedicated DodgeComponent) -----------------------
+    //--- Dodge ---------------------------------------------------------------
 
     bool CanStartDodge() const;
     void StartDodge(UAnimMontage* InMontage);
@@ -127,9 +137,12 @@ private:
     UPROPERTY()
     TObjectPtr<UAnimMontage> ActiveDodgeMontage;
 
-    float DodgeStaminaCost = 30.f;
+    float CachedDodgeStaminaCost = 30.f;
 
     //--- Config --------------------------------------------------------------
+
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Data")
+    TObjectPtr<URVPlayerDataAsset> PlayerData;
 
     UPROPERTY(EditDefaultsOnly, Category = "RV|Input")
     TObjectPtr<URVInputConfig> InputConfig;
@@ -144,11 +157,6 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "RV|Components")
     TObjectPtr<UCameraComponent> FollowCamera;
-
-    //--- Lock-on -------------------------------------------------------------
-
-    UPROPERTY(VisibleAnywhere, Category = "RV|Components")
-    TObjectPtr<URVLockOnComponent> LockOnComponent;
 
     //--- Attack rotation -----------------------------------------------------
 

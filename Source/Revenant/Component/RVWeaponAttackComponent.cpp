@@ -1,6 +1,8 @@
 #include "Component/RVWeaponAttackComponent.h"
 #include "Character/Base/RVCharacterBase.h"
-#include "Interface/RVWeaponUser.h"
+#include "Character/Player/RVCharacterPlayer.h"
+#include "Component/RVEquipmentComponent.h"
+#include "Component/RVStaminaComponent.h"
 #include "Data/RVWeaponDataAsset.h"
 #include "Data/RVPlayerCombatAnimDataAsset.h"
 #include "Data/RVAttackActionMultiplierRow.h"
@@ -23,16 +25,16 @@ void URVWeaponAttackComponent::BeginPlay()
 {
     Super::BeginPlay();
 
-    OwnerBase  = Cast<ARVCharacterBase>(GetOwner());
-    WeaponUser = Cast<IRVWeaponUser>(GetOwner());
-
+    OwnerBase = Cast<ARVCharacterBase>(GetOwner());
     ensureMsgf(IsValid(OwnerBase),
         TEXT("[URVWeaponAttackComponent] Owner must be ARVCharacterBase"));
-    ensureMsgf(WeaponUser != nullptr,
-        TEXT("[URVWeaponAttackComponent] Owner must implement IRVWeaponUser (e.g. ARVCharacterPlayer)"));
 
-    // ForceEndAttack is subscribed by the owning Actor (ARVCharacterPlayer::BeginPlay).
-    // Components do not self-subscribe to sibling component delegates.
+    ARVCharacterPlayer* OwnerPlayer = Cast<ARVCharacterPlayer>(GetOwner());
+    ensureMsgf(IsValid(OwnerPlayer),
+        TEXT("[URVWeaponAttackComponent] Player-only component — owner must be ARVCharacterPlayer"));
+
+    StaminaComponent   = OwnerPlayer->GetStaminaComponent();
+    EquipmentComponent = OwnerPlayer->GetEquipmentComponent();
 }
 
 UAnimInstance* URVWeaponAttackComponent::GetAnimInstance() const
@@ -48,7 +50,7 @@ UAnimInstance* URVWeaponAttackComponent::GetAnimInstance() const
 
 void URVWeaponAttackComponent::HandleLightAttackInput(bool bIsPlayerSprinting)
 {
-    if (!bIsComboActive)
+    if (!bIsLightAttackActive)
     {
         if (!OwnerBase->CanAct(ERVCombatState::Attacking)) { return; }
 
@@ -74,7 +76,7 @@ void URVWeaponAttackComponent::TryChainNextCombo()
 {
     if (!bHasComboInput) { EndCombo(); return; }
 
-    const URVWeaponDataAsset* WeaponData = WeaponUser->GetCurrentWeaponData();
+    const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
     if (!ensureMsgf(IsValid(WeaponData) && IsValid(WeaponData->CombatAnimData),
         TEXT("[%s] TryChainNextCombo: WeaponData or CombatAnimData not assigned"),
         *GetNameSafe(OwnerBase))) { EndCombo(); return; }
@@ -90,7 +92,7 @@ void URVWeaponAttackComponent::TryChainNextCombo()
     if (!IsValid(NextMontage)) { EndCombo(); return; }
 
     bHasComboInput = false;
-    if (!ConsumeAttackStamina(NextMontage, WeaponData)) { EndCombo(); return; }
+    if (!ConsumeAttackStamina(NextMontage)) { EndCombo(); return; }
 
     PlayLightAttackMontage(NextMontage);
 }
@@ -103,7 +105,7 @@ void URVWeaponAttackComponent::OnPlayerLanded()
     UAnimInstance* AnimInst = GetAnimInstance();
     if (!IsValid(AnimInst)) { return; }
 
-    const URVWeaponDataAsset* WeaponData = WeaponUser->GetCurrentWeaponData();
+    const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
     if (!IsValid(WeaponData) || !IsValid(WeaponData->CombatAnimData)) { return; }
 
     UAnimMontage* Montage = WeaponData->CombatAnimData->JumpAttackMontage;
@@ -113,15 +115,14 @@ void URVWeaponAttackComponent::OnPlayerLanded()
 
     UCharacterMovementComponent* MoveComp =
         Cast<ACharacter>(OwnerBase)->GetCharacterMovement();
-    MoveComp->Velocity.X = 0.f;
-    MoveComp->Velocity.Y = 0.f;
+    MoveComp->Velocity = FVector(0.f, 0.f, MoveComp->Velocity.Z);
 
     AnimInst->Montage_JumpToSection(JumpAttackSection_Landing, Montage);
 }
 
 void URVWeaponAttackComponent::StartCombo()
 {
-    const URVWeaponDataAsset* WeaponData = WeaponUser->GetCurrentWeaponData();
+    const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
     if (!ensureMsgf(IsValid(WeaponData) && IsValid(WeaponData->CombatAnimData),
         TEXT("[%s] StartCombo: WeaponData or CombatAnimData not assigned"),
         *GetNameSafe(OwnerBase))) { return; }
@@ -131,16 +132,16 @@ void URVWeaponAttackComponent::StartCombo()
         TEXT("[%s] StartCombo: first combo montage not assigned"),
         *GetNameSafe(OwnerBase))) { return; }
 
-    if (!ConsumeAttackStamina(FirstMontage, WeaponData)) { return; }
+    if (!ConsumeAttackStamina(FirstMontage)) { return; }
 
-    bIsComboActive = true;
+    bIsLightAttackActive = true;
     OwnerBase->AddCombatState(ERVCombatState::Attacking);
     PlayLightAttackMontage(FirstMontage);
 }
 
 void URVWeaponAttackComponent::StartRunAttack()
 {
-    const URVWeaponDataAsset* WeaponData = WeaponUser->GetCurrentWeaponData();
+    const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
     if (!ensureMsgf(IsValid(WeaponData) && IsValid(WeaponData->CombatAnimData),
         TEXT("[%s] StartRunAttack: WeaponData or CombatAnimData not assigned"),
         *GetNameSafe(OwnerBase))) { return; }
@@ -150,16 +151,16 @@ void URVWeaponAttackComponent::StartRunAttack()
         TEXT("[%s] StartRunAttack: RunAttackMontage not assigned"),
         *GetNameSafe(OwnerBase))) { return; }
 
-    if (!ConsumeAttackStamina(Montage, WeaponData)) { return; }
+    if (!ConsumeAttackStamina(Montage)) { return; }
 
-    bIsComboActive = true;
+    bIsLightAttackActive = true;
     OwnerBase->AddCombatState(ERVCombatState::Attacking);
     PlayLightAttackMontage(Montage);
 }
 
 void URVWeaponAttackComponent::StartJumpAttack()
 {
-    const URVWeaponDataAsset* WeaponData = WeaponUser->GetCurrentWeaponData();
+    const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
     if (!ensureMsgf(IsValid(WeaponData) && IsValid(WeaponData->CombatAnimData),
         TEXT("[%s] StartJumpAttack: WeaponData or CombatAnimData not assigned"),
         *GetNameSafe(OwnerBase))) { return; }
@@ -169,11 +170,11 @@ void URVWeaponAttackComponent::StartJumpAttack()
         TEXT("[%s] StartJumpAttack: JumpAttackMontage not assigned"),
         *GetNameSafe(OwnerBase))) { return; }
 
-    if (!ConsumeAttackStamina(Montage, WeaponData)) { return; }
+    if (!ConsumeAttackStamina(Montage)) { return; }
 
-    bHasUsedJumpAttack  = true;
-    bIsJumpAttackActive = true;
-    bIsComboActive      = true;
+    bHasUsedJumpAttack   = true;
+    bIsJumpAttackActive  = true;
+    bIsLightAttackActive = true;
     OwnerBase->AddCombatState(ERVCombatState::Attacking);
 
     UAnimInstance* AnimInst = GetAnimInstance();
@@ -186,19 +187,17 @@ void URVWeaponAttackComponent::StartJumpAttack()
     PlayLightAttackMontage(Montage);
 }
 
-bool URVWeaponAttackComponent::ConsumeAttackStamina(
-    UAnimMontage* InMontage, const URVWeaponDataAsset* InWeaponData)
+bool URVWeaponAttackComponent::ConsumeAttackStamina(UAnimMontage* InMontage)
 {
     const URVMontageStatData* StatData = InMontage->GetAssetUserData<URVMontageStatData>();
     const FRVAttackActionMultiplierRow* AttackStat = StatData ? StatData->GetStatRow() : nullptr;
     if (!AttackStat || AttackStat->StaminaCostMultiplier <= 0.f) { return true; }
 
-    const FRVWeaponStatRow* WeaponStat = InWeaponData->GetWeaponStatRow();
-    const float Cost = WeaponStat
-        ? WeaponStat->BaseStaminaCost * AttackStat->StaminaCostMultiplier
-        : 0.f;
+    const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
+    const FRVWeaponStatRow*   WeaponStat = IsValid(WeaponData) ? WeaponData->GetWeaponStatRow() : nullptr;
+    const float Cost = WeaponStat ? WeaponStat->BaseStaminaCost * AttackStat->StaminaCostMultiplier : 0.f;
 
-    return Cost <= 0.f || OwnerBase->TryConsumeStamina(Cost);
+    return Cost <= 0.f || StaminaComponent->ConsumeStamina(Cost);
 }
 
 void URVWeaponAttackComponent::PlayLightAttackMontage(UAnimMontage* InMontage)
@@ -218,11 +217,10 @@ void URVWeaponAttackComponent::EndCombo()
     if (bIsJumpAttackActive)
     {
         UAnimInstance* AnimInst = GetAnimInstance();
-        // AnimInst may be null during rare destruction-time blend-out — skip without ensureMsgf.
         if (IsValid(AnimInst)) { AnimInst->RootMotionMode = CachedRootMotionMode; }
     }
 
-    bIsComboActive       = false;
+    bIsLightAttackActive = false;
     bComboWindowOpen     = false;
     bHasComboInput       = false;
     bIsJumpAttackActive  = false;
@@ -233,7 +231,7 @@ void URVWeaponAttackComponent::EndCombo()
 
 void URVWeaponAttackComponent::OnLightAttackMontageBlendingOut(UAnimMontage*, bool bInterrupted)
 {
-    if (!bInterrupted && bIsComboActive) { EndCombo(); }
+    if (!bInterrupted && bIsLightAttackActive) { EndCombo(); }
 }
 
 //--- Heavy Attack ------------------------------------------------------------
@@ -242,9 +240,9 @@ void URVWeaponAttackComponent::StartHeavyAttack()
 {
     if (!OwnerBase->CanAct())                  { return; }
     if (!OwnerBase->IsGrounded())              { return; }
-    if (OwnerBase->GetCurrentStamina() <= 0.f) { return; }
+    if (StaminaComponent->GetCurrentStamina() <= 0.f) { return; }
 
-    const URVWeaponDataAsset* WeaponData = WeaponUser->GetCurrentWeaponData();
+    const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
     if (!ensureMsgf(IsValid(WeaponData),
         TEXT("[%s] StartHeavyAttack: WeaponData not assigned"),
         *GetNameSafe(OwnerBase))) { return; }
@@ -259,7 +257,7 @@ void URVWeaponAttackComponent::StartHeavyAttack()
     bPendingRelease  = false;
     bIsAutoRelease   = false;
 
-    OwnerBase->ResetStaminaRegenDelay();
+    StaminaComponent->ResetStaminaRegenDelay();
 
     UAnimInstance* AnimInst = GetAnimInstance();
     if (!IsValid(AnimInst)) { return; }
@@ -291,7 +289,7 @@ void URVWeaponAttackComponent::ExecuteHeavyAttack()
 {
     GetWorld()->GetTimerManager().ClearTimer(ChargeAutoReleaseHandle);
 
-    const URVWeaponDataAsset* WeaponData = WeaponUser->GetCurrentWeaponData();
+    const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
     if (!IsValid(WeaponData)) { EndHeavyAttack(); return; }
 
     UAnimInstance* AnimInst = GetAnimInstance();
@@ -307,7 +305,7 @@ void URVWeaponAttackComponent::ExecuteHeavyAttack()
         const FRVWeaponStatRow* WeaponStat = WeaponData->GetWeaponStatRow();
         if (WeaponStat)
         {
-            OwnerBase->TryConsumeStamina(
+            StaminaComponent->ConsumeStamina(
                 WeaponStat->BaseStaminaCost * AttackStat->StaminaCostMultiplier);
         }
     }
@@ -332,7 +330,7 @@ void URVWeaponAttackComponent::EndHeavyAttack()
     UAnimInstance* AnimInst = GetAnimInstance();
     if (IsValid(AnimInst))
     {
-        const URVWeaponDataAsset* WeaponData = WeaponUser->GetCurrentWeaponData();
+        const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
         if (IsValid(WeaponData))
         {
             UAnimMontage* MontageToStop = OwnerBase->HasCombatState(ERVCombatState::HeavyCharging)
@@ -369,7 +367,7 @@ void URVWeaponAttackComponent::OnReleaseMontageBlendingOut(UAnimMontage*, bool)
 
 void URVWeaponAttackComponent::ForceEndAttack()
 {
-    if (bIsComboActive)
+    if (bIsLightAttackActive)
     {
         UAnimInstance* AnimInst = GetAnimInstance();
         if (IsValid(AnimInst))

@@ -8,7 +8,7 @@ class UInputMappingContext;
 class URVHUDWidget;
 class URVBossHPBarWidget;
 class URVGameResultWidget;
-class ARVCharacterBase;
+class ARVCharacterPlayer;
 class ARVSevarogCharacter;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogRVPlayerController, Log, All);
@@ -16,70 +16,60 @@ DECLARE_LOG_CATEGORY_EXTERN(LogRVPlayerController, Log, All);
 UCLASS()
 class REVENANT_API ARVPlayerController : public APlayerController
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
 public:
-	// Called by ARVGameMode::BeginPlay after level load.
-	// Locks input and hides cursor — correct state after every OpenLevel.
-	void RestoreGameInput();
-
-	// Called by ARVBossEncounterVolume via OnBossSpawned delegate.
-	void OnBossSpawned(ARVSevarogCharacter* InBoss);
-
-	// Called by ARVGameMode when the game ends (victory or defeat).
-	void ShowGameResult(bool bVictory);
-
-	// Called by ARVBossEncounterVolume / cutscene system.
-	void LockInputForCutscene();
-	void UnlockInputAfterCutscene();
-
-	// Called by ARVGameMode to toggle HUD visibility during cutscene.
-	void SetHUDVisible(bool bVisible);
+    void RestoreGameInput();
+    void OnBossSpawned(ARVSevarogCharacter* InBoss);
+    void ShowGameResult(bool bVictory);
+    void LockInputForCutscene();
+    void UnlockInputAfterCutscene();
+    void SetHUDVisible(bool bVisible);
 
 protected:
-	virtual void BeginPlay() override;
+    virtual void BeginPlay() override;
 
 private:
-	//--- Widget classes (assign in BP_PlayerController) ----------------------
+    //--- Widget classes (assign in BP_PlayerController) ----------------------
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|UI")
-	TSubclassOf<URVHUDWidget> HUDWidgetClass;
+    UPROPERTY(EditDefaultsOnly, Category = "RV|UI")
+    TSubclassOf<URVHUDWidget> HUDWidgetClass;
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|UI")
-	TSubclassOf<URVBossHPBarWidget> BossHPBarWidgetClass;
+    UPROPERTY(EditDefaultsOnly, Category = "RV|UI")
+    TSubclassOf<URVBossHPBarWidget> BossHPBarWidgetClass;
 
-	UPROPERTY(EditDefaultsOnly, Category = "RV|UI")
-	TSubclassOf<URVGameResultWidget> GameResultWidgetClass;
+    UPROPERTY(EditDefaultsOnly, Category = "RV|UI")
+    TSubclassOf<URVGameResultWidget> GameResultWidgetClass;
 
-	//--- Runtime widget instances --------------------------------------------
+    //--- Runtime widget instances --------------------------------------------
 
-	UPROPERTY()
-	TObjectPtr<URVHUDWidget> HUDWidget;
+    UPROPERTY()
+    TObjectPtr<URVHUDWidget> HUDWidget;
 
-	UPROPERTY()
-	TObjectPtr<URVBossHPBarWidget> BossHPBarWidget;
+    UPROPERTY()
+    TObjectPtr<URVBossHPBarWidget> BossHPBarWidget;
 
-	UPROPERTY()
-	TObjectPtr<URVGameResultWidget> GameResultWidget;
+    UPROPERTY()
+    TObjectPtr<URVGameResultWidget> GameResultWidget;
 
-	//--- Player attribute delegate handlers ----------------------------------
+    //--- Player attribute delegate handlers ----------------------------------
 
-	TWeakObjectPtr<ARVCharacterBase> PlayerCharRef;
+    TWeakObjectPtr<ARVCharacterPlayer> PlayerCharRef;
 
-	UFUNCTION()
-	void OnPlayerHealthChanged(float NewHealth, float InDelta);
+    // [설계-5] 정규화 비율(NewHealthRatio)을 직접 받아 사용.
+    UFUNCTION()
+    void OnPlayerHealthChanged(float NewHealthRatio);
 
-	UFUNCTION()
-	void OnPlayerStaminaChanged(float NewStamina, float InDelta);
+    UFUNCTION()
+    void OnPlayerStaminaChanged(float NewStamina, float InDelta);
 
-	UFUNCTION()
-	void OnPlayerDeath();
+    UFUNCTION()
+    void OnPlayerDeath();
 
-	//--- Boss delegate handlers ----------------------------------------------
+    //--- Boss delegate handlers ----------------------------------------------
 
-	UFUNCTION()
-	void OnBossDefeated();
+    UFUNCTION()
+    void OnBossDefeated();
 
-	TWeakObjectPtr<ARVSevarogCharacter> BossRef;
-	
+    TWeakObjectPtr<ARVSevarogCharacter> BossRef;
 };

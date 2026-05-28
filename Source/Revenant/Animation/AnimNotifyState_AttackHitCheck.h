@@ -17,9 +17,4 @@ public:
 	virtual void NotifyEnd  (USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference) override;
 
 	virtual FString GetNotifyName_Implementation() const override;
-
-private:
-	// Cached per-mesh owner — ARVCharacterBase facade provides all needed operations.
-	UPROPERTY()
-	TMap<USkeletalMeshComponent*, ARVCharacterBase*> CachedOwners;
 };

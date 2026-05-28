@@ -16,16 +16,7 @@ struct REVENANT_API FRVCharacterStatRow : public FTableRowBase
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	float MaxPoise = 100.f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	float MaxStamina = 100.f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	float StaminaRegenRate = 20.f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-	float StaminaRegenDelay = 1.5f;
-
+	
 	//--- Movement ------------------------------------------------------------
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
@@ -47,4 +38,8 @@ struct REVENANT_API FRVCharacterStatRow : public FTableRowBase
 	// Seconds after the last poise hit before poise begins recovering.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	float PoiseRegenDelay = 3.f;
+	
+	// Duration the boss remains in Groggy stun (Start → Loop held for this duration → End).
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (ClampMin = "0.0"))
+	float GroggyDuration = 4.f;
 };

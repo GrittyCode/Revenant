@@ -12,7 +12,6 @@ void UAnimNotifyState_ComboWindow::NotifyBegin(USkeletalMeshComponent* MeshComp,
         TEXT("[AnimNotifyState_ComboWindow] Owner is not ARVCharacterPlayer — check montage assignment"));
     if (!IsValid(Player)) { return; }
 
-    CachedPlayers.Add(MeshComp, Player);
     Player->OpenComboWindow();
 }
 
@@ -22,11 +21,9 @@ void UAnimNotifyState_ComboWindow::NotifyEnd(USkeletalMeshComponent* MeshComp,
 {
     Super::NotifyEnd(MeshComp, Animation, EventReference);
 
-    ARVCharacterPlayer* Player = CachedPlayers.FindRef(MeshComp);
-    CachedPlayers.Remove(MeshComp);
-
-    // Player may have been destroyed between NotifyBegin and NotifyEnd — safe to skip.
+    ARVCharacterPlayer* Player = Cast<ARVCharacterPlayer>(MeshComp->GetOwner());
     if (!IsValid(Player)) { return; }
+
     Player->CloseComboWindow();
 }
 

@@ -1,17 +1,22 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Data/RVCharacterDataAsset.h"
+#include "Engine/DataAsset.h"
+#include "Data/RVPlayerStatRow.h"
 #include "RVPlayerDataAsset.generated.h"
 
 UCLASS()
-class REVENANT_API URVPlayerDataAsset : public URVCharacterDataAsset
+class REVENANT_API URVPlayerDataAsset : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 
 public:
-	//--- Stamina Costs -------------------------------------------------------
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stats")
+	FDataTableRowHandle PlayerStatRowHandle;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stamina")
-	float DodgeStaminaCost = 30.f;
+	FORCEINLINE const FRVPlayerStatRow* GetPlayerStatRow() const
+	{
+		if (PlayerStatRowHandle.IsNull()) { return nullptr; }
+		return PlayerStatRowHandle.GetRow<FRVPlayerStatRow>(TEXT("URVPlayerDataAsset::GetPlayerStatRow"));
+	}
 };

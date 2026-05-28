@@ -3,13 +3,11 @@
 #include "Component/RVCombatStateComponent.h"
 #include "Component/RVWeaponAttackComponent.h"
 #include "Component/RVGuardComponent.h"
-#include "Component/RVAttributeComponent.h"
+#include "Component/RVStaminaComponent.h"
 #include "Component/RVHitReactionComponent.h"
 #include "Component/RVLockOnComponent.h"
-#include "Data/RVPlayerDataAsset.h"
 #include "Data/RVCharacterStatRow.h"
 #include "Data/RVWeaponDataAsset.h"
-#include "Data/RVPlayerCombatAnimDataAsset.h"
 #include "Data/RVHitReactionAnimDataAsset.h"
 #include "Data/RVWeaponStatRow.h"
 #include "EnhancedInputComponent.h"
@@ -32,15 +30,10 @@ ARVCharacterPlayer::ARVCharacterPlayer()
     CameraBoom->TargetArmLength          = 450.f;
     CameraBoom->SocketOffset             = FVector(0.f, 0.f, 80.f);
     CameraBoom->bUsePawnControlRotation  = true;
-
-    // Position lag: moderate catch-up speed gives a natural soulsy follow feel.
-    // CameraLagMaxDistance caps rubber-banding on sudden large displacements (e.g. knockback).
     CameraBoom->bEnableCameraLag     = true;
     CameraBoom->CameraLagSpeed       = 7.f;
     CameraBoom->CameraLagMaxDistance = 150.f;
 
-    // Rotation lag: adds a subtle delay when the player pans the camera,
-    // preventing jarring snaps and improving cinematic polish.
     CameraBoom->bEnableCameraRotationLag = true;
     CameraBoom->CameraRotationLagSpeed   = 10.f;
 
@@ -52,19 +45,32 @@ ARVCharacterPlayer::ARVCharacterPlayer()
     LockOnComponent       = CreateDefaultSubobject<URVLockOnComponent>      (TEXT("LockOnComponent"));
     WeaponAttackComponent = CreateDefaultSubobject<URVWeaponAttackComponent>(TEXT("WeaponAttackComponent"));
     GuardComponent        = CreateDefaultSubobject<URVGuardComponent>       (TEXT("GuardComponent"));
+    StaminaComponent      = CreateDefaultSubobject<URVStaminaComponent>      (TEXT("StaminaComponent"));
     EquipmentComponent    = CreateDefaultSubobject<URVEquipmentComponent>   (TEXT("EquipmentComponent"));
 }
 
 void ARVCharacterPlayer::InitStats()
 {
-    const URVPlayerDataAsset* PlayerData = Cast<URVPlayerDataAsset>(CharacterData);
-    if (!IsValid(PlayerData)) { return; }
+    if (!ensureMsgf(IsValid(PlayerData),
+        TEXT("[%s] InitStats: PlayerData not assigned — assign DA_PlayerData in BP_RVCharacterPlayer"),
+        *GetName())) { return; }
 
-    const FRVCharacterStatRow* StatRow = PlayerData->GetStatRow();
-    if (!StatRow) { return; }
+    const FRVPlayerStatRow* Stat = PlayerData->GetPlayerStatRow();
+    if (!ensureMsgf(Stat,
+        TEXT("[%s] InitStats: PlayerStatRowHandle resolve failed — check DT_PlayerStats"),
+        *GetName())) { return; }
 
-    AttributeComponent->InitFromStatRow(*StatRow);
-    DodgeStaminaCost = PlayerData->DodgeStaminaCost;
+    VitalComponent->InitFromStatRow(*Stat);
+    StaminaComponent->InitFromStatRow(*Stat);
+    CachedDodgeStaminaCost = Stat->DodgeStaminaCost;
+
+    HitReactionComponent->InitParams(
+        GetHitReactionAnimData(),
+        Stat->StaggerDuration,
+        Stat->StaggerThreshold,
+        Stat->KnockdownThreshold);
+
+    GetCharacterMovement()->MaxWalkSpeed = Stat->MoveSpeed;
 }
 
 void ARVCharacterPlayer::BeginPlay()
@@ -82,23 +88,16 @@ void ARVCharacterPlayer::BeginPlay()
         TEXT("[%s] DefaultMappingContext not assigned"), *GetName())) { return; }
 
     Subsystem->AddMappingContext(DefaultMappingContext, 0);
+	
+    PC->PlayerCameraManager->ViewPitchMin = -70.f;
+    PC->PlayerCameraManager->ViewPitchMax =  20.f;
 
-    if (IsValid(PC->PlayerCameraManager))
-    {
-        PC->PlayerCameraManager->ViewPitchMin = -70.f;
-        PC->PlayerCameraManager->ViewPitchMax =  20.f;
-    }
+    //--- Sibling delegate wiring --------------------------------------------
 
-    //--- Sibling delegate wiring (Player owns both sides of each connection) -
-    // Components self-initialize their Owner reference in their own BeginPlay.
-    // All cross-component delegate connections are the Player's responsibility.
-
-    // ForceEnd cascades to all action components.
     CombatStateComponent->OnForceEnd.AddUObject(WeaponAttackComponent, &URVWeaponAttackComponent::ForceEndAttack);
     CombatStateComponent->OnForceEnd.AddUObject(GuardComponent,        &URVGuardComponent::EndGuard);
 
-    // Stamina depletion breaks guard.
-    AttributeComponent->OnStaminaDepleted.AddDynamic(
+    StaminaComponent->OnStaminaDepleted.AddDynamic(
         GuardComponent, &URVGuardComponent::OnStaminaDepletedHandler);
 
     CombatStateComponent->OnStateChanged.AddUObject(this, &ARVCharacterPlayer::OnCombatStateChangedForSprint);
@@ -108,20 +107,15 @@ void ARVCharacterPlayer::BeginPlay()
     OnWeaponChangedHandler(EquipmentComponent->GetCurrentWeaponData());
 }
 
-//--- IRVWeaponUser -----------------------------------------------------------
-
-URVWeaponDataAsset* ARVCharacterPlayer::GetCurrentWeaponData() const
-{
-    return EquipmentComponent->GetCurrentWeaponData();
-}
-
 //--- Facades -----------------------------------------------------------------
 
-FRVOnWeaponChanged& ARVCharacterPlayer::GetOnWeaponChanged(){ return EquipmentComponent->OnWeaponChanged;}
+FRVOnWeaponChanged&  ARVCharacterPlayer::GetOnWeaponChanged()  { return EquipmentComponent->OnWeaponChanged; }
+FRVOnStaminaChanged& ARVCharacterPlayer::GetOnStaminaChanged()      { return StaminaComponent->OnStaminaChanged; }
+float                ARVCharacterPlayer::GetStaminaRatio()    const { return StaminaComponent->GetStaminaPercent(); }
 
-bool ARVCharacterPlayer::IsComboActive()  const { return WeaponAttackComponent->IsComboActive(); }
 float ARVCharacterPlayer::GetSprintSpeed() const { return SprintSpeed; }
 bool  ARVCharacterPlayer::IsSprinting()    const { return bIsSprinting; }
+bool ARVCharacterPlayer::IsComboActive()  const { return WeaponAttackComponent->IsLightAttackActive(); }
 bool  ARVCharacterPlayer::IsLockedOn()     const { return LockOnComponent->IsLockedOn(); }
 
 //--- AnimNotify forwarding ---------------------------------------------------
@@ -157,7 +151,6 @@ void ARVCharacterPlayer::OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponDat
 
     if (WeaponStat)
     {
-        // Route through CharacterBase facade — no direct component access from Player.
         SetCombatStat(WeaponStat->BaseDamage, WeaponStat->BasePoiseDamage, WeaponStat->AttackRadius);
     }
 
@@ -322,14 +315,13 @@ void ARVCharacterPlayer::InputHeavyAttackCompleted(const FInputActionValue& Valu
     WeaponAttackComponent->ReleaseHeavyAttack();
 }
 
-//--- Dodge (inlined from deleted URVDodgeComponent) --------------------------
+//--- Dodge (inlined — no dedicated DodgeComponent) --------------------------
 
 bool ARVCharacterPlayer::CanStartDodge() const
 {
     if (HasCombatState(ERVCombatState::Dodging)) { return false; }
     if (!CanAct())                               { return false; }
     if (!IsGrounded())                           { return false; }
-    // Stamina gating delegated to TryConsumeStamina inside StartDodge.
     return true;
 }
 
@@ -339,9 +331,9 @@ void ARVCharacterPlayer::StartDodge(UAnimMontage* InMontage)
         TEXT("[%s] StartDodge: Montage is null — check WeaponDataAsset dodge montage assignments"),
         *GetName())) { return; }
 
-    if (!TryConsumeStamina(DodgeStaminaCost)) { return; }
+    if (!StaminaComponent->ConsumeStamina(CachedDodgeStaminaCost)) { return; }
 
-    PauseStaminaRegen();
+    StaminaComponent->PauseStaminaRegen();
     SetInvincible(true);
     AddCombatState(ERVCombatState::Dodging);
 
@@ -366,9 +358,8 @@ void ARVCharacterPlayer::EndDodge()
 
     SetInvincible(false);
     RemoveCombatState(ERVCombatState::Dodging);
-    ResumeStaminaRegen();
+    StaminaComponent->ResumeStaminaRegen();
 
-    // Restore orientation — LockOnComponent re-suppresses next tick if still locked on.
     GetCharacterMovement()->bOrientRotationToMovement = true;
     ActiveDodgeMontage = nullptr;
 }
@@ -435,7 +426,7 @@ void ARVCharacterPlayer::StartSprint()
     if (LockOnComponent->IsLockedOn()) { return; }
     if (!CanAct())                     { return; }
     if (!IsGrounded())                 { return; }
-    if (GetCurrentStamina() <= 0.f)    { return; }
+    if (StaminaComponent->GetCurrentStamina() <= 0.f)    { return; }
     if (GetCharacterMovement()->Velocity.Size2D() < MinSpeedToStartSprint) { return; }
 
     OriginalWalkSpeed = GetCharacterMovement()->MaxWalkSpeed;

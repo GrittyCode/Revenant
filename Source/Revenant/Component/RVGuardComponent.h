@@ -5,7 +5,9 @@
 #include "RVGuardComponent.generated.h"
 
 class ARVCharacterBase;
-class IRVWeaponUser;
+class ARVCharacterPlayer;
+class URVStaminaComponent;
+class URVEquipmentComponent;
 
 UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
 class REVENANT_API URVGuardComponent : public UActorComponent
@@ -19,7 +21,6 @@ public:
     void EndGuard();
     void HandleGuardHit(float InDamageAmount);
 
-    // Subscribed to AttributeComponent::OnStaminaDepleted by ARVCharacterPlayer::BeginPlay.
     UFUNCTION()
     void OnStaminaDepletedHandler();
 
@@ -27,9 +28,13 @@ protected:
     virtual void BeginPlay() override;
 
 private:
-    // Resolved in BeginPlay via GetOwner().
     UPROPERTY()
     TObjectPtr<ARVCharacterBase> OwnerBase;
 
-    IRVWeaponUser* WeaponUser = nullptr;
+    // Cached from OwnerBase — set once in BeginPlay after player cast is verified.
+    UPROPERTY()
+    TObjectPtr<URVStaminaComponent> StaminaComponent;
+
+    UPROPERTY()
+    TObjectPtr<URVEquipmentComponent> EquipmentComponent;
 };

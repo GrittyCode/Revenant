@@ -48,8 +48,6 @@ public:
     void TryChainCombo();
 
     void InitSubjugationLocations(UParticleSystem* InCastFX);
-
-    // InDamageDelay: seconds after SwirlsFX spawns before damage + SFX fire.
     void SpawnSubjugationBlast(UParticleSystem* InSwirlsFX, USoundBase* InSwirlsSFX);
 
     void ExecuteSoulSiphonHit();
@@ -70,6 +68,16 @@ public:
 
     UFUNCTION(BlueprintCallable, Category = "RV|Boss")
     const URVSevarogDataAsset* GetSevarogData() const { return SevarogData; }
+
+    // [설계-2] URVSevarogAnimInstance가 컴포넌트를 직접 참조하지 않도록 파사드 메서드 추가.
+    UFUNCTION(BlueprintCallable, Category = "RV|Boss")
+    bool IsInHitReaction() const;
+
+    UFUNCTION(BlueprintCallable, Category = "RV|Boss")
+    bool IsKnockedDown() const;
+
+    UFUNCTION(BlueprintCallable, Category = "RV|Boss")
+    float GetStaggerDirectionForAnim() const;
 
     //--- Delegates -----------------------------------------------------------
 
@@ -93,10 +101,10 @@ protected:
     virtual void DeactivateWeaponTrail() override;
 
 private:
-    UPROPERTY()
+    UPROPERTY(VisibleAnywhere, Category = "RV|Debug")
     TObjectPtr<URVSevarogDataAsset> SevarogData;
 
-    UPROPERTY()
+    UPROPERTY(VisibleAnywhere, Category = "RV|Debug")
     TObjectPtr<UNiagaraComponent> MeleeTrailNC;
 
     ERVBossPhase CurrentPhase     = ERVBossPhase::Phase1;
@@ -104,7 +112,8 @@ private:
     bool         bIsRushing       = false;
     bool         bIsComboChaining = false;
 
-    float NormalWalkSpeed = 400.f;
+    float NormalWalkSpeed    = 400.f;
+    float CachedGroggyDuration = 4.f;
 
     //--- Combo chain ---------------------------------------------------------
 
@@ -127,21 +136,16 @@ private:
 
     //--- Subjugation ---------------------------------------------------------
 
-    // Positions set by InitSubjugationLocations, read by SpawnSubjugationBlast
-    // and ApplySubjugationDamage. Cleared by ForceEndCurrentAction.
     TArray<FVector> PendingSubjugationLocations;
 
-    // SFX stored from SpawnSubjugationBlast, played in ApplySubjugationDamage.
     UPROPERTY()
     TObjectPtr<USoundBase> PendingSwirlsSFX;
 
-    // Fires InDamageDelay seconds after SpawnSubjugationBlast.
     FTimerHandle SubjugationDamageTimerHandle;
 
     static TArray<FVector> GenerateSwirlLocations(const FVector& InOrigin,
         float InSpreadRadius, float InMinSeparation, int32 InCount);
 
-    // Timer callback: applies damage + SFX at all pending swirl locations.
     UFUNCTION()
     void ApplySubjugationDamage();
 
@@ -174,6 +178,6 @@ private:
     UFUNCTION() void OnGroggySequenceCompleted();
     UFUNCTION() void OnAttackMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
     UFUNCTION() void OnSingleShotActionBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
-    UFUNCTION() void CheckPhaseTransition(float InNewHealth, float InDelta);
+	UFUNCTION() void CheckPhaseTransition(float InNewHealthRatio);
     UFUNCTION() void OnPoiseDepleted();
 };

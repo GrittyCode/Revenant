@@ -3,6 +3,7 @@
 #include "Data/RVLocomotionAnimDataAsset.h"
 #include "Data/RVHitReactionAnimDataAsset.h"
 #include "Component/RVCombatStateComponent.h"
+#include "Character/Player/RVCharacterPlayer.h"
 #include "KismetAnimationLibrary.h"
 #include "GameFramework/CharacterMovementComponent.h"
 
@@ -20,7 +21,7 @@ void URVPlayerAnimInstance::NativeInitializeAnimation()
     OwnerCharacter->GetOnWeaponChanged().AddDynamic(
         this, &URVPlayerAnimInstance::OnWeaponChangedHandler);
 
-    OnWeaponChangedHandler(OwnerCharacter->GetCurrentWeaponData());
+    OnWeaponChangedHandler(OwnerCharacter->GetEquipmentComponent()->GetCurrentWeaponData());
 }
 
 void URVPlayerAnimInstance::NativeUninitializeAnimation()
@@ -37,9 +38,12 @@ void URVPlayerAnimInstance::NativeUninitializeAnimation()
 void URVPlayerAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
     Super::NativeUpdateAnimation(DeltaSeconds);
-
+	
     if (!IsValid(OwnerCharacter)) { return; }
-
+	
+	const UWorld* W = GetWorld();
+	if (!W || !W->IsGameWorld()) { return; } 
+	
     Speed           = OwnerCharacter->GetVelocity().Size2D();
     NormalizedSpeed = FMath::Clamp(Speed / MaxLocomotionSpeed, 0.f, 1.f);
     Direction       = UKismetAnimationLibrary::CalculateDirection(
@@ -47,13 +51,14 @@ void URVPlayerAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
                           OwnerCharacter->GetActorRotation());
 
     bIsInAir         = OwnerCharacter->GetCharacterMovement()->IsFalling();
-    bIsAttacking     = OwnerCharacter->IsComboActive();
     bIsGuarding      = OwnerCharacter->IsInCombatState(ERVCombatState::Guarding);
     bIsInHitReaction = OwnerCharacter->IsInCombatState(ERVCombatState::HitReaction);
     bIsKnockedDown   = OwnerCharacter->IsInCombatState(ERVCombatState::Knockdown);
     bIsLockedOn      = OwnerCharacter->IsLockedOn();
     bIsSprinting     = OwnerCharacter->IsSprinting();
     StaggerDirection = OwnerCharacter->GetStaggerDirection();
+    bIsAttacking = OwnerCharacter->IsInCombatState(
+        ERVCombatState::Attacking | ERVCombatState::HeavyCharging | ERVCombatState::HeavyAttacking);
 }
 
 void URVPlayerAnimInstance::OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData)

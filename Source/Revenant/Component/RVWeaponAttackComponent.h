@@ -6,8 +6,9 @@
 #include "RVWeaponAttackComponent.generated.h"
 
 class ARVCharacterBase;
-class IRVWeaponUser;
-class URVWeaponDataAsset;
+class ARVCharacterPlayer;
+class URVStaminaComponent;
+class URVEquipmentComponent;
 class UAnimMontage;
 
 UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
@@ -24,7 +25,7 @@ public:
     void CloseComboWindow();
     void OnPlayerLanded();
 
-    bool IsComboActive()       const { return bIsComboActive; }
+    bool IsLightAttackActive() const { return bIsLightAttackActive; }
     bool IsJumpAttackLanding() const { return bIsJumpAttackLanding; }
 
     void StartHeavyAttack();
@@ -36,17 +37,19 @@ protected:
     virtual void BeginPlay() override;
 
 private:
-    // Resolved in BeginPlay via GetOwner().
-    // OwnerBase handles all combat state and stamina operations.
-    // WeaponUser supplies weapon data — Owner must implement IRVWeaponUser.
     UPROPERTY()
     TObjectPtr<ARVCharacterBase> OwnerBase;
 
-    IRVWeaponUser* WeaponUser = nullptr;
+    // Cached from OwnerBase — set once in BeginPlay after player cast is verified.
+    UPROPERTY()
+    TObjectPtr<URVStaminaComponent> StaminaComponent;
+
+    UPROPERTY()
+    TObjectPtr<URVEquipmentComponent> EquipmentComponent;
 
     //--- Light Attack State --------------------------------------------------
 
-    bool bIsComboActive       = false;
+    bool bIsLightAttackActive = false;
     bool bComboWindowOpen     = false;
     bool bHasComboInput       = false;
     bool bHasUsedJumpAttack   = false;
@@ -62,7 +65,7 @@ private:
     void EndCombo();
     void PlayLightAttackMontage(UAnimMontage* InMontage);
 
-    bool ConsumeAttackStamina(UAnimMontage* InMontage, const URVWeaponDataAsset* InWeaponData);
+    bool ConsumeAttackStamina(UAnimMontage* InMontage);
 
     UAnimInstance* GetAnimInstance() const;
 

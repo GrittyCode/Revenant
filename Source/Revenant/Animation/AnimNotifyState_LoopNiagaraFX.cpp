@@ -3,11 +3,23 @@
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraComponent.h"
 
+static void CleanupNiagaraComponents(TArray<TObjectPtr<UNiagaraComponent>>& InNCs)
+{
+	for (UNiagaraComponent* NC : InNCs)
+	{
+		if (IsValid(NC)) { NC->DeactivateImmediate(); NC->DestroyComponent(); }
+	}
+	InNCs.Empty();
+}
+
 void UAnimNotifyState_LoopNiagaraFX::NotifyBegin(USkeletalMeshComponent* MeshComp,
 	UAnimSequenceBase* /*Animation*/, float /*TotalDuration*/,
 	const FAnimNotifyEventReference& /*EventReference*/)
 {
 	if (!IsValid(MeshComp)) { return; }
+
+	// Clean up leftovers from a previous interrupted play before spawning new ones.
+	CleanupNiagaraComponents(ActiveNCs);
 
 	for (const FRVNiagaraFXEntry& Entry : FXList)
 	{
@@ -39,9 +51,5 @@ void UAnimNotifyState_LoopNiagaraFX::NotifyBegin(USkeletalMeshComponent* MeshCom
 void UAnimNotifyState_LoopNiagaraFX::NotifyEnd(USkeletalMeshComponent* /*MeshComp*/,
 	UAnimSequenceBase* /*Animation*/, const FAnimNotifyEventReference& /*EventReference*/)
 {
-	for (UNiagaraComponent* NC : ActiveNCs)
-	{
-		if (IsValid(NC)) { NC->DeactivateImmediate(); NC->DestroyComponent(); }
-	}
-	ActiveNCs.Empty();
+	CleanupNiagaraComponents(ActiveNCs);
 }

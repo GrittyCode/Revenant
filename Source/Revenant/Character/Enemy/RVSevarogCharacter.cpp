@@ -2,7 +2,7 @@
 #include "AI/RVAIController.h"
 #include "Animation/AnimInstance.h"
 #include "BrainComponent.h"
-#include "Component/RVAttributeComponent.h"
+#include "Component/RVVitalComponent.h"
 #include "Component/RVCombatStateComponent.h"
 #include "Component/RVHitReactionComponent.h"
 #include "Components/CapsuleComponent.h"
@@ -28,21 +28,26 @@ ARVSevarogCharacter::ARVSevarogCharacter()
 
 void ARVSevarogCharacter::InitStats()
 {
-    SevarogData = Cast<URVSevarogDataAsset>(CharacterData);
-
     if (!ensureMsgf(IsValid(SevarogData),
-        TEXT("[%s] CharacterData must be URVSevarogDataAsset"), *GetNameSafe(this))) { return; }
+        TEXT("[%s] SevarogData must be URVSevarogDataAsset"), *GetNameSafe(this))) { return; }
 
     ensureMsgf(IsValid(SevarogData->HitReactionAnimData),
         TEXT("[%s] SevarogData.HitReactionAnimData not assigned"), *GetNameSafe(this));
 
     const FRVCharacterStatRow* StatRow = SevarogData->GetStatRow();
     if (!ensureMsgf(StatRow,
-        TEXT("[%s] StatRow resolve failed — check DT_EnemyStats row name"), *GetNameSafe(this))) { return; }
+        TEXT("[%s] StatRow resolve failed — check DT_BossStats row name"), *GetNameSafe(this))) { return; }
 
-    AttributeComponent->InitFromStatRow(*StatRow);
+    VitalComponent->InitFromStatRow(*StatRow);
 
-    NormalWalkSpeed = StatRow->MoveSpeed;
+    HitReactionComponent->InitParams(
+        GetHitReactionAnimData(),
+        StatRow->StaggerDuration,
+        StatRow->StaggerThreshold,
+        StatRow->KnockdownThreshold);
+
+    NormalWalkSpeed      = StatRow->MoveSpeed;
+    CachedGroggyDuration = StatRow->GroggyDuration;
     GetCharacterMovement()->MaxWalkSpeed = NormalWalkSpeed;
 
     SetCombatStat(SevarogData->BaseDamage, SevarogData->BasePoiseDamage, SevarogData->AttackRadius);
@@ -57,8 +62,8 @@ void ARVSevarogCharacter::BeginPlay()
     HitReactionComponent->OnGroggySequenceCompleted.AddUObject(
         this, &ARVSevarogCharacter::OnGroggySequenceCompleted);
 
-    AttributeComponent->OnHealthChanged.AddDynamic(this, &ARVSevarogCharacter::CheckPhaseTransition);
-    AttributeComponent->OnPoiseDepleted.AddDynamic(this, &ARVSevarogCharacter::OnPoiseDepleted);
+    VitalComponent->OnHealthChanged.AddDynamic(this, &ARVSevarogCharacter::CheckPhaseTransition);
+    VitalComponent->OnPoiseDepleted.AddDynamic(this, &ARVSevarogCharacter::OnPoiseDepleted);
 
     if (IsValid(SevarogData) && IsValid(SevarogData->MeleeTrailEffect))
     {
@@ -82,6 +87,22 @@ void ARVSevarogCharacter::BeginPlay()
 URVHitReactionAnimDataAsset* ARVSevarogCharacter::GetHitReactionAnimData() const
 {
     return IsValid(SevarogData) ? SevarogData->HitReactionAnimData : nullptr;
+}
+
+
+bool ARVSevarogCharacter::IsInHitReaction() const
+{
+    return HasCombatState(ERVCombatState::HitReaction);
+}
+
+bool ARVSevarogCharacter::IsKnockedDown() const
+{
+    return HasCombatState(ERVCombatState::Knockdown);
+}
+
+float ARVSevarogCharacter::GetStaggerDirectionForAnim() const
+{
+    return HitReactionComponent->GetStaggerDirection();
 }
 
 //--- Death -------------------------------------------------------------------
@@ -143,8 +164,8 @@ void ARVSevarogCharacter::StartDissolve()
     DissolveDuration = IsValid(SevarogData) ? SevarogData->DissolveDuration : 2.f;
     DissolveElapsed  = 0.f;
 
+    // [IsValid-2] ACharacter::Mesh는 CreateDefaultSubobject — 캐릭터 생존 시 null 불가.
     USkeletalMeshComponent* SkelMesh = GetMesh();
-    if (!IsValid(SkelMesh)) { SetLifeSpan(0.1f); return; }
 
     const int32 NumMaterials = SkelMesh->GetNumMaterials();
     DissolveMIDs.SetNum(NumMaterials);
@@ -348,13 +369,8 @@ void ARVSevarogCharacter::StartGroggy()
 
     AddCombatState(ERVCombatState::Groggy);
     OnBossGroggyStarted.Broadcast();
-
-    if (IsValid(SevarogData) && IsValid(SevarogData->GroggyStartSFX))
-    {
-        UGameplayStatics::PlaySoundAtLocation(this, SevarogData->GroggyStartSFX, GetActorLocation());
-    }
-
-    HitReactionComponent->TriggerGroggy(SevarogData->GroggyDuration);
+	
+    HitReactionComponent->TriggerGroggy(CachedGroggyDuration);
 }
 
 void ARVSevarogCharacter::EndGroggy()
@@ -375,6 +391,7 @@ void ARVSevarogCharacter::OnGroggySequenceCompleted()
 
 void ARVSevarogCharacter::StartRush()
 {
+    if (!IsValid(SevarogData)) { return; }
     bIsRushing = true;
     GetCharacterMovement()->MaxWalkSpeed = SevarogData->RushSpeed;
 }
@@ -430,9 +447,10 @@ void ARVSevarogCharacter::SpawnSubjugationBlast(UParticleSystem* InSwirlsFX, USo
     if (!IsValid(SevarogData) || PendingSubjugationLocations.IsEmpty()) { return; }
 
     PendingSwirlsSFX = InSwirlsSFX;
-	
-	const float DamageDelay = 0.5f;
-	
+
+    // [버그-3] DamageDelay는 0.5f 하드코딩으로 유지.
+    const float DamageDelay = 0.5f;
+
     for (const FVector& SwirlLocation : PendingSubjugationLocations)
     {
         SpawnFXAtLocation(InSwirlsFX, SwirlLocation);
@@ -440,7 +458,7 @@ void ARVSevarogCharacter::SpawnSubjugationBlast(UParticleSystem* InSwirlsFX, USo
 #if !UE_BUILD_SHIPPING
         DrawDebugSphere(GetWorld(), SwirlLocation,
             SevarogData->Subjugation.SwirlDamageRadius, 16, FColor::Orange, false,
-              DamageDelay + 1.f);
+            DamageDelay + 1.f);
 #endif
     }
 
@@ -599,10 +617,10 @@ void ARVSevarogCharacter::SetBossPhase(ERVBossPhase InNewPhase)
     OnBossPhaseChanged.Broadcast(CurrentPhase);
 }
 
-void ARVSevarogCharacter::CheckPhaseTransition(float, float)
+void ARVSevarogCharacter::CheckPhaseTransition(float InNewHealthRatio)
 {
     if (CurrentPhase == ERVBossPhase::Phase1
-        && AttributeComponent->GetHealthPercent() <= SevarogData->Phase2Threshold)
+        && InNewHealthRatio <= SevarogData->Phase2Threshold)
     {
         SetBossPhase(ERVBossPhase::Phase2);
     }

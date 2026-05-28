@@ -8,7 +8,7 @@
 class UNiagaraComponent;
 
 // Sustains Niagara systems for the duration of the notify window.
-// NotifyBegin: spawns systems (bAutoDestroy = false) + plays optional SFX once per entry.
+// NotifyBegin: cleans up any leftover components from a previous interrupted play, then spawns fresh.
 // NotifyEnd:   deactivates and destroys all spawned components.
 UCLASS(meta = (DisplayName = "Loop Niagara FX"))
 class REVENANT_API UAnimNotifyState_LoopNiagaraFX : public UAnimNotifyState
@@ -28,6 +28,8 @@ public:
 	TArray<FRVNiagaraFXEntry> FXList;
 
 private:
+	// Tracks spawned components for this notify window.
+	// Cleaned up at the start of NotifyBegin to handle interrupted montages.
 	UPROPERTY()
 	TArray<TObjectPtr<UNiagaraComponent>> ActiveNCs;
 };

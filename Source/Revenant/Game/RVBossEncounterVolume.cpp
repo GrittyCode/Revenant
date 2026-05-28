@@ -110,8 +110,12 @@ void ARVBossEncounterVolume::StartCutscene()
 
 void ARVBossEncounterVolume::OnCutsceneFinished()
 {
-	CutsceneBGMAudioComponent->Stop();
-	
+    // [버그-1] CutsceneBGM 미할당 레벨에서 CutsceneBGMAudioComponent가 null → 크래시 방지.
+    if (IsValid(CutsceneBGMAudioComponent))
+    {
+        CutsceneBGMAudioComponent->Stop();
+    }
+
     if (ARVPlayerController* RVPC = Cast<ARVPlayerController>(GetWorld()->GetFirstPlayerController()))
     {
         RVPC->SetHUDVisible(true);

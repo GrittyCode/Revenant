@@ -1,19 +1,18 @@
 #include "UI/RVHUDWidget.h"
 #include "Components/ProgressBar.h"
-#include "Components/Image.h"
-#include "Engine/Texture2D.h"
 
-// Opacity applied to the inactive weapon slot icon.
-static constexpr float InactiveSlotOpacity = 0.35f;
-
-// ----------------------------------------------------------------------------
+// [버그-2] 구현 없는 InitWeaponSlots/SetActiveWeaponSlot 제거.
+// Components/Image.h, Engine/Texture2D.h, InactiveSlotOpacity 상수도 함께 제거.
 
 void URVHUDWidget::SetHPPercent(float InPercent)
 {
-	if (HPBar) { HPBar->SetPercent(InPercent); }
+    // [IsValid-7] UCLASS(Abstract)+BindWidget 계약: WBP에 HPBar 없으면 컴파일 에러.
+    // 정상 빌드에서 항상 non-null — IsValid 불필요.
+    HPBar->SetPercent(InPercent);
 }
 
 void URVHUDWidget::SetStaminaPercent(float InPercent)
 {
-	if (StaminaBar) { StaminaBar->SetPercent(InPercent); }
+    // [IsValid-7] 동일.
+    StaminaBar->SetPercent(InPercent);
 }

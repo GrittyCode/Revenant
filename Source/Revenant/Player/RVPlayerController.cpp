@@ -1,15 +1,12 @@
 #include "Player/RVPlayerController.h"
+#include "Blueprint/UserWidget.h"
+#include "Character/Player/RVCharacterPlayer.h"
+#include "Character/Enemy/RVSevarogCharacter.h"
 #include "Game/RVBossEncounterVolume.h"
+#include "Kismet/GameplayStatics.h"
 #include "UI/RVHUDWidget.h"
 #include "UI/RVBossHPBarWidget.h"
 #include "UI/RVGameResultWidget.h"
-#include "Character/Base/RVCharacterBase.h"
-#include "Character/Player/RVCharacterPlayer.h"
-#include "Character/Enemy/RVSevarogCharacter.h"
-#include "Component/RVEquipmentComponent.h"
-#include "Data/RVWeaponDataAsset.h"
-#include "Blueprint/UserWidget.h"
-#include "Kismet/GameplayStatics.h"
 
 DEFINE_LOG_CATEGORY(LogRVPlayerController);
 
@@ -17,49 +14,48 @@ DEFINE_LOG_CATEGORY(LogRVPlayerController);
 
 void ARVPlayerController::BeginPlay()
 {
-	Super::BeginPlay();
+    Super::BeginPlay();
 
-	// --- Create widgets -----------------------------------------------------
+    // --- Create widgets -----------------------------------------------------
 
-	if (IsValid(HUDWidgetClass))
-	{
-		HUDWidget = CreateWidget<URVHUDWidget>(this, HUDWidgetClass);
-		HUDWidget->AddToViewport();
-	}
+    if (IsValid(HUDWidgetClass))
+    {
+        HUDWidget = CreateWidget<URVHUDWidget>(this, HUDWidgetClass);
+        HUDWidget->AddToViewport();
+    }
 
-	if (IsValid(BossHPBarWidgetClass))
-	{
-		BossHPBarWidget = CreateWidget<URVBossHPBarWidget>(this, BossHPBarWidgetClass);
-	}
+    if (IsValid(BossHPBarWidgetClass))
+    {
+        BossHPBarWidget = CreateWidget<URVBossHPBarWidget>(this, BossHPBarWidgetClass);
+    }
 
-	if (IsValid(GameResultWidgetClass))
-	{
-		GameResultWidget = CreateWidget<URVGameResultWidget>(this, GameResultWidgetClass);
-	}
+    if (IsValid(GameResultWidgetClass))
+    {
+        GameResultWidget = CreateWidget<URVGameResultWidget>(this, GameResultWidgetClass);
+    }
 
-	// --- Bind player attribute delegates ------------------------------------
+    // --- Bind player attribute delegates ------------------------------------
 
-	if (ARVCharacterBase* PlayerChar = Cast<ARVCharacterBase>(GetPawn()))
-	{
-		PlayerCharRef = PlayerChar;
-		PlayerChar->GetOnHealthChanged().AddDynamic(this, &ARVPlayerController::OnPlayerHealthChanged);
-		PlayerChar->GetOnStaminaChanged().AddDynamic(this, &ARVPlayerController::OnPlayerStaminaChanged);
-		PlayerChar->GetOnDeath().AddDynamic(this, &ARVPlayerController::OnPlayerDeath);
-	}
-	else
-	{
-		UE_LOG(LogRVPlayerController, Warning,
-			TEXT("[ARVPlayerController::BeginPlay] GetPawn() is null — attribute delegates not bound."));
-	}
+    if (ARVCharacterPlayer* PlayerChar = Cast<ARVCharacterPlayer>(GetPawn()))
+    {
+        PlayerCharRef = PlayerChar;
+        PlayerChar->GetOnHealthChanged().AddDynamic(this, &ARVPlayerController::OnPlayerHealthChanged);
+        PlayerChar->GetOnStaminaChanged().AddDynamic(this, &ARVPlayerController::OnPlayerStaminaChanged);
+        PlayerChar->GetOnDeath().AddDynamic(this, &ARVPlayerController::OnPlayerDeath);
+    }
+    else
+    {
+        UE_LOG(LogRVPlayerController, Warning,
+            TEXT("[ARVPlayerController::BeginPlay] GetPawn() is null — attribute delegates not bound."));
+    }
 
-	
-	// --- Bind boss encounter volume -----------------------------------------
+    // --- Bind boss encounter volume -----------------------------------------
 
-	AActor* VolumeActor = UGameplayStatics::GetActorOfClass(GetWorld(), ARVBossEncounterVolume::StaticClass());
-	if (ARVBossEncounterVolume* Volume = Cast<ARVBossEncounterVolume>(VolumeActor))
-	{
-		Volume->OnBossSpawned.AddUObject(this, &ARVPlayerController::OnBossSpawned);
-	}
+    AActor* VolumeActor = UGameplayStatics::GetActorOfClass(GetWorld(), ARVBossEncounterVolume::StaticClass());
+    if (ARVBossEncounterVolume* Volume = Cast<ARVBossEncounterVolume>(VolumeActor))
+    {
+        Volume->OnBossSpawned.AddUObject(this, &ARVPlayerController::OnBossSpawned);
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -68,24 +64,24 @@ void ARVPlayerController::BeginPlay()
 
 void ARVPlayerController::RestoreGameInput()
 {
-	SetInputMode(FInputModeGameOnly());
-	bShowMouseCursor = false;
+    SetInputMode(FInputModeGameOnly());
+    bShowMouseCursor = false;
 }
 
 void ARVPlayerController::LockInputForCutscene()
 {
-	SetIgnoreMoveInput(true);
-	SetIgnoreLookInput(true);
-	SetInputMode(FInputModeUIOnly());
+    SetIgnoreMoveInput(true);
+    SetIgnoreLookInput(true);
+    SetInputMode(FInputModeUIOnly());
 }
 
 void ARVPlayerController::UnlockInputAfterCutscene()
 {
-	FlushPressedKeys();
-	ResetIgnoreMoveInput();
-	ResetIgnoreLookInput();
-	SetInputMode(FInputModeGameOnly());
-	bShowMouseCursor = false;
+    FlushPressedKeys();
+    ResetIgnoreMoveInput();
+    ResetIgnoreLookInput();
+    SetInputMode(FInputModeGameOnly());
+    bShowMouseCursor = false;
 }
 
 // ----------------------------------------------------------------------------
@@ -94,8 +90,8 @@ void ARVPlayerController::UnlockInputAfterCutscene()
 
 void ARVPlayerController::SetHUDVisible(bool bVisible)
 {
-	if (!IsValid(HUDWidget)) { return; }
-	HUDWidget->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
+    if (!IsValid(HUDWidget)) { return; }
+    HUDWidget->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
 }
 
 // ----------------------------------------------------------------------------
@@ -104,26 +100,26 @@ void ARVPlayerController::SetHUDVisible(bool bVisible)
 
 void ARVPlayerController::OnBossSpawned(ARVSevarogCharacter* InBoss)
 {
-	if (!IsValid(InBoss)) { return; }
+    if (!IsValid(InBoss)) { return; }
 
-	BossRef = InBoss;
+    BossRef = InBoss;
 
-	if (IsValid(BossHPBarWidget))
-	{
-		BossHPBarWidget->SetBoss(InBoss);
-		BossHPBarWidget->AddToViewport();
-	}
+    if (IsValid(BossHPBarWidget))
+    {
+        BossHPBarWidget->SetBoss(InBoss);
+        BossHPBarWidget->AddToViewport();
+    }
 
-	InBoss->OnBossDefeated.AddDynamic(this, &ARVPlayerController::OnBossDefeated);
+    InBoss->OnBossDefeated.AddDynamic(this, &ARVPlayerController::OnBossDefeated);
 }
 
 void ARVPlayerController::OnBossDefeated()
 {
-	if (IsValid(BossHPBarWidget) && BossHPBarWidget->IsInViewport())
-	{
-		BossHPBarWidget->RemoveFromParent();
-	}
-	ShowGameResult(true);
+    if (IsValid(BossHPBarWidget) && BossHPBarWidget->IsInViewport())
+    {
+        BossHPBarWidget->RemoveFromParent();
+    }
+    ShowGameResult(true);
 }
 
 // ----------------------------------------------------------------------------
@@ -132,37 +128,37 @@ void ARVPlayerController::OnBossDefeated()
 
 void ARVPlayerController::ShowGameResult(bool bVictory)
 {
-	if (!IsValid(GameResultWidget)) { return; }
+    if (!IsValid(GameResultWidget)) { return; }
 
-	GameResultWidget->SetResult(bVictory);
-	GameResultWidget->AddToViewport();
+    GameResultWidget->SetResult(bVictory);
+    GameResultWidget->AddToViewport();
 
-	SetInputMode(FInputModeUIOnly());
-	bShowMouseCursor = true;
+    SetInputMode(FInputModeUIOnly());
+    bShowMouseCursor = true;
 }
 
 // ----------------------------------------------------------------------------
 // Player attribute handlers
 // ----------------------------------------------------------------------------
 
-void ARVPlayerController::OnPlayerHealthChanged(float, float)
+void ARVPlayerController::OnPlayerHealthChanged(float NewHealthRatio)
 {
-	if (!IsValid(HUDWidget) || !PlayerCharRef.IsValid()) { return; }
-	HUDWidget->SetHPPercent(PlayerCharRef->GetHealthRatio());
+    if (!IsValid(HUDWidget)) { return; }
+    HUDWidget->SetHPPercent(NewHealthRatio);
 }
 
 void ARVPlayerController::OnPlayerStaminaChanged(float, float)
 {
-	if (!IsValid(HUDWidget) || !PlayerCharRef.IsValid()) { return; }
-	HUDWidget->SetStaminaPercent(PlayerCharRef->GetStaminaRatio());
+    if (!IsValid(HUDWidget) || !PlayerCharRef.IsValid()) { return; }
+    HUDWidget->SetStaminaPercent(PlayerCharRef->GetStaminaRatio());
 }
 
 void ARVPlayerController::OnPlayerDeath()
 {
-	if (IsValid(BossHPBarWidget) && BossHPBarWidget->IsInViewport())
-	{
-		BossHPBarWidget->RemoveFromParent();
-	}
-	
-	ShowGameResult(false);
+    if (IsValid(BossHPBarWidget) && BossHPBarWidget->IsInViewport())
+    {
+        BossHPBarWidget->RemoveFromParent();
+    }
+
+    ShowGameResult(false);
 }

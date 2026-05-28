@@ -10,7 +10,6 @@ void UAnimNotifyState_AttackHitCheck::NotifyBegin(USkeletalMeshComponent* MeshCo
 	ARVCharacterBase* OwnerChar = Cast<ARVCharacterBase>(MeshComp->GetOwner());
 	if (!IsValid(OwnerChar)) { return; }
 
-	CachedOwners.Add(MeshComp, OwnerChar);
 	OwnerChar->OpenAttackHitWindow();
 }
 
@@ -20,7 +19,7 @@ void UAnimNotifyState_AttackHitCheck::NotifyTick(USkeletalMeshComponent* MeshCom
 {
 	Super::NotifyTick(MeshComp, Animation, FrameDeltaTime, EventReference);
 
-	ARVCharacterBase* OwnerChar = CachedOwners.FindRef(MeshComp);
+	ARVCharacterBase* OwnerChar = Cast<ARVCharacterBase>(MeshComp->GetOwner());
 	if (!IsValid(OwnerChar)) { return; }
 
 	OwnerChar->ActivateHitCheck();
@@ -32,10 +31,9 @@ void UAnimNotifyState_AttackHitCheck::NotifyEnd(USkeletalMeshComponent* MeshComp
 {
 	Super::NotifyEnd(MeshComp, Animation, EventReference);
 
-	ARVCharacterBase* OwnerChar = CachedOwners.FindRef(MeshComp);
-	CachedOwners.Remove(MeshComp);
-
+	ARVCharacterBase* OwnerChar = Cast<ARVCharacterBase>(MeshComp->GetOwner());
 	if (!IsValid(OwnerChar)) { return; }
+
 	OwnerChar->CloseAttackHitWindow();
 }
 

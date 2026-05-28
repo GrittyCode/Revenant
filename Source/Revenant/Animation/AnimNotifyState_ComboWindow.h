@@ -21,8 +21,4 @@ public:
         const FAnimNotifyEventReference& EventReference) override;
 
     virtual FString GetNotifyName_Implementation() const override;
-
-private:
-    // Keyed by mesh to support multiple simultaneous instances.
-    TMap<USkeletalMeshComponent*, ARVCharacterPlayer*> CachedPlayers;
 };
