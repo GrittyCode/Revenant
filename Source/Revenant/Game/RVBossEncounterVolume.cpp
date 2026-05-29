@@ -1,6 +1,6 @@
 #include "Game/RVBossEncounterVolume.h"
 #include "Character/Enemy/RVSevarogCharacter.h"
-#include "Player/RVPlayerController.h"
+#include "Controller/RVPlayerController.h"
 #include "AIController.h"
 #include "BrainComponent.h"
 #include "LevelSequenceActor.h"

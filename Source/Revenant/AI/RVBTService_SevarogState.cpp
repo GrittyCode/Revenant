@@ -3,7 +3,7 @@
 #include "AI/RVSevarogBlackBoardKeys.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Character/Enemy/RVSevarogCharacter.h"
-#include "Data/RVSevarogDataAsset.h"
+#include "Data/Asset/RVSevarogDataAsset.h"
 
 UBTService_RVSevarogState::UBTService_RVSevarogState()
 {

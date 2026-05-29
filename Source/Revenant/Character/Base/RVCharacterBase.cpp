@@ -1,6 +1,7 @@
 #include "Character/Base/RVCharacterBase.h"
-#include "Component/RVHitReactionComponent.h"
-#include "Component/RVAttackTraceComponent.h"
+#include "Component/Attribute/RVVitalComponent.h"
+#include "Component/Combat/RVHitReactionComponent.h"
+#include "Component/Combat/RVAttackTraceComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 

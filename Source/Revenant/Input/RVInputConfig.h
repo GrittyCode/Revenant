@@ -1,4 +1,3 @@
-// Source/Revenant/Input/RVInputConfig.h
 #pragma once
 
 #include "CoreMinimal.h"

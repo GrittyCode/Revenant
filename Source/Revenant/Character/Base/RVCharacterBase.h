@@ -4,8 +4,8 @@
 #include "GameFramework/Character.h"
 #include "Interface/RVHitCheckTarget.h"
 #include "Interface/RVDamageable.h"
-#include "Component/RVVitalComponent.h"
-#include "Component/RVCombatStateComponent.h"
+#include "Component/Attribute/RVVitalComponent.h"
+#include "Component/Combat/RVCombatStateComponent.h"
 #include "RVCharacterBase.generated.h"
 
 class URVHitReactionComponent;

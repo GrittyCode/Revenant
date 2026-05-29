@@ -4,8 +4,6 @@
 #include "GameFramework/GameModeBase.h"
 #include "RVGameMode.generated.h"
 
-// ARVGameMode is responsible for game-rule lifecycle only.
-// All UI creation, widget management, and delegate binding is handled by ARVPlayerController.
 UCLASS()
 class REVENANT_API ARVGameMode : public AGameModeBase
 {

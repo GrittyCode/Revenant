@@ -1,6 +1,6 @@
 #include "UI/RVBossHPBarWidget.h"
 #include "Character/Enemy/RVSevarogCharacter.h"
-#include "Data/RVSevarogDataAsset.h"
+#include "Data/ASset/RVSevarogDataAsset.h"
 #include "Components/ProgressBar.h"
 #include "Components/TextBlock.h"
 

@@ -2,9 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "Character/Base/RVCharacterBase.h"
-#include "Component/RVEquipmentComponent.h"
-#include "Data/RVPlayerDataAsset.h"
-#include "Component/RVStaminaComponent.h"
+#include "Component/Attribute/RVStaminaComponent.h"
+#include "Component/Utility/RVEquipmentComponent.h"
 #include "RVCharacterPlayer.generated.h"
 
 class URVInputConfig;
@@ -44,7 +43,6 @@ public:
 	float GetStaminaRatio() const;
 
     FRVOnStaminaChanged& GetOnStaminaChanged();
-
     URVStaminaComponent* GetStaminaComponent() const { return StaminaComponent; }
 
     //--- AnimNotify forwarding -----------------------------------------------

@@ -34,9 +34,8 @@ private:
     TWeakObjectPtr<ARVSevarogCharacter> BossRef;
 
     //--- Delegate handlers ---------------------------------------------------
-
-    // [설계-5] 정규화 비율(NewHealthRatio)을 직접 받아 사용 — BossRef 재조회 불필요.
-    UFUNCTION()
+	
+	UFUNCTION()
     void OnBossHealthChanged(float NewHealthRatio);
 
     UFUNCTION()

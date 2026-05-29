@@ -6,8 +6,6 @@
 
 class UProgressBar;
 
-// [버그-2] InitWeaponSlots / SetActiveWeaponSlot — 선언만 있고 구현이 없던 데드 메서드 제거.
-// 관련 UImage, UTexture2D forward declaration과 include도 함께 제거.
 UCLASS(Abstract)
 class REVENANT_API URVHUDWidget : public UUserWidget
 {

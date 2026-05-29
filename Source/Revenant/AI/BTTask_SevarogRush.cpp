@@ -1,7 +1,7 @@
 #include "AI/BTTask_SevarogRush.h"
 #include "AI/RVAIController.h"
 #include "Character/Enemy/RVSevarogCharacter.h"
-#include "Data/RVSevarogDataAsset.h"
+#include "Data/Asset/RVSevarogDataAsset.h"
 #include "Navigation/PathFollowingComponent.h"
 
 UBTTask_SevarogRush::UBTTask_SevarogRush()

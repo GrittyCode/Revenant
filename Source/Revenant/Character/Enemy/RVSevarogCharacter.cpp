@@ -2,14 +2,14 @@
 #include "AI/RVAIController.h"
 #include "Animation/AnimInstance.h"
 #include "BrainComponent.h"
-#include "Component/RVVitalComponent.h"
-#include "Component/RVCombatStateComponent.h"
-#include "Component/RVHitReactionComponent.h"
+#include "Component/Attribute/RVVitalComponent.h"
+#include "Component/Combat/RVHitReactionComponent.h"
 #include "Components/CapsuleComponent.h"
-#include "Data/RVSevarogDataAsset.h"
-#include "Data/RVHitReactionAnimDataAsset.h"
-#include "Data/RVCharacterStatRow.h"
+#include "Data/Asset/RVSevarogDataAsset.h"
+#include "Data/Asset/RVHitReactionAnimDataAsset.h"
+#include "Data/Row/RVCharacterStatRow.h"
 #include "DrawDebugHelpers.h"
+#include "Engine/OverlapResult.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Interface/RVDamageable.h"
@@ -19,7 +19,6 @@
 #include "Particles/ParticleSystem.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
-#include "Engine/OverlapResult.h"
 
 ARVSevarogCharacter::ARVSevarogCharacter()
 {

@@ -1,0 +1,37 @@
+#include "Animation/Notify/AnimNotify_SoulSiphonHit.h"
+#include "Character/Enemy/RVSevarogCharacter.h"
+#include "Kismet/GameplayStatics.h"
+#include "Particles/ParticleSystem.h"
+
+void UAnimNotify_SoulSiphonHit::Notify(USkeletalMeshComponent* MeshComp,
+    UAnimSequenceBase* Animation, const FAnimNotifyEventReference& EventReference)
+{
+    Super::Notify(MeshComp, Animation, EventReference);
+
+    if (!IsValid(MeshComp)) { return; }
+
+    for (const FRVCascadeFXEntry& Entry : FXList)
+    {
+        if (IsValid(Entry.FX))
+        {
+            UGameplayStatics::SpawnEmitterAttached(
+                Entry.FX, MeshComp, Entry.SocketName,
+                Entry.LocationOffset, Entry.RotationOffset, Entry.Scale,
+                EAttachLocation::KeepRelativeOffset, true);
+        }
+
+        if (IsValid(Entry.SFX))
+        {
+            const FVector Loc = (Entry.SocketName != NAME_None)
+                ? MeshComp->GetSocketLocation(Entry.SocketName)
+                : MeshComp->GetComponentLocation();
+            UGameplayStatics::PlaySoundAtLocation(MeshComp, Entry.SFX, Loc);
+        }
+    }
+
+    ARVSevarogCharacter* Boss = Cast<ARVSevarogCharacter>(MeshComp->GetOwner());
+    if (!IsValid(Boss)) { return; }
+
+    // Damage + impact FX at computed hit center + debug capsule.
+    Boss->ExecuteSoulSiphonHit();
+}
