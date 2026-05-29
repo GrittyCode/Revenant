@@ -23,7 +23,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnBossDefeated);
 DECLARE_MULTICAST_DELEGATE(FRVOnBossGroggyStarted);
 DECLARE_MULTICAST_DELEGATE(FRVOnBossGroggyEnded);
 DECLARE_MULTICAST_DELEGATE(FRVOnBossAttackFinished);
-DECLARE_MULTICAST_DELEGATE(FRVOnSpecialAttackFinished);
 
 UCLASS()
 class REVENANT_API ARVSevarogCharacter : public ARVCharacterBase
@@ -92,10 +91,6 @@ public:
     FRVOnBossGroggyStarted  OnBossGroggyStarted;
     FRVOnBossGroggyEnded    OnBossGroggyEnded;
     FRVOnBossAttackFinished OnAttackFinished;
-	
-	FRVOnSpecialAttackFinished OnRushFinished;
-    FRVOnSpecialAttackFinished OnSoulSiphonFinished;
-    FRVOnSpecialAttackFinished OnSubjugationFinished;
 
 protected:
     virtual void BeginPlay() override;
@@ -134,11 +129,15 @@ private:
 
     //--- Damage helpers ------------------------------------------------------
 
-    void ApplyRadialDamageAt(const FVector& InLocation, float InRadius,
+    void ApplySphereDamageAt(const FVector& InLocation, float InRadius,
         float InDamage, float InPoiseDamage,
         UParticleSystem* InHitFX = nullptr,
-        const FVector& InOverrideDirection = FVector::ZeroVector,
-        bool bUseCapsule = false);
+        const FVector& InOverrideDirection = FVector::ZeroVector);
+
+    void ApplyForwardCapsuleDamageAt(const FVector& InLocation, float InRadius, float InHalfHeight,
+        float InDamage, float InPoiseDamage,
+        UParticleSystem* InHitFX = nullptr,
+        const FVector& InOverrideDirection = FVector::ZeroVector);
 
     //--- Subjugation ---------------------------------------------------------
 
@@ -173,13 +172,16 @@ private:
 
     void StartDissolve();
     void TickDissolve();
+    void TryDestroyActor();
 
     UPROPERTY()
     TArray<TObjectPtr<UMaterialInstanceDynamic>> DissolveMIDs;
 
     FTimerHandle DissolveTimerHandle;
-    float        DissolveStartTime = 0.f;
-    float        DissolveDuration  = 2.f;
+    float        DissolveStartTime        = 0.f;
+    float        DissolveDuration         = 2.f;
+    bool         bDissolveCompleted       = false;
+    bool         bDeathMontageBlendedOut  = false;
 
     void OnGroggySequenceCompleted();
     void OnAttackMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);

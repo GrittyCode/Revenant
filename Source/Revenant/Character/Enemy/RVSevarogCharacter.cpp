@@ -19,6 +19,7 @@
 #include "Particles/ParticleSystem.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
+#include "Engine/OverlapResult.h"
 
 ARVSevarogCharacter::ARVSevarogCharacter()
 {
@@ -135,6 +136,7 @@ void ARVSevarogCharacter::OnDeath()
     }
     else
     {
+        bDeathMontageBlendedOut = true;
         StartDissolve();
     }
 
@@ -143,10 +145,8 @@ void ARVSevarogCharacter::OnDeath()
 
 void ARVSevarogCharacter::OnDeathMontageBlendingOut(UAnimMontage*, bool)
 {
-    if (!GetWorldTimerManager().IsTimerActive(DissolveTimerHandle))
-    {
-        SetLifeSpan(0.1f);
-    }
+    bDeathMontageBlendedOut = true;
+    TryDestroyActor();
 }
 
 //--- Dissolve ----------------------------------------------------------------
@@ -189,6 +189,15 @@ void ARVSevarogCharacter::TickDissolve()
     if (Alpha >= 1.f)
     {
         World->GetTimerManager().ClearTimer(DissolveTimerHandle);
+        bDissolveCompleted = true;
+        TryDestroyActor();
+    }
+}
+
+void ARVSevarogCharacter::TryDestroyActor()
+{
+    if (bDissolveCompleted && bDeathMontageBlendedOut)
+    {
         SetLifeSpan(0.1f);
     }
 }
@@ -403,13 +412,19 @@ void ARVSevarogCharacter::ExecuteSoulSiphonHit()
 
     const FVector HitCenter = GetForwardLocation(SevarogData->SoulSiphon.HitForwardOffset);
 
-    ApplyRadialDamageAt(HitCenter,
+    // "피격자 → 공격자" 방향 — HitReaction BlendSpace 기준에 맞게 보스 위치를 향하는 방향으로 전달
+    const APawn*  Player      = ResolvePlayerPawn();
+    const FVector OverrideDir = IsValid(Player)
+        ? (GetActorLocation() - Player->GetActorLocation()).GetSafeNormal2D()
+        : -GetActorForwardVector();
+
+    ApplyForwardCapsuleDamageAt(HitCenter,
         SevarogData->SoulSiphon.HitRadius,
+        SevarogData->SoulSiphon.HitHalfHeight,
         SevarogData->SoulSiphon.HitDamage,
         SevarogData->SoulSiphon.HitPoiseDamage,
         SevarogData->SoulSiphon.ImpactFX,
-        GetActorForwardVector(),
-        true);
+        OverrideDir);
 }
 
 //--- Subjugation -------------------------------------------------------------
@@ -473,7 +488,7 @@ void ARVSevarogCharacter::ApplySubjugationDamage()
             UGameplayStatics::PlaySoundAtLocation(this, PendingSwirlsSFX, SwirlLocation);
         }
 
-        ApplyRadialDamageAt(SwirlLocation,
+        ApplySphereDamageAt(SwirlLocation,
             SevarogData->Subjugation.SwirlDamageRadius,
             SevarogData->Subjugation.BlastDamage,
             SevarogData->Subjugation.BlastPoiseDamage);
@@ -522,38 +537,76 @@ TArray<FVector> ARVSevarogCharacter::GenerateSwirlLocations(const FVector& InOri
 
 //--- Radial damage -----------------------------------------------------------
 
-void ARVSevarogCharacter::ApplyRadialDamageAt(const FVector& InLocation, float InRadius,
+void ARVSevarogCharacter::ApplySphereDamageAt(const FVector& InLocation, float InRadius,
     float InDamage, float InPoiseDamage, UParticleSystem* InHitFX,
-    const FVector& InOverrideDirection, bool bUseCapsule)
+    const FVector& InOverrideDirection)
 {
-    TArray<AActor*> HitActors;
     const TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes
         { UEngineTypes::ConvertToObjectType(ECC_Pawn) };
     const TArray<AActor*> IgnoreActors{ this };
 
-    if (bUseCapsule)
+    TArray<AActor*> HitActors;
+    UKismetSystemLibrary::SphereOverlapActors(
+        this, InLocation, InRadius, ObjectTypes, nullptr, IgnoreActors, HitActors);
+
+#if !UE_BUILD_SHIPPING
+    DrawDebugSphere(GetWorld(), InLocation, InRadius, 16, FColor::Cyan, false, 2.f);
+#endif
+
+    for (AActor* HitActor : HitActors)
     {
-        UKismetSystemLibrary::CapsuleOverlapActors(
-            this, InLocation, InRadius, InRadius,
-            ObjectTypes, nullptr, IgnoreActors, HitActors);
+        if (!IsValid(HitActor)) { continue; }
+        if (IRVDamageable* Target = Cast<IRVDamageable>(HitActor))
+        {
+            FRVHitInfo HitInfo;
+            HitInfo.Damage      = InDamage;
+            HitInfo.PoiseDamage = InPoiseDamage;
+            const FVector RawDir = InOverrideDirection.IsNearlyZero()
+                ? (HitActor->GetActorLocation() - InLocation)
+                : InOverrideDirection;
+            HitInfo.HitDirection = FVector(RawDir.X, RawDir.Y, 0.f).GetSafeNormal();
+            HitInfo.Instigator   = this;
+
+            const bool bDamaged = Target->ApplyDamage(HitInfo);
+            if (bDamaged && IsValid(InHitFX))
+            {
+                SpawnFXAtLocation(InHitFX, HitActor->GetActorLocation());
+            }
+        }
     }
-    else
+}
+
+void ARVSevarogCharacter::ApplyForwardCapsuleDamageAt(const FVector& InLocation,
+    float InRadius, float InHalfHeight,
+    float InDamage, float InPoiseDamage, UParticleSystem* InHitFX,
+    const FVector& InOverrideDirection)
+{
+    // 캡슐 기본 축(Z)을 보스의 Forward 방향으로 회전시켜 앞뒤 판정 범위를 제어한다.
+    // HalfHeight >= Radius 제약 조건 보장 (UE MakeCapsule 요구사항).
+    const float   ClampedHalfHeight = FMath::Max(InHalfHeight, InRadius);
+    const FQuat   ForwardRot        = FQuat::FindBetweenNormals(FVector::UpVector, GetActorForwardVector());
+
+    FCollisionQueryParams      QueryParams;
+    FCollisionObjectQueryParams ObjectQueryParams;
+    QueryParams.AddIgnoredActor(this);
+    ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
+
+    TArray<FOverlapResult> Overlaps;
+    GetWorld()->OverlapMultiByObjectType(
+        Overlaps, InLocation, ForwardRot,
+        ObjectQueryParams,
+        FCollisionShape::MakeCapsule(InRadius, ClampedHalfHeight),
+        QueryParams);
+
+    TArray<AActor*> HitActors;
+    for (const FOverlapResult& Overlap : Overlaps)
     {
-        UKismetSystemLibrary::SphereOverlapActors(
-            this, InLocation, InRadius,
-            ObjectTypes, nullptr, IgnoreActors, HitActors);
+        if (AActor* Actor = Overlap.GetActor()) { HitActors.AddUnique(Actor); }
     }
 
 #if !UE_BUILD_SHIPPING
-    if (bUseCapsule)
-    {
-        DrawDebugCapsule(GetWorld(), InLocation,
-            InRadius, InRadius, FQuat::Identity, FColor::Cyan, false, 2.f);
-    }
-    else
-    {
-        DrawDebugSphere(GetWorld(), InLocation, InRadius, 16, FColor::Cyan, false, 2.f);
-    }
+    DrawDebugCapsule(GetWorld(), InLocation,
+        ClampedHalfHeight, InRadius, ForwardRot, FColor::Cyan, false, 2.f);
 #endif
 
     for (AActor* HitActor : HitActors)
@@ -611,11 +664,12 @@ void ARVSevarogCharacter::SetBossPhase(ERVBossPhase InNewPhase)
 
 void ARVSevarogCharacter::CheckPhaseTransition(float InNewHealthRatio)
 {
+    if (CurrentPhase != ERVBossPhase::Phase1) { return; }
     if (!IsValid(SevarogData)) { return; }
 
-    if (CurrentPhase == ERVBossPhase::Phase1
-        && InNewHealthRatio <= SevarogData->Phase2Threshold)
+    if (InNewHealthRatio <= SevarogData->Phase2Threshold)
     {
+        VitalComponent->OnHealthChanged.RemoveDynamic(this, &ARVSevarogCharacter::CheckPhaseTransition);
         SetBossPhase(ERVBossPhase::Phase2);
     }
 }

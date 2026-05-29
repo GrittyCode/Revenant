@@ -47,7 +47,7 @@ struct FRVSoulSiphonData
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitPoiseDamage   = 30.f;
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitRadius        = 300.f;
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitForwardOffset = 10.f;
-	
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitHalfHeight	  = 150.f;
 	
 	UPROPERTY(EditDefaultsOnly) TObjectPtr<UParticleSystem> ImpactFX;
 };
