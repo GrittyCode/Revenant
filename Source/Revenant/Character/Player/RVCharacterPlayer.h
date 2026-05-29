@@ -40,9 +40,8 @@ public:
     bool  IsLockedOn()     const;
 
     //--- Stamina queries (external: PlayerController, HUD) -------------------
-
-    UFUNCTION(BlueprintCallable, Category = "RV|Stamina")
-    float GetStaminaRatio() const;
+	
+	float GetStaminaRatio() const;
 
     FRVOnStaminaChanged& GetOnStaminaChanged();
 

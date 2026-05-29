@@ -16,11 +16,14 @@ enum class ERVBossPhase : uint8
     Phase2 UMETA(DisplayName = "Phase 2"),
 };
 
+// Blueprint-assignable — exposed for external systems (UI, GameMode).
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRVOnBossPhaseChanged, ERVBossPhase, NewPhase);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnBossDefeated);
+
 DECLARE_MULTICAST_DELEGATE(FRVOnBossGroggyStarted);
 DECLARE_MULTICAST_DELEGATE(FRVOnBossGroggyEnded);
 DECLARE_MULTICAST_DELEGATE(FRVOnBossAttackFinished);
+DECLARE_MULTICAST_DELEGATE(FRVOnSpecialAttackFinished);
 
 UCLASS()
 class REVENANT_API ARVSevarogCharacter : public ARVCharacterBase
@@ -69,7 +72,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "RV|Boss")
     const URVSevarogDataAsset* GetSevarogData() const { return SevarogData; }
 
-    // [설계-2] URVSevarogAnimInstance가 컴포넌트를 직접 참조하지 않도록 파사드 메서드 추가.
     UFUNCTION(BlueprintCallable, Category = "RV|Boss")
     bool IsInHitReaction() const;
 
@@ -90,6 +92,10 @@ public:
     FRVOnBossGroggyStarted  OnBossGroggyStarted;
     FRVOnBossGroggyEnded    OnBossGroggyEnded;
     FRVOnBossAttackFinished OnAttackFinished;
+	
+	FRVOnSpecialAttackFinished OnRushFinished;
+    FRVOnSpecialAttackFinished OnSoulSiphonFinished;
+    FRVOnSpecialAttackFinished OnSubjugationFinished;
 
 protected:
     virtual void BeginPlay() override;
@@ -101,7 +107,7 @@ protected:
     virtual void DeactivateWeaponTrail() override;
 
 private:
-    UPROPERTY(VisibleAnywhere, Category = "RV|Debug")
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Data")
     TObjectPtr<URVSevarogDataAsset> SevarogData;
 
     UPROPERTY(VisibleAnywhere, Category = "RV|Debug")
@@ -112,7 +118,7 @@ private:
     bool         bIsRushing       = false;
     bool         bIsComboChaining = false;
 
-    float NormalWalkSpeed    = 400.f;
+    float NormalWalkSpeed      = 400.f;
     float CachedGroggyDuration = 4.f;
 
     //--- Combo chain ---------------------------------------------------------
@@ -172,12 +178,13 @@ private:
     TArray<TObjectPtr<UMaterialInstanceDynamic>> DissolveMIDs;
 
     FTimerHandle DissolveTimerHandle;
-    float        DissolveElapsed  = 0.f;
-    float        DissolveDuration = 2.f;
+    float        DissolveStartTime = 0.f;
+    float        DissolveDuration  = 2.f;
 
-    UFUNCTION() void OnGroggySequenceCompleted();
-    UFUNCTION() void OnAttackMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
-    UFUNCTION() void OnSingleShotActionBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
-	UFUNCTION() void CheckPhaseTransition(float InNewHealthRatio);
+    void OnGroggySequenceCompleted();
+    void OnAttackMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
+    void OnSingleShotActionBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
+
+    UFUNCTION() void CheckPhaseTransition(float InNewHealthRatio);
     UFUNCTION() void OnPoiseDepleted();
 };

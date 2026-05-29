@@ -11,6 +11,9 @@
 #include "NiagaraFunctionLibrary.h"
 #include "Particles/ParticleSystem.h"
 
+static const FName SocketWeaponRoot(TEXT("WeaponRoot"));
+static const FName SocketWeaponTip(TEXT("WeaponTip"));
+
 URVAttackTraceComponent::URVAttackTraceComponent()
 {
     PrimaryComponentTick.bCanEverTick = false;
@@ -23,8 +26,6 @@ void URVAttackTraceComponent::BeginPlay()
     OwnerCharacter = Cast<ACharacter>(GetOwner());
     ensureMsgf(IsValid(OwnerCharacter),
         TEXT("[URVAttackTraceComponent] Owner must be ACharacter"));
-    // TraceMesh is set by ARVCharacterBase::BeginPlay via InitTraceMesh()
-    // after all components have self-initialized.
 }
 
 void URVAttackTraceComponent::InitTraceMesh(UMeshComponent* InTraceMesh)
@@ -51,15 +52,8 @@ void URVAttackTraceComponent::SetHitFX(
     HitSFX                 = InSFX;
 }
 
-void URVAttackTraceComponent::OpenHitWindow()
-{
-    HitActors.Empty();
-}
-
-void URVAttackTraceComponent::CloseHitWindow()
-{
-    HitActors.Empty();
-}
+void URVAttackTraceComponent::OpenHitWindow()  { HitActors.Empty(); }
+void URVAttackTraceComponent::CloseHitWindow() { HitActors.Empty(); }
 
 void URVAttackTraceComponent::PerformAttackTrace()
 {
@@ -80,21 +74,19 @@ void URVAttackTraceComponent::PerformAttackTrace()
     const float PoiseDamage = CachedBasePoiseDamage * PoiseMult;
 
     if (!ensureMsgf(IsValid(TraceMesh),
-        TEXT("[%s] PerformAttackTrace: TraceMesh is null — assign via GetWeaponTraceMesh()"),
+        TEXT("[%s] PerformAttackTrace: TraceMesh is null"),
         *GetNameSafe(OwnerCharacter))) { return; }
 
     if (!ensureMsgf(
-        TraceMesh->DoesSocketExist(FName("WeaponRoot")) &&
-        TraceMesh->DoesSocketExist(FName("WeaponTip")),
+        TraceMesh->DoesSocketExist(SocketWeaponRoot) &&
+        TraceMesh->DoesSocketExist(SocketWeaponTip),
         TEXT("[%s] PerformAttackTrace: WeaponRoot or WeaponTip socket missing"),
         *GetNameSafe(OwnerCharacter))) { return; }
 
-    const FVector Root = TraceMesh->GetSocketLocation(FName("WeaponRoot"));
-    const FVector Tip  = TraceMesh->GetSocketLocation(FName("WeaponTip"));
+    const FVector Root = TraceMesh->GetSocketLocation(SocketWeaponRoot);
+    const FVector Tip  = TraceMesh->GetSocketLocation(SocketWeaponTip);
 
     const float HalfHeight = FVector::Dist(Root, Tip) * 0.5f;
-
-    // sockets return coincident positions until the animation graph evaluates — skip degenerate capsule
     if (HalfHeight < KINDA_SMALL_NUMBER) { return; }
 
     const FVector Center   = (Root + Tip) * 0.5f;
@@ -128,7 +120,6 @@ void URVAttackTraceComponent::PerformAttackTrace()
             HitInfo.Damage       = Damage;
             HitInfo.PoiseDamage  = PoiseDamage;
             HitInfo.Instigator   = OwnerCharacter;
-            // Z zeroed before normalizing — vertical angle never influences knockback.
             const FVector RawDir = OwnerCharacter->GetActorLocation() - HitActor->GetActorLocation();
             HitInfo.HitDirection = FVector(RawDir.X, RawDir.Y, 0.f).GetSafeNormal();
 

@@ -26,18 +26,13 @@ public:
 
     virtual void ActivateHitCheck() override;
     virtual bool ApplyDamage(const FRVHitInfo& InHitInfo) override;
-
-    //--- Health queries (external: GameMode, Widget) -------------------------
-
-    UFUNCTION(BlueprintCallable, Category = "RV|Vital")
-    float GetHealthRatio() const;
+	
+	float GetHealthRatio() const;
 
     FRVOnHealthChanged& GetOnHealthChanged();
     FRVOnDeath&         GetOnDeath();
     FRVOnPoiseDepleted& GetOnPoiseDepleted();
     FRVOnPoiseChanged&  GetOnPoiseChanged();
-
-    //--- AnimNotify entry points ---------------------------------------------
 
     void OpenAttackHitWindow();
     void CloseAttackHitWindow();
@@ -45,12 +40,8 @@ public:
     virtual void ActivateWeaponTrail()   {}
     virtual void DeactivateWeaponTrail() {}
 
-    //--- AnimInstance state queries ------------------------------------------
-
     bool  IsInCombatState(ERVCombatState InState) const;
     float GetStaggerDirection() const;
-
-    //--- Combat state operations ---------------------------------------------
 
     void AddCombatState(ERVCombatState InState);
     void RemoveCombatState(ERVCombatState InState);
@@ -61,19 +52,13 @@ public:
     bool IsInvincible() const;
     void ForceEndAllActions();
 
-    //--- Poise operations ----------------------------------------------------
-
     float GetMaxPoise()   const;
     float GetPoiseRatio() const;
     void  ApplyPoiseDamage(float InAmount);
     void  ResetPoise();
 
-    //--- Attack trace operations ---------------------------------------------
-
     void SetCombatStat(float InBaseDamage, float InBasePoiseDamage, float InAttackRadius);
     void SetHitFX(UNiagaraSystem* InNiagara, UParticleSystem* InCascade, USoundBase* InSFX);
-
-    //--- Hit reaction operations ---------------------------------------------
 
     void TriggerStaggerWithMontage(UAnimMontage* InMontage);
 
@@ -82,10 +67,7 @@ protected:
     virtual void Falling()   override;
     virtual void Landed(const FHitResult& Hit) override;
 
-    // Final classes own their DataAsset and are responsible for all stat init,
-    // including VitalComponent::InitFromStatRow and HitReactionComponent::InitParams.
     virtual void InitStats() {}
-
     virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const { return nullptr; }
 
     UFUNCTION()
@@ -95,8 +77,6 @@ protected:
 
     FVector GetForwardLocation(float InOffset = 1.f) const;
     FVector GetGroundOrigin() const;
-
-    //--- Components ----------------------------------------------------------
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
     TObjectPtr<URVVitalComponent> VitalComponent;
@@ -110,11 +90,10 @@ protected:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
     TObjectPtr<URVAttackTraceComponent> AttackTraceComponent;
 
-    //--- Movement ------------------------------------------------------------
-
     UPROPERTY(EditDefaultsOnly, Category = "RV|Movement")
     FRotator AirRotationRate = FRotator(0.f, 0.f, 0.f);
 
 private:
-    FRotator OriginalRotationRate;
+    // Saved in Falling(), restored in Landed(). Default matches constructor RotationRate.
+    FRotator OriginalRotationRate = FRotator(0.f, 500.f, 0.f);
 };

@@ -6,7 +6,6 @@
 
 class UCharacterMovementComponent;
 
-UENUM(BlueprintType, meta=(Bitflags, UseEnumValuesAsMaskValuesInEditor="true"))
 enum class ERVCombatState : uint8
 {
 	None           = 0,
@@ -63,13 +62,8 @@ public:
 
     //--- State Queries -------------------------------------------------------
 
-    UFUNCTION(BlueprintCallable, Category = "RV|Combat")
     bool IsInState(ERVCombatState InState) const { return HasState(InState); }
-
-    UFUNCTION(BlueprintCallable, Category = "RV|Combat")
     bool IsInvincible() const { return bIsInvincible; }
-
-    UFUNCTION(BlueprintCallable, Category = "RV|Combat")
     bool IsGrounded() const;
 
     ERVCombatState GetActiveStates() const { return CurrentStates; }

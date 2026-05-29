@@ -31,15 +31,8 @@ void ARVCharacterBase::BeginPlay()
     GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
     GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 
-    ensureMsgf(IsValid(VitalComponent),       TEXT("[%s] VitalComponent missing"),       *GetName());
-    ensureMsgf(IsValid(CombatStateComponent), TEXT("[%s] CombatStateComponent missing"), *GetName());
-    ensureMsgf(IsValid(HitReactionComponent), TEXT("[%s] HitReactionComponent missing"), *GetName());
-    ensureMsgf(IsValid(AttackTraceComponent), TEXT("[%s] AttackTraceComponent missing"), *GetName());
-
     AttackTraceComponent->InitTraceMesh(GetWeaponTraceMesh());
 
-    // Final classes (ARVCharacterPlayer, ARVSevarogCharacter) own their DataAssets.
-    // All stat init — including VitalComponent and HitReactionComponent::InitParams — is their responsibility.
     InitStats();
 
     VitalComponent->OnDeath.AddDynamic(this, &ARVCharacterBase::OnDeath);

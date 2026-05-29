@@ -3,7 +3,6 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "Engine/DataTable.h"
-#include "Camera/CameraShakeBase.h"
 #include "Data/RVCharacterStatRow.h"
 #include "RVSevarogDataAsset.generated.h"
 

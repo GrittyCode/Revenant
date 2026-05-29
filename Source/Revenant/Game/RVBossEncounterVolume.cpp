@@ -33,11 +33,8 @@ void ARVBossEncounterVolume::OnOverlapBegin(AActor* /*OverlappedActor*/, AActor*
 
 void ARVBossEncounterVolume::BeginBossEncounter()
 {
-    //--- Spawn boss ----------------------------------------------------------
-
-    ensureMsgf(IsValid(BossCharacterClass),
-        TEXT("[ARVBossEncounterVolume] BossCharacterClass is not assigned"));
-    if (!IsValid(BossCharacterClass)) { return; }
+    if (!ensureMsgf(IsValid(BossCharacterClass),
+        TEXT("[ARVBossEncounterVolume] BossCharacterClass is not assigned"))) { return; }
 
     const FTransform SpawnTransform = IsValid(BossSpawnPoint)
         ? BossSpawnPoint->GetActorTransform()
@@ -46,11 +43,13 @@ void ARVBossEncounterVolume::BeginBossEncounter()
     FActorSpawnParameters Params;
     Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
     SpawnedBoss = GetWorld()->SpawnActor<ARVSevarogCharacter>(BossCharacterClass, SpawnTransform, Params);
+
+    if (!ensureMsgf(IsValid(SpawnedBoss),
+        TEXT("[ARVBossEncounterVolume] Failed to spawn boss — check BossCharacterClass and spawn location"))) { return; }
+
     SpawnedBoss->SetActorHiddenInGame(true);
 
     PauseBossAI();
-
-    //--- Lock input + hide HUD (all routed through ARVPlayerController) ------
 
     if (ARVPlayerController* RVPC = Cast<ARVPlayerController>(GetWorld()->GetFirstPlayerController()))
     {
@@ -67,7 +66,6 @@ void ARVBossEncounterVolume::StartCutscene()
 
     if (!IsValid(CutsceneSequenceActor))
     {
-        // No sequence — go straight to gameplay.
         if (IsValid(RVPC))
         {
             RVPC->SetHUDVisible(true);
@@ -93,8 +91,6 @@ void ARVBossEncounterVolume::StartCutscene()
     SeqPlayer->OnStop.AddDynamic(this, &ARVBossEncounterVolume::OnCutsceneFinished);
     SeqPlayer->Play();
 
-    //--- Play intro montage --------------------------------------------------
-
     if (IsValid(SpawnedBoss) && IsValid(BossIntroMontage))
     {
         SpawnedBoss->PlayAnimMontage(BossIntroMontage);
@@ -110,7 +106,6 @@ void ARVBossEncounterVolume::StartCutscene()
 
 void ARVBossEncounterVolume::OnCutsceneFinished()
 {
-    // [버그-1] CutsceneBGM 미할당 레벨에서 CutsceneBGMAudioComponent가 null → 크래시 방지.
     if (IsValid(CutsceneBGMAudioComponent))
     {
         CutsceneBGMAudioComponent->Stop();

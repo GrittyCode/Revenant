@@ -88,11 +88,9 @@ void ARVCharacterPlayer::BeginPlay()
         TEXT("[%s] DefaultMappingContext not assigned"), *GetName())) { return; }
 
     Subsystem->AddMappingContext(DefaultMappingContext, 0);
-	
+
     PC->PlayerCameraManager->ViewPitchMin = -70.f;
     PC->PlayerCameraManager->ViewPitchMax =  20.f;
-
-    //--- Sibling delegate wiring --------------------------------------------
 
     CombatStateComponent->OnForceEnd.AddUObject(WeaponAttackComponent, &URVWeaponAttackComponent::ForceEndAttack);
     CombatStateComponent->OnForceEnd.AddUObject(GuardComponent,        &URVGuardComponent::EndGuard);
@@ -115,14 +113,14 @@ float                ARVCharacterPlayer::GetStaminaRatio()    const { return Sta
 
 float ARVCharacterPlayer::GetSprintSpeed() const { return SprintSpeed; }
 bool  ARVCharacterPlayer::IsSprinting()    const { return bIsSprinting; }
-bool ARVCharacterPlayer::IsComboActive()  const { return WeaponAttackComponent->IsLightAttackActive(); }
+bool  ARVCharacterPlayer::IsComboActive()  const { return WeaponAttackComponent->IsLightAttackActive(); }
 bool  ARVCharacterPlayer::IsLockedOn()     const { return LockOnComponent->IsLockedOn(); }
 
 //--- AnimNotify forwarding ---------------------------------------------------
 
-void ARVCharacterPlayer::OpenComboWindow()           { WeaponAttackComponent->OpenComboWindow(); }
-void ARVCharacterPlayer::CloseComboWindow()          { WeaponAttackComponent->CloseComboWindow(); }
-void ARVCharacterPlayer::TryChainNextCombo()         { WeaponAttackComponent->TryChainNextCombo(); }
+void ARVCharacterPlayer::OpenComboWindow()                { WeaponAttackComponent->OpenComboWindow(); }
+void ARVCharacterPlayer::CloseComboWindow()               { WeaponAttackComponent->CloseComboWindow(); }
+void ARVCharacterPlayer::TryChainNextCombo()              { WeaponAttackComponent->TryChainNextCombo(); }
 void ARVCharacterPlayer::SetHeavyAttackReady(bool bReady) { WeaponAttackComponent->SetHeavyAttackReady(bReady); }
 
 //--- Overrides ---------------------------------------------------------------
@@ -315,7 +313,7 @@ void ARVCharacterPlayer::InputHeavyAttackCompleted(const FInputActionValue& Valu
     WeaponAttackComponent->ReleaseHeavyAttack();
 }
 
-//--- Dodge (inlined — no dedicated DodgeComponent) --------------------------
+//--- Dodge -------------------------------------------------------------------
 
 bool ARVCharacterPlayer::CanStartDodge() const
 {
@@ -360,7 +358,8 @@ void ARVCharacterPlayer::EndDodge()
     RemoveCombatState(ERVCombatState::Dodging);
     StaminaComponent->ResumeStaminaRegen();
 
-    GetCharacterMovement()->bOrientRotationToMovement = true;
+    // Restore orient-to-movement only when not locked on — LockOnComponent manages this flag.
+    GetCharacterMovement()->bOrientRotationToMovement = !IsLockedOn();
     ActiveDodgeMontage = nullptr;
 }
 

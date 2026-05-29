@@ -38,12 +38,9 @@ public:
 
     // Guard hit path: consumes stamina, returns true if guard holds.
     bool ApplyStaminaDamage(float InAmount);
-
-    UFUNCTION(BlueprintCallable, Category = "RV|Stamina")
-    float GetStaminaPercent() const;
-
-    UFUNCTION(BlueprintCallable, Category = "RV|Stamina")
-    float GetCurrentStamina() const { return CurrentStamina; }
+	
+	float GetStaminaPercent() const;
+	float GetCurrentStamina() const { return CurrentStamina; }
 
     //--- Regen control -------------------------------------------------------
 

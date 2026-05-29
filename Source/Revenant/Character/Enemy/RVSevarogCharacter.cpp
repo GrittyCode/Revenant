@@ -89,16 +89,8 @@ URVHitReactionAnimDataAsset* ARVSevarogCharacter::GetHitReactionAnimData() const
     return IsValid(SevarogData) ? SevarogData->HitReactionAnimData : nullptr;
 }
 
-
-bool ARVSevarogCharacter::IsInHitReaction() const
-{
-    return HasCombatState(ERVCombatState::HitReaction);
-}
-
-bool ARVSevarogCharacter::IsKnockedDown() const
-{
-    return HasCombatState(ERVCombatState::Knockdown);
-}
+bool ARVSevarogCharacter::IsInHitReaction() const { return HasCombatState(ERVCombatState::HitReaction); }
+bool ARVSevarogCharacter::IsKnockedDown()   const { return HasCombatState(ERVCombatState::Knockdown); }
 
 float ARVSevarogCharacter::GetStaggerDirectionForAnim() const
 {
@@ -161,12 +153,13 @@ void ARVSevarogCharacter::OnDeathMontageBlendingOut(UAnimMontage*, bool)
 
 void ARVSevarogCharacter::StartDissolve()
 {
-    DissolveDuration = IsValid(SevarogData) ? SevarogData->DissolveDuration : 2.f;
-    DissolveElapsed  = 0.f;
+    UWorld* World = GetWorld();
+    if (!IsValid(World)) { return; }
 
-    // [IsValid-2] ACharacter::Mesh는 CreateDefaultSubobject — 캐릭터 생존 시 null 불가.
+    DissolveDuration  = IsValid(SevarogData) ? SevarogData->DissolveDuration : 2.f;
+    DissolveStartTime = World->GetTimeSeconds();
+
     USkeletalMeshComponent* SkelMesh = GetMesh();
-
     const int32 NumMaterials = SkelMesh->GetNumMaterials();
     DissolveMIDs.SetNum(NumMaterials);
     for (int32 i = 0; i < NumMaterials; ++i)
@@ -175,16 +168,17 @@ void ARVSevarogCharacter::StartDissolve()
     }
 
     constexpr float TickInterval = 1.f / 30.f;
-    GetWorld()->GetTimerManager().SetTimer(
+    World->GetTimerManager().SetTimer(
         DissolveTimerHandle, this, &ARVSevarogCharacter::TickDissolve, TickInterval, true);
 }
 
 void ARVSevarogCharacter::TickDissolve()
 {
-    constexpr float TickInterval = 1.f / 30.f;
-    DissolveElapsed += TickInterval;
+    UWorld* World = GetWorld();
+    if (!IsValid(World)) { return; }
 
-    const float Alpha = FMath::Clamp(DissolveElapsed / DissolveDuration, 0.f, 1.f);
+    const float Alpha = FMath::Clamp(
+        (World->GetTimeSeconds() - DissolveStartTime) / DissolveDuration, 0.f, 1.f);
 
     static const FName FadeOutParam(TEXT("FadeOut"));
     for (UMaterialInstanceDynamic* MID : DissolveMIDs)
@@ -194,7 +188,7 @@ void ARVSevarogCharacter::TickDissolve()
 
     if (Alpha >= 1.f)
     {
-        GetWorld()->GetTimerManager().ClearTimer(DissolveTimerHandle);
+        World->GetTimerManager().ClearTimer(DissolveTimerHandle);
         SetLifeSpan(0.1f);
     }
 }
@@ -226,8 +220,8 @@ bool ARVSevarogCharacter::ExecutePhaseAttack()
 
 bool ARVSevarogCharacter::ExecuteRushAttack()
 {
-    if (bIsGroggy || IsAttacking())               { return false; }
-    if (!IsValid(SevarogData->RushAttackMontage)) { return false; }
+    if (bIsGroggy || IsAttacking())                                              { return false; }
+    if (!IsValid(SevarogData) || !IsValid(SevarogData->RushAttackMontage))       { return false; }
 
     StartComboChain({ SevarogData->RushAttackMontage });
     return true;
@@ -251,7 +245,6 @@ void ARVSevarogCharacter::ForceEndCurrentAction()
     ActiveComboMontages.Empty();
     ActiveComboIndex = 0;
 
-    // Cancel pending subjugation damage timer and clear state.
     GetWorldTimerManager().ClearTimer(SubjugationDamageTimerHandle);
     PendingSubjugationLocations.Empty();
     PendingSwirlsSFX = nullptr;
@@ -369,7 +362,7 @@ void ARVSevarogCharacter::StartGroggy()
 
     AddCombatState(ERVCombatState::Groggy);
     OnBossGroggyStarted.Broadcast();
-	
+
     HitReactionComponent->TriggerGroggy(CachedGroggyDuration);
 }
 
@@ -448,8 +441,7 @@ void ARVSevarogCharacter::SpawnSubjugationBlast(UParticleSystem* InSwirlsFX, USo
 
     PendingSwirlsSFX = InSwirlsSFX;
 
-    // [버그-3] DamageDelay는 0.5f 하드코딩으로 유지.
-    const float DamageDelay = 0.5f;
+    constexpr float DamageDelay = 0.5f;
 
     for (const FVector& SwirlLocation : PendingSubjugationLocations)
     {
@@ -462,7 +454,6 @@ void ARVSevarogCharacter::SpawnSubjugationBlast(UParticleSystem* InSwirlsFX, USo
 #endif
     }
 
-    // Locations kept alive until ApplySubjugationDamage fires.
     GetWorldTimerManager().SetTimer(
         SubjugationDamageTimerHandle,
         this,
@@ -567,6 +558,7 @@ void ARVSevarogCharacter::ApplyRadialDamageAt(const FVector& InLocation, float I
 
     for (AActor* HitActor : HitActors)
     {
+        if (!IsValid(HitActor)) { continue; }
         if (IRVDamageable* Target = Cast<IRVDamageable>(HitActor))
         {
             FRVHitInfo HitInfo;
@@ -619,6 +611,8 @@ void ARVSevarogCharacter::SetBossPhase(ERVBossPhase InNewPhase)
 
 void ARVSevarogCharacter::CheckPhaseTransition(float InNewHealthRatio)
 {
+    if (!IsValid(SevarogData)) { return; }
+
     if (CurrentPhase == ERVBossPhase::Phase1
         && InNewHealthRatio <= SevarogData->Phase2Threshold)
     {

@@ -12,8 +12,6 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Animation/AnimInstance.h"
 
-static const FName JumpAttackSection_Begin   = FName("Begin");
-static const FName JumpAttackSection_Loop    = FName("Loop");
 static const FName JumpAttackSection_Landing = FName("Landing");
 
 URVWeaponAttackComponent::URVWeaponAttackComponent()
@@ -26,12 +24,12 @@ void URVWeaponAttackComponent::BeginPlay()
     Super::BeginPlay();
 
     OwnerBase = Cast<ARVCharacterBase>(GetOwner());
-    ensureMsgf(IsValid(OwnerBase),
-        TEXT("[URVWeaponAttackComponent] Owner must be ARVCharacterBase"));
+    if (!ensureMsgf(IsValid(OwnerBase),
+        TEXT("[URVWeaponAttackComponent] Owner must be ARVCharacterBase"))) { return; }
 
     ARVCharacterPlayer* OwnerPlayer = Cast<ARVCharacterPlayer>(GetOwner());
-    ensureMsgf(IsValid(OwnerPlayer),
-        TEXT("[URVWeaponAttackComponent] Player-only component — owner must be ARVCharacterPlayer"));
+    if (!ensureMsgf(IsValid(OwnerPlayer),
+        TEXT("[URVWeaponAttackComponent] Player-only component — owner must be ARVCharacterPlayer"))) { return; }
 
     StaminaComponent   = OwnerPlayer->GetStaminaComponent();
     EquipmentComponent = OwnerPlayer->GetEquipmentComponent();
@@ -113,8 +111,7 @@ void URVWeaponAttackComponent::OnPlayerLanded()
 
     bIsJumpAttackLanding = true;
 
-    UCharacterMovementComponent* MoveComp =
-        Cast<ACharacter>(OwnerBase)->GetCharacterMovement();
+    UCharacterMovementComponent* MoveComp = OwnerBase->GetCharacterMovement();
     MoveComp->Velocity = FVector(0.f, 0.f, MoveComp->Velocity.Z);
 
     AnimInst->Montage_JumpToSection(JumpAttackSection_Landing, Montage);

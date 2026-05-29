@@ -38,12 +38,12 @@ void URVPlayerAnimInstance::NativeUninitializeAnimation()
 void URVPlayerAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
     Super::NativeUpdateAnimation(DeltaSeconds);
-	
+
     if (!IsValid(OwnerCharacter)) { return; }
-	
-	const UWorld* W = GetWorld();
-	if (!W || !W->IsGameWorld()) { return; } 
-	
+
+    const UWorld* W = GetWorld();
+    if (!W || !W->IsGameWorld()) { return; }
+
     Speed           = OwnerCharacter->GetVelocity().Size2D();
     NormalizedSpeed = FMath::Clamp(Speed / MaxLocomotionSpeed, 0.f, 1.f);
     Direction       = UKismetAnimationLibrary::CalculateDirection(
@@ -73,6 +73,14 @@ void URVPlayerAnimInstance::OnWeaponChangedHandler(URVWeaponDataAsset* NewWeapon
         CachedStaggerBlendSpace        = nullptr;
         return;
     }
+
+    if (!ensureMsgf(IsValid(NewWeaponData->LocomotionAnimData),
+        TEXT("[URVPlayerAnimInstance] WeaponData '%s' has no LocomotionAnimData"),
+        *GetNameSafe(NewWeaponData))) { return; }
+
+    if (!ensureMsgf(IsValid(NewWeaponData->HitReactionAnimData),
+        TEXT("[URVPlayerAnimInstance] WeaponData '%s' has no HitReactionAnimData"),
+        *GetNameSafe(NewWeaponData))) { return; }
 
     CachedLocomotionBS             = NewWeaponData->LocomotionAnimData->LocomotionBS;
     CachedRunLocomotionBS          = NewWeaponData->LocomotionAnimData->RunLocomotionBS;

@@ -43,23 +43,16 @@ public:
 
     bool ApplyDamage(AActor* InInstigator, float InDamageAmount);
     bool ApplyHealing(float InHealAmount);
-
-    UFUNCTION(BlueprintCallable, Category = "RV|Vital")
-    float GetHealthPercent() const;
-
-    UFUNCTION(BlueprintCallable, Category = "RV|Vital")
-    bool IsAlive() const { return CurrentHealth > 0.f; }
+	
+	float GetHealthPercent() const;
+	bool IsAlive() const { return CurrentHealth > 0.f; }
 
     //--- Poise ---------------------------------------------------------------
 
     void  ApplyPoiseDamage(float InPoiseDamage);
     void  ResetPoise();
-
-    UFUNCTION(BlueprintCallable, Category = "RV|Vital")
-    float GetMaxPoise()   const { return MaxPoise; }
-
-    UFUNCTION(BlueprintCallable, Category = "RV|Vital")
-    float GetPoiseRatio() const { return MaxPoise > 0.f ? CurrentPoise / MaxPoise : 0.f; }
+	float GetMaxPoise()   const { return MaxPoise; }
+	float GetPoiseRatio() const { return MaxPoise > 0.f ? CurrentPoise / MaxPoise : 0.f; }
 
 	
 private:

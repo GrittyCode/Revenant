@@ -17,12 +17,12 @@ void URVGuardComponent::BeginPlay()
     Super::BeginPlay();
 
     OwnerBase = Cast<ARVCharacterBase>(GetOwner());
-    ensureMsgf(IsValid(OwnerBase),
-        TEXT("[URVGuardComponent] Owner must be ARVCharacterBase"));
+    if (!ensureMsgf(IsValid(OwnerBase),
+        TEXT("[URVGuardComponent] Owner must be ARVCharacterBase"))) { return; }
 
     ARVCharacterPlayer* OwnerPlayer = Cast<ARVCharacterPlayer>(GetOwner());
-    ensureMsgf(IsValid(OwnerPlayer),
-        TEXT("[URVGuardComponent] Player-only component — owner must be ARVCharacterPlayer"));
+    if (!ensureMsgf(IsValid(OwnerPlayer),
+        TEXT("[URVGuardComponent] Player-only component — owner must be ARVCharacterPlayer"))) { return; }
 
     StaminaComponent   = OwnerPlayer->GetStaminaComponent();
     EquipmentComponent = OwnerPlayer->GetEquipmentComponent();

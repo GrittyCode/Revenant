@@ -1,6 +1,7 @@
 #include "Component/RVLockOnComponent.h"
 #include "Character/Base/RVCharacterBase.h"
 #include "Interface/RVDamageable.h"
+#include "Components/WidgetComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
@@ -28,6 +29,16 @@ void URVLockOnComponent::BeginPlay()
     ensureMsgf(IsValid(PlayerController),
         TEXT("[%s] URVLockOnComponent: PlayerController missing — ensure possession before BeginPlay"),
         *GetNameSafe(OwnerBase));
+
+    if (IsValid(LockOnIndicatorWidgetClass))
+    {
+        IndicatorWidgetComp = NewObject<UWidgetComponent>(GetOwner(), TEXT("LockOnIndicatorWidget"));
+        IndicatorWidgetComp->SetWidgetSpace(EWidgetSpace::Screen);
+        IndicatorWidgetComp->SetWidgetClass(LockOnIndicatorWidgetClass);
+        IndicatorWidgetComp->SetDrawSize(IndicatorDrawSize);
+        IndicatorWidgetComp->RegisterComponent();
+        IndicatorWidgetComp->SetVisibility(false);
+    }
 }
 
 void URVLockOnComponent::ToggleLockOn()
@@ -40,6 +51,8 @@ void URVLockOnComponent::ToggleLockOn()
     LockOnTarget = Target;
     bIsLockedOn  = true;
 
+    ShowIndicator();
+
     OwnerCharacter->GetCharacterMovement()->bOrientRotationToMovement = false;
     SetComponentTickEnabled(true);
 }
@@ -48,6 +61,8 @@ void URVLockOnComponent::BreakLockOn()
 {
     bIsLockedOn  = false;
     LockOnTarget = nullptr;
+
+    HideIndicator();
 
     OwnerCharacter->GetCharacterMovement()->bOrientRotationToMovement = true;
     SetComponentTickEnabled(false);
@@ -70,11 +85,9 @@ void URVLockOnComponent::TickComponent(float DeltaTime, ELevelTick TickType,
         OwnerCharacter->GetActorLocation(), LockOnTarget->GetActorLocation());
     if (DistSq > FMath::Square(AutoBreakRange)) { BreakLockOn(); return; }
 
-    // Re-suppress each tick — EndDodge restores bOrientRotationToMovement to true.
-    OwnerCharacter->GetCharacterMovement()->bOrientRotationToMovement = false;
-
     UpdateCamera(DeltaTime);
     UpdateCharacterRotation(DeltaTime);
+    UpdateIndicatorTransform();
 }
 
 AActor* URVLockOnComponent::TryFindTarget() const
@@ -113,6 +126,8 @@ AActor* URVLockOnComponent::TryFindTarget() const
 
 void URVLockOnComponent::UpdateCamera(float DeltaTime) const
 {
+    if (!IsValid(PlayerController)) { return; }
+
     FVector  CameraLocation;
     FRotator CameraRotation;
     PlayerController->GetPlayerViewPoint(CameraLocation, CameraRotation);
@@ -126,7 +141,6 @@ void URVLockOnComponent::UpdateCamera(float DeltaTime) const
 
 void URVLockOnComponent::UpdateCharacterRotation(float DeltaTime) const
 {
-    // Root motion montages own rotation during these states.
     if (OwnerBase->HasCombatState(
         ERVCombatState::Dodging | ERVCombatState::HitReaction | ERVCombatState::Knockdown))
     {
@@ -141,4 +155,25 @@ void URVLockOnComponent::UpdateCharacterRotation(float DeltaTime) const
         OwnerCharacter->GetActorRotation(),
         ToTarget.ToOrientationRotator(),
         DeltaTime, CharacterRotationInterpSpeed));
+}
+
+void URVLockOnComponent::ShowIndicator()
+{
+    if (!IsValid(IndicatorWidgetComp)) { return; }
+    UpdateIndicatorTransform();
+    IndicatorWidgetComp->SetVisibility(true);
+}
+
+void URVLockOnComponent::HideIndicator()
+{
+    if (IsValid(IndicatorWidgetComp))
+    {
+        IndicatorWidgetComp->SetVisibility(false);
+    }
+}
+
+void URVLockOnComponent::UpdateIndicatorTransform() const
+{
+    if (!IsValid(IndicatorWidgetComp) || !LockOnTarget.IsValid()) { return; }
+    IndicatorWidgetComp->SetWorldLocation(LockOnTarget->GetActorLocation());
 }

@@ -9,7 +9,6 @@ class ARVCharacterBase;
 class URVHitReactionAnimDataAsset;
 class UAnimMontage;
 
-UENUM(meta=(Bitflags, UseEnumValuesAsMaskValuesInEditor="true"))
 enum class ERVHitReactCapability : uint8
 {
     None      = 0,
@@ -17,6 +16,7 @@ enum class ERVHitReactCapability : uint8
     Knockdown = 1 << 1,
     Groggy    = 1 << 2,
 };
+
 ENUM_CLASS_FLAGS(ERVHitReactCapability)
 
 DECLARE_MULTICAST_DELEGATE(FRVOnGroggySequenceCompleted);
@@ -35,8 +35,6 @@ public:
     void EndGroggy();
     void AbortGroggy();
 
-    // Called by ARVCharacterBase::BeginPlay — passes data-driven float params
-    // that come from CharacterData (owned by Base, not by this component).
     void InitParams(URVHitReactionAnimDataAsset* InHitReactionAnimData,
                     float InStaggerDuration,
                     float InStaggerThreshold,
@@ -52,7 +50,6 @@ protected:
     virtual void BeginPlay() override;
 
 private:
-    // Resolved in BeginPlay — valid for the component's entire lifetime.
     UPROPERTY()
     TObjectPtr<ARVCharacterBase> OwnerBase;
 
@@ -79,7 +76,6 @@ private:
     void TriggerStagger(const FVector& InHitDirection);
     void TriggerKnockdown(const FVector& InHitDirection);
 
-    // Convenience accessor — logs ensureMsgf on null AnimInstance.
     UAnimInstance* GetAnimInstance() const;
 
     UFUNCTION() void OnStaggerEnd();

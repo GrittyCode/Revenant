@@ -35,22 +35,11 @@ void ARVAIController::OnUnPossess()
 
 ARVSevarogCharacter* ARVAIController::GetBossCharacter() const
 {
+	/* Need to modify to RVCharacter Boss when adding boss */
 	return Cast<ARVSevarogCharacter>(GetPawn());
 }
 
 APawn* ARVAIController::GetPlayerPawn() const
 {
 	return UGameplayStatics::GetPlayerPawn(this, 0);
-}
-
-void ARVAIController::SetFocusToPlayer()
-{
-	APawn* Player = GetPlayerPawn();
-	if (!IsValid(Player)) { return; }
-	SetFocus(Player);
-}
-
-void ARVAIController::ClearBossFocus()
-{
-	ClearFocus(EAIFocusPriority::Gameplay);
 }

@@ -18,13 +18,10 @@ UCLASS(BlueprintType)
 class REVENANT_API URVWeaponDataAsset : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
-
+	
 public:
 
 	//--- Stat ----------------------------------------------------------------
-
-	// Points to a row in DT_WeaponStats.
-	// Final hit values = WeaponStat.Base* × DT_AttackStats.Multiplier (via URVMontageStatData).
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stat")
 	FDataTableRowHandle WeaponStatRowHandle;
 
@@ -46,14 +43,8 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation")
 	TObjectPtr<URVHitReactionAnimDataAsset> HitReactionAnimData;
-
-	//--- UI ------------------------------------------------------------------
-
-	// Icon displayed in the weapon quickslot HUD.
-	// Assign a 64×64 (or similar) square texture in DA_WeaponData_GreatSword_A/B.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "UI")
-	TObjectPtr<UTexture2D> WeaponIcon;
-
+	
+	
 	//--- VFX / SFX -----------------------------------------------------------
 
 	// Weapon trail Niagara system.
@@ -108,17 +99,12 @@ public:
 
 	const FRVWeaponStatRow* GetWeaponStatRow() const;
 
-	UFUNCTION(BlueprintCallable, Category = "WeaponData")
 	UAnimMontage* GetHeavyChargeMontage() const;
 
-	UFUNCTION(BlueprintCallable, Category = "WeaponData")
 	UAnimMontage* GetHeavyAttackMontage(bool bIsMax) const;
 
-	UFUNCTION(BlueprintCallable, Category = "WeaponData")
 	UAnimMontage* GetDodgeMontage() const;
 
 	// Returns the lock-on dodge montage for the given direction.
-	// Falls back to GetDodgeMontage() if the direction entry is unassigned.
-	UFUNCTION(BlueprintCallable, Category = "WeaponData")
 	UAnimMontage* GetLockOnDodgeMontage(ERVDodgeDirection InDirection) const;
 };

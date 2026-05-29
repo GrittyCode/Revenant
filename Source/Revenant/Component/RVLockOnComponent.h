@@ -7,6 +7,8 @@
 class ARVCharacterBase;
 class ACharacter;
 class APlayerController;
+class UWidgetComponent;
+class UUserWidget;
 
 UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
 class REVENANT_API URVLockOnComponent : public UActorComponent
@@ -30,8 +32,14 @@ protected:
 
 private:
     AActor* TryFindTarget() const;
-    void UpdateCamera(float DeltaTime) const;
-    void UpdateCharacterRotation(float DeltaTime) const;
+    void    UpdateCamera(float DeltaTime) const;
+    void    UpdateCharacterRotation(float DeltaTime) const;
+
+    void    ShowIndicator();
+    void    HideIndicator();
+    void    UpdateIndicatorTransform() const;
+
+    // --- Lock-On Search ---
 
     UPROPERTY(EditDefaultsOnly, Category = "RV|LockOn")
     float LockOnRange = 1500.f;
@@ -47,6 +55,23 @@ private:
 
     UPROPERTY(EditDefaultsOnly, Category = "RV|LockOn")
     float CharacterRotationInterpSpeed = 40.f;
+
+    // --- Indicator ---
+
+    UPROPERTY(EditDefaultsOnly, Category = "RV|LockOn|Indicator")
+    TSubclassOf<UUserWidget> LockOnIndicatorWidgetClass;
+
+    UPROPERTY(EditDefaultsOnly, Category = "RV|LockOn|Indicator")
+    FVector2D IndicatorDrawSize = FVector2D(64.f, 64.f);
+
+    UPROPERTY(EditDefaultsOnly, Category = "RV|LockOn|Indicator")
+    float IndicatorZOffset = 80.f;
+
+    // Runtime — created in BeginPlay, lives on the owner actor.
+    UPROPERTY()
+    TObjectPtr<UWidgetComponent> IndicatorWidgetComp;
+
+    // --- State ---
 
     bool bIsLockedOn = false;
 
