@@ -2,8 +2,16 @@
 
 #include "CoreMinimal.h"
 #include "Character/Base/RVCharacterBase.h"
+#include "Engine/DataTable.h"
 #include "RVDummyTarget.generated.h"
 
+class URVHitReactionAnimDataAsset;
+
+/**
+ * Stationary hit-reaction target for demo / testing.
+ * Receives attacks, plays stagger / knockdown / death via URVHitReactionComponent.
+ * Does not move, does not attack.
+ */
 UCLASS()
 class REVENANT_API ARVDummyTarget : public ARVCharacterBase
 {
@@ -12,45 +20,20 @@ class REVENANT_API ARVDummyTarget : public ARVCharacterBase
 public:
 	ARVDummyTarget();
 
-	virtual void Tick(float DeltaTime) override;
-
-	/** Overrides base to also trigger debug label on hit received. */
-	virtual bool ApplyDamage(const FRVHitInfo& InHitInfo) override;
-
 protected:
-	virtual void BeginPlay() override;
+	virtual void InitStats() override;
+	virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const override;
 
-private:
-	// --- Periodic Damage (simulates weapon collision result) -----------------
+	// --- Data ----------------------------------------------------------------
 
-	/** If true, periodically calls ApplyDamage on the player pawn. */
-	UPROPERTY(EditInstanceOnly, Category = "RV|Test")
-	uint8 bDealPeriodicDamage : 1;
-
-	UPROPERTY(EditInstanceOnly, Category = "RV|Test")
-	float DealDamageInterval = 1.5f;
-
-	UPROPERTY(EditInstanceOnly, Category = "RV|Test")
-	float DealDamageAmount = 30.f;
+	/** Stagger / knockdown / death animations. Assign DA_HitReaction_Sword_A in BP. */
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Data")
+	TObjectPtr<URVHitReactionAnimDataAsset> HitReactionData;
 
 	/**
-	 * Poise damage dealt in periodic test hits.
-	 * Tunable per instance to test stagger / groggy thresholds in the editor.
+	 * Row in DT_DummyStats (FRVCharacterStatRow).
+	 * Supplies HP, Poise, StaggerDuration, StaggerThreshold, KnockdownThreshold.
 	 */
-	UPROPERTY(EditInstanceOnly, Category = "RV|Test")
-	float DealPoiseDamage = 30.f;
-
-	// --- Debug Display -------------------------------------------------------
-
-	UPROPERTY(EditDefaultsOnly, Category = "RV|Test")
-	float HitDisplayDuration = 0.3f;
-
-	// Runtime state
-	float TimeUntilNextDamage = 0.f;
-	float HitDisplayTimer     = 0.f;
-	float LastReceivedDamage  = 0.f;
-
-	TWeakObjectPtr<AActor> CachedPlayer;
-
-	void DealDamageToPlayer();
+	UPROPERTY(EditDefaultsOnly, Category = "RV|Data")
+	FDataTableRowHandle DummyStatRowHandle;
 };
