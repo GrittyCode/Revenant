@@ -2,7 +2,6 @@
 #include "Component/Attribute/RVStaminaComponent.h"
 #include "Component/Utility/RVEquipmentComponent.h"
 #include "Character/Base/RVCharacterBase.h"
-#include "Character/Player/RVCharacterPlayer.h"
 #include "Data/Asset/RVWeaponDataAsset.h"
 #include "Data/Asset/RVPlayerCombatAnimDataAsset.h"
 #include "Data/Asset/RVMontageStatData.h"
@@ -24,15 +23,17 @@ void URVWeaponAttackComponent::BeginPlay()
     Super::BeginPlay();
 
     OwnerBase = Cast<ARVCharacterBase>(GetOwner());
-    if (!ensureMsgf(IsValid(OwnerBase),
-        TEXT("[URVWeaponAttackComponent] Owner must be ARVCharacterBase"))) { return; }
+    ensureMsgf(IsValid(OwnerBase),
+        TEXT("[URVWeaponAttackComponent] Owner must be ARVCharacterBase"));
+}
 
-    ARVCharacterPlayer* OwnerPlayer = Cast<ARVCharacterPlayer>(GetOwner());
-    if (!ensureMsgf(IsValid(OwnerPlayer),
-        TEXT("[URVWeaponAttackComponent] Player-only component — owner must be ARVCharacterPlayer"))) { return; }
-
-    StaminaComponent   = OwnerPlayer->GetStaminaComponent();
-    EquipmentComponent = OwnerPlayer->GetEquipmentComponent();
+void URVWeaponAttackComponent::Init(
+    URVStaminaComponent* InStamina, URVEquipmentComponent* InEquipment)
+{
+    ensureMsgf(IsValid(InStamina),   TEXT("[URVWeaponAttackComponent] Init: StaminaComponent is null"));
+    ensureMsgf(IsValid(InEquipment), TEXT("[URVWeaponAttackComponent] Init: EquipmentComponent is null"));
+    StaminaComponent   = InStamina;
+    EquipmentComponent = InEquipment;
 }
 
 UAnimInstance* URVWeaponAttackComponent::GetAnimInstance() const
@@ -248,7 +249,7 @@ void URVWeaponAttackComponent::StartHeavyAttack()
     if (!ensureMsgf(IsValid(ChargeMontage),
         TEXT("[%s] StartHeavyAttack: HeavyChargeMontage not assigned"),
         *GetNameSafe(OwnerBase))) { return; }
-	
+
     OwnerBase->AddCombatState(ERVCombatState::Attacking);
     HeavyPhase = EHeavyPhase::Charging;
 
@@ -320,7 +321,6 @@ void URVWeaponAttackComponent::ExecuteHeavyAttack()
 
 void URVWeaponAttackComponent::EndHeavyAttack()
 {
-    // [수정] HasCombatState(HeavyCharging | HeavyAttacking) → HeavyPhase != None.
     if (HeavyPhase == EHeavyPhase::None) { return; }
 
     UAnimInstance* AnimInst = GetAnimInstance();

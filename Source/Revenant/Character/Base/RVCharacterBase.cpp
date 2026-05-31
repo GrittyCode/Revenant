@@ -28,7 +28,8 @@ ARVCharacterBase::ARVCharacterBase()
 void ARVCharacterBase::BeginPlay()
 {
     Super::BeginPlay();
-	
+
+    // Capture once — never overwritten again (Falling/Landed only swap against this value).
     OriginalRotationRate = GetCharacterMovement()->RotationRate;
 
     GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
@@ -146,9 +147,8 @@ FVector ARVCharacterBase::GetGroundOrigin() const
 void ARVCharacterBase::Falling()
 {
     Super::Falling();
-    UCharacterMovementComponent* MoveComp = GetCharacterMovement();
-    OriginalRotationRate   = MoveComp->RotationRate;
-    MoveComp->RotationRate = AirRotationRate;
+    // OriginalRotationRate is fixed at BeginPlay; only swap against it here.
+    GetCharacterMovement()->RotationRate = AirRotationRate;
 }
 
 void ARVCharacterBase::Landed(const FHitResult& Hit)

@@ -91,6 +91,11 @@ void ARVCharacterPlayer::BeginPlay()
     PC->PlayerCameraManager->ViewPitchMin = -70.f;
     PC->PlayerCameraManager->ViewPitchMax =  20.f;
 
+    // Inject sibling component references — components must not cast to the owning
+    // character's concrete subtype to acquire these themselves.
+    WeaponAttackComponent->Init(StaminaComponent, EquipmentComponent);
+    GuardComponent->Init(StaminaComponent, EquipmentComponent);
+
     CombatStateComponent->OnForceEnd.AddUObject(WeaponAttackComponent, &URVWeaponAttackComponent::ForceEndAttack);
     CombatStateComponent->OnForceEnd.AddUObject(GuardComponent,        &URVGuardComponent::EndGuard);
 
@@ -180,7 +185,6 @@ void ARVCharacterPlayer::Tick(float DeltaTime)
 
     if (LockOnComponent->IsLockedOn()) { return; }
 
-    // [수정] HeavyCharging / HeavyAttacking 제거 — Heavy 공격도 Attacking 상태를 사용.
     if (HasCombatState(ERVCombatState::Attacking))
     {
         SetActorRotation(FMath::RInterpTo(
@@ -220,6 +224,9 @@ void ARVCharacterPlayer::OnDeath()
 {
     APlayerController* PC = Cast<APlayerController>(GetController());
     if (IsValid(PC)) { DisableInput(PC); }
+
+    // Flush all active actions so CombatStateComponent is clean before the death sequence.
+    ForceEndAllActions();
 
     URVHitReactionAnimDataAsset* HitReactionData = GetHitReactionAnimData();
     if (!ensureMsgf(IsValid(HitReactionData),

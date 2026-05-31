@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
 #include "Engine/DataTable.h"
-#include "Data/Row/RVCharacterStatRow.h"
+#include "Data/Row/RVBossStatRow.h"
 #include "RVSevarogDataAsset.generated.h"
 
 class UBlendSpace;
@@ -48,7 +48,7 @@ struct FRVSoulSiphonData
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitRadius        = 300.f;
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitForwardOffset = 10.f;
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitHalfHeight	  = 150.f;
-	
+
 	UPROPERTY(EditDefaultsOnly) TObjectPtr<UParticleSystem> ImpactFX;
 };
 
@@ -65,7 +65,6 @@ struct FRVSubjugationData
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float BlastPoiseDamage  = 40.f;
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float SwirlSpreadRadius = 400.f;
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float SwirlDamageRadius = 150.f;
-	
 };
 
 UCLASS()
@@ -76,14 +75,14 @@ class REVENANT_API URVSevarogDataAsset : public UPrimaryDataAsset
 public:
 	//--- Stat ----------------------------------------------------------------
 
-	// Points to a row in DT_BossStats.
+	// Points to a row in DT_BossStats (row type: FRVBossStatRow).
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stats", meta = (DisplayPriority = 0))
 	FDataTableRowHandle StatRowHandle;
-	
-	const FRVCharacterStatRow* GetStatRow() const
+
+	const FRVBossStatRow* GetStatRow() const
 	{
 		if (StatRowHandle.IsNull()) { return nullptr; }
-		return StatRowHandle.GetRow<FRVCharacterStatRow>(TEXT("URVSevarogDataAsset::GetBossStatRow"));
+		return StatRowHandle.GetRow<FRVBossStatRow>(TEXT("URVSevarogDataAsset::GetStatRow"));
 	}
 
 	//--- Identity ------------------------------------------------------------
@@ -113,25 +112,12 @@ public:
 		ClampMin = "0.0", ClampMax = "180.0"))
 	float MaxComboTurnDegrees = 60.f;
 
-	// Final damage = BaseDamage x DT_AttackStats.DamageMultiplier (via URVMontageStatData).
-	UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4,
-		ClampMin = "0.0"))
-	float BaseDamage = 80.f;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4,
-		ClampMin = "0.0"))
-	float BasePoiseDamage = 40.f;
-
-	UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4,
-		ClampMin = "0.0"))
-	float AttackRadius = 55.f;
-
 	UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4))
-	TObjectPtr<UParticleSystem> MeleeHitImpact; // P_Sevarog_Melee_SucessfulImpact
+	TObjectPtr<UParticleSystem> MeleeHitImpact;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4))
 	TObjectPtr<USoundBase> MeleeHitSFX;
-	
+
 	UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4))
 	TObjectPtr<UNiagaraSystem> MeleeTrailEffect;
 

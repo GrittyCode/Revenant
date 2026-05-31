@@ -1,0 +1,24 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Data/Row/RVCharacterStatRow.h"
+#include "RVBossStatRow.generated.h"
+
+// Boss-specific combat stats that belong in DT_BossStats alongside the base character stats.
+
+// consistent with the data-driven policy applied to all other stats.
+USTRUCT(BlueprintType)
+struct REVENANT_API FRVBossStatRow : public FRVCharacterStatRow
+{
+	GENERATED_BODY()
+
+	// Final damage = BaseDamage x DT_AttackStats.DamageMultiplier (via URVMontageStatData).
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (ClampMin = "0.0"))
+	float BaseDamage = 80.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (ClampMin = "0.0"))
+	float BasePoiseDamage = 40.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (ClampMin = "0.0"))
+	float AttackRadius = 55.f;
+};

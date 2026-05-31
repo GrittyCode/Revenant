@@ -5,7 +5,6 @@
 #include "RVWeaponAttackComponent.generated.h"
 
 class ARVCharacterBase;
-class ARVCharacterPlayer;
 class URVStaminaComponent;
 class URVEquipmentComponent;
 class UAnimMontage;
@@ -18,6 +17,9 @@ class REVENANT_API URVWeaponAttackComponent : public UActorComponent
 public:
     URVWeaponAttackComponent();
     virtual void BeginPlay() override;
+
+    // Called from ARVCharacterPlayer::BeginPlay after all components exist.
+    void Init(URVStaminaComponent* InStamina, URVEquipmentComponent* InEquipment);
 
     void HandleLightAttackInput(bool bIsPlayerSprinting);
     void TryChainNextCombo();
@@ -37,7 +39,6 @@ private:
     UPROPERTY()
     TObjectPtr<ARVCharacterBase> OwnerBase;
 
-    // Cached from OwnerBase — set once in BeginPlay after player cast is verified.
     UPROPERTY()
     TObjectPtr<URVStaminaComponent> StaminaComponent;
 
@@ -70,12 +71,12 @@ private:
     void OnLightAttackMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted);
 
     //--- Heavy Attack State --------------------------------------------------
-	
+
     enum class EHeavyPhase : uint8
     {
         None,
-        Charging,  
-        Releasing, 
+        Charging,
+        Releasing,
     };
 
     EHeavyPhase HeavyPhase = EHeavyPhase::None;

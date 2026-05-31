@@ -1,6 +1,5 @@
 #include "Component/Combat/RVGuardComponent.h"
 #include "Character/Base/RVCharacterBase.h"
-#include "Character/Player/RVCharacterPlayer.h"
 #include "Component/Attribute/RVStaminaComponent.h"
 #include "Component/Utility/RVEquipmentComponent.h"
 #include "Data/Asset/RVWeaponDataAsset.h"
@@ -17,15 +16,17 @@ void URVGuardComponent::BeginPlay()
     Super::BeginPlay();
 
     OwnerBase = Cast<ARVCharacterBase>(GetOwner());
-    if (!ensureMsgf(IsValid(OwnerBase),
-        TEXT("[URVGuardComponent] Owner must be ARVCharacterBase"))) { return; }
+    ensureMsgf(IsValid(OwnerBase),
+        TEXT("[URVGuardComponent] Owner must be ARVCharacterBase"));
+}
 
-    ARVCharacterPlayer* OwnerPlayer = Cast<ARVCharacterPlayer>(GetOwner());
-    if (!ensureMsgf(IsValid(OwnerPlayer),
-        TEXT("[URVGuardComponent] Player-only component — owner must be ARVCharacterPlayer"))) { return; }
-
-    StaminaComponent   = OwnerPlayer->GetStaminaComponent();
-    EquipmentComponent = OwnerPlayer->GetEquipmentComponent();
+void URVGuardComponent::Init(
+    URVStaminaComponent* InStamina, URVEquipmentComponent* InEquipment)
+{
+    ensureMsgf(IsValid(InStamina),   TEXT("[URVGuardComponent] Init: StaminaComponent is null"));
+    ensureMsgf(IsValid(InEquipment), TEXT("[URVGuardComponent] Init: EquipmentComponent is null"));
+    StaminaComponent   = InStamina;
+    EquipmentComponent = InEquipment;
 }
 
 void URVGuardComponent::StartGuard()

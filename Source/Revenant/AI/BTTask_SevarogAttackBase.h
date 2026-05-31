@@ -30,13 +30,13 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "RV|Alignment", meta = (ClampMin = "0.0", ClampMax = "180.0"))
 	float AlignThresholdDeg = 30.f;
 
-private:
-	// True after LaunchAttack has been called — stops rotation tick and waits for OnAttackFinished.
-	// Safe to use as a member because bCreateNodeInstance = true.
+	// Safe as a member because bCreateNodeInstance = true.
 	bool bAttackLaunched = false;
 
+	// Subscribes OnAttackFinished and calls FinishLatentTask on completion.
 	void SubscribeAttackFinished(UBehaviorTreeComponent& OwnerComp, ARVSevarogCharacter* InBoss);
 
+private:
 	// Returns true when the boss is within AlignThresholdDeg of the player.
 	bool RotateBossTowardPlayer(ARVSevarogCharacter* InBoss, float DeltaSeconds) const;
 };

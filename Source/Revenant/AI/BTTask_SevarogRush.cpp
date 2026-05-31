@@ -7,21 +7,12 @@
 UBTTask_SevarogRush::UBTTask_SevarogRush()
 {
     NodeName = TEXT("Sevarog Rush");
-    bCreateNodeInstance = true;
-    bNotifyTick         = true;
-    bNotifyTaskFinished = true;
+    // bCreateNodeInstance, bNotifyTick, bNotifyTaskFinished are set by the base constructor.
 }
 
-void UBTTask_SevarogRush::SubscribeAttackFinished(UBehaviorTreeComponent& OwnerComp, ARVSevarogCharacter* InBoss)
+bool UBTTask_SevarogRush::LaunchAttack(ARVSevarogCharacter* InBoss)
 {
-    TWeakObjectPtr<UBehaviorTreeComponent> BTWeak(&OwnerComp);
-    TWeakObjectPtr<ARVSevarogCharacter>    BossWeak(InBoss);
-
-    InBoss->OnAttackFinished.AddWeakLambda(this, [BTWeak, BossWeak, this]()
-    {
-        if (BossWeak.IsValid()) { BossWeak->OnAttackFinished.RemoveAll(this); }
-        if (BTWeak.IsValid())   { FinishLatentTask(*BTWeak.Get(), EBTNodeResult::Succeeded); }
-    });
+    return InBoss->ExecuteRushAttack();
 }
 
 EBTNodeResult::Type UBTTask_SevarogRush::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
@@ -53,7 +44,7 @@ EBTNodeResult::Type UBTTask_SevarogRush::ExecuteTask(UBehaviorTreeComponent& Own
     {
         Boss->EndRush();
 
-        if (!Boss->ExecuteRushAttack()) { return EBTNodeResult::Failed; }
+        if (!LaunchAttack(Boss)) { return EBTNodeResult::Failed; }
 
         bAttackLaunched = true;
         SubscribeAttackFinished(OwnerComp, Boss);
@@ -64,7 +55,7 @@ EBTNodeResult::Type UBTTask_SevarogRush::ExecuteTask(UBehaviorTreeComponent& Own
 
 void UBTTask_SevarogRush::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
-    // Attack already launched — OnAttackFinished delegate handles completion.
+    // OnAttackFinished delegate handles completion once the attack is launched.
     if (bAttackLaunched) { return; }
 
     ARVAIController* Controller = Cast<ARVAIController>(OwnerComp.GetAIOwner());
@@ -81,7 +72,7 @@ void UBTTask_SevarogRush::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* Nod
         Controller->StopMovement();
         Boss->EndRush();
 
-        if (!Boss->ExecuteRushAttack())
+        if (!LaunchAttack(Boss))
         {
             FinishLatentTask(OwnerComp, EBTNodeResult::Failed);
             return;
@@ -102,8 +93,10 @@ EBTNodeResult::Type UBTTask_SevarogRush::AbortTask(UBehaviorTreeComponent& Owner
     return EBTNodeResult::Aborted;
 }
 
-void UBTTask_SevarogRush::OnTaskFinished(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTNodeResult::Type TaskResult)
+void UBTTask_SevarogRush::OnTaskFinished(
+    UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTNodeResult::Type TaskResult)
 {
+    // Base cleans up the OnAttackFinished delegate and calls ForceEndCurrentAction if still attacking.
     Super::OnTaskFinished(OwnerComp, NodeMemory, TaskResult);
 
     ARVAIController* Controller = Cast<ARVAIController>(OwnerComp.GetAIOwner());
@@ -112,8 +105,5 @@ void UBTTask_SevarogRush::OnTaskFinished(UBehaviorTreeComponent& OwnerComp, uint
     ARVSevarogCharacter* Boss = Controller->GetBossCharacter();
     if (!IsValid(Boss)) { return; }
 
-    Boss->OnAttackFinished.RemoveAll(this);
-
-    if (Boss->IsRushing())   { Boss->EndRush(); }
-    if (Boss->IsAttacking()) { Boss->ForceEndCurrentAction(); }
+    if (Boss->IsRushing()) { Boss->EndRush(); }
 }

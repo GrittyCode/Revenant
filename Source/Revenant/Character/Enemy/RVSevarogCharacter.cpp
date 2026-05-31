@@ -7,7 +7,7 @@
 #include "Components/CapsuleComponent.h"
 #include "Data/Asset/RVSevarogDataAsset.h"
 #include "Data/Asset/RVHitReactionAnimDataAsset.h"
-#include "Data/Row/RVCharacterStatRow.h"
+#include "Data/Row/RVBossStatRow.h"
 #include "Engine/OverlapResult.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
@@ -33,7 +33,7 @@ void ARVSevarogCharacter::InitStats()
     ensureMsgf(IsValid(SevarogData->HitReactionAnimData),
         TEXT("[%s] SevarogData.HitReactionAnimData not assigned"), *GetNameSafe(this));
 
-    const FRVCharacterStatRow* StatRow = SevarogData->GetStatRow();
+    const FRVBossStatRow* StatRow = SevarogData->GetStatRow();
     if (!ensureMsgf(StatRow,
         TEXT("[%s] StatRow resolve failed — check DT_BossStats row name"), *GetNameSafe(this))) { return; }
 
@@ -49,7 +49,8 @@ void ARVSevarogCharacter::InitStats()
     CachedGroggyDuration = StatRow->GroggyDuration;
     GetCharacterMovement()->MaxWalkSpeed = NormalWalkSpeed;
 
-    SetCombatStat(SevarogData->BaseDamage, SevarogData->BasePoiseDamage, SevarogData->AttackRadius);
+    // Combat attack stats are now stored in DT_BossStats (FRVBossStatRow).
+    SetCombatStat(StatRow->BaseDamage, StatRow->BasePoiseDamage, StatRow->AttackRadius);
     SetHitFX(nullptr, SevarogData->MeleeHitImpact, SevarogData->MeleeHitSFX);
 }
 
@@ -111,13 +112,12 @@ void ARVSevarogCharacter::OnDeath()
 
     ForceEndCurrentAction();
 
-    if (bIsGroggy)
+    if (IsGroggy())
     {
-        bIsGroggy = false;
         HitReactionComponent->AbortGroggy();
+        RemoveCombatState(ERVCombatState::Groggy);
     }
 
-    RemoveCombatState(ERVCombatState::Groggy);
     GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
     URVHitReactionAnimDataAsset* HitReactionData = GetHitReactionAnimData();
@@ -209,7 +209,7 @@ bool ARVSevarogCharacter::IsAttacking() const
 
 bool ARVSevarogCharacter::ExecutePhaseAttack()
 {
-    if (bIsGroggy || IsAttacking()) { return false; }
+    if (IsGroggy() || IsAttacking()) { return false; }
 
     const FRVBossPhaseAttacks* PhaseAttacks = nullptr;
     switch (CurrentPhase)
@@ -227,7 +227,7 @@ bool ARVSevarogCharacter::ExecutePhaseAttack()
 
 bool ARVSevarogCharacter::ExecuteRushAttack()
 {
-    if (bIsGroggy || IsAttacking())                                              { return false; }
+    if (IsGroggy() || IsAttacking())                                              { return false; }
     if (!IsValid(SevarogData) || !IsValid(SevarogData->RushAttackMontage))       { return false; }
 
     StartComboChain({ SevarogData->RushAttackMontage });
@@ -336,11 +336,11 @@ void ARVSevarogCharacter::OnAttackMontageBlendingOut(UAnimMontage*, bool bInterr
 
 bool ARVSevarogCharacter::PlaySingleShotAction(UAnimMontage* InMontage)
 {
-    if (bIsGroggy || IsAttacking()) { return false; }
-    if (!IsValid(InMontage))        { return false; }
+    if (IsGroggy() || IsAttacking()) { return false; }
+    if (!IsValid(InMontage))         { return false; }
 
     UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
-    if (!IsValid(AnimInst))         { return false; }
+    if (!IsValid(AnimInst))          { return false; }
 
     AddCombatState(ERVCombatState::Attacking);
     AnimInst->Montage_Play(InMontage);
@@ -361,9 +361,7 @@ void ARVSevarogCharacter::OnSingleShotActionBlendingOut(UAnimMontage*, bool bInt
 
 void ARVSevarogCharacter::StartGroggy()
 {
-    if (bIsGroggy) { return; }
-
-    bIsGroggy = true;
+    if (IsGroggy()) { return; }
 
     if (IsAttacking()) { ForceEndCurrentAction(); }
 
@@ -375,13 +373,12 @@ void ARVSevarogCharacter::StartGroggy()
 
 void ARVSevarogCharacter::EndGroggy()
 {
-    if (!bIsGroggy) { return; }
+    if (!IsGroggy()) { return; }
     HitReactionComponent->EndGroggy();
 }
 
 void ARVSevarogCharacter::OnGroggySequenceCompleted()
 {
-    bIsGroggy = false;
     RemoveCombatState(ERVCombatState::Groggy);
     ResetPoise();
     OnBossGroggyEnded.Broadcast();
@@ -411,6 +408,7 @@ void ARVSevarogCharacter::ExecuteSoulSiphonHit()
     const FVector HitCenter = GetForwardLocation(SevarogData->SoulSiphon.HitForwardOffset);
 
     const APawn*  Player      = ResolvePlayerPawn();
+    // Pull direction: from player toward Sevarog (consistent with toward-attacker convention).
     const FVector OverrideDir = IsValid(Player)
         ? (GetActorLocation() - Player->GetActorLocation()).GetSafeNormal2D()
         : -GetActorForwardVector();
@@ -439,11 +437,6 @@ void ARVSevarogCharacter::InitSubjugationLocations(UParticleSystem* InCastFX)
     for (const FVector& Loc : PendingSubjugationLocations)
     {
         SpawnFXAtLocation(InCastFX, Loc);
-
-// #if !UE_BUILD_SHIPPING
-//         DrawDebugSphere(GetWorld(), Loc,
-//             SevarogData->Subjugation.SwirlDamageRadius, 16, FColor::Yellow, false, 1.5f);
-// #endif
     }
 }
 
@@ -458,12 +451,6 @@ void ARVSevarogCharacter::SpawnSubjugationBlast(UParticleSystem* InSwirlsFX, USo
     for (const FVector& SwirlLocation : PendingSubjugationLocations)
     {
         SpawnFXAtLocation(InSwirlsFX, SwirlLocation);
-
-// #if !UE_BUILD_SHIPPING
-//         DrawDebugSphere(GetWorld(), SwirlLocation,
-//             SevarogData->Subjugation.SwirlDamageRadius, 16, FColor::Orange, false,
-//             DamageDelay + 1.f);
-// #endif
     }
 
     GetWorldTimerManager().SetTimer(
@@ -546,10 +533,6 @@ void ARVSevarogCharacter::ApplySphereDamageAt(const FVector& InLocation, float I
     UKismetSystemLibrary::SphereOverlapActors(
         this, InLocation, InRadius, ObjectTypes, nullptr, IgnoreActors, HitActors);
 
-// #if !UE_BUILD_SHIPPING
-//     DrawDebugSphere(GetWorld(), InLocation, InRadius, 16, FColor::Cyan, false, 2.f);
-// #endif
-
     for (AActor* HitActor : HitActors)
     {
         if (!IsValid(HitActor)) { continue; }
@@ -558,8 +541,9 @@ void ARVSevarogCharacter::ApplySphereDamageAt(const FVector& InLocation, float I
             FRVHitInfo HitInfo;
             HitInfo.Damage      = InDamage;
             HitInfo.PoiseDamage = InPoiseDamage;
+            // Direction toward attacker (explosion center) — consistent with PerformAttackTrace convention.
             const FVector RawDir = InOverrideDirection.IsNearlyZero()
-                ? (HitActor->GetActorLocation() - InLocation)
+                ? (InLocation - HitActor->GetActorLocation())
                 : InOverrideDirection;
             HitInfo.HitDirection = FVector(RawDir.X, RawDir.Y, 0.f).GetSafeNormal();
             HitInfo.Instigator   = this;
@@ -599,11 +583,6 @@ void ARVSevarogCharacter::ApplyForwardCapsuleDamageAt(const FVector& InLocation,
         if (AActor* Actor = Overlap.GetActor()) { HitActors.AddUnique(Actor); }
     }
 
-// #if !UE_BUILD_SHIPPING
-//     DrawDebugCapsule(GetWorld(), InLocation,
-//         ClampedHalfHeight, InRadius, ForwardRot, FColor::Cyan, false, 2.f);
-// #endif
-
     for (AActor* HitActor : HitActors)
     {
         if (!IsValid(HitActor)) { continue; }
@@ -612,8 +591,9 @@ void ARVSevarogCharacter::ApplyForwardCapsuleDamageAt(const FVector& InLocation,
             FRVHitInfo HitInfo;
             HitInfo.Damage      = InDamage;
             HitInfo.PoiseDamage = InPoiseDamage;
+            // Direction toward attacker — consistent with PerformAttackTrace convention.
             const FVector RawDir = InOverrideDirection.IsNearlyZero()
-                ? (HitActor->GetActorLocation() - InLocation)
+                ? (InLocation - HitActor->GetActorLocation())
                 : InOverrideDirection;
             HitInfo.HitDirection = FVector(RawDir.X, RawDir.Y, 0.f).GetSafeNormal();
             HitInfo.Instigator   = this;
@@ -671,7 +651,7 @@ void ARVSevarogCharacter::CheckPhaseTransition(float InNewHealthRatio)
 
 void ARVSevarogCharacter::OnPoiseDepleted()
 {
-    if (bIsGroggy) { return; }
+    if (IsGroggy()) { return; }
     StartGroggy();
 }
 

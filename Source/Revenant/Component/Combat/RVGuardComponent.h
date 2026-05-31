@@ -5,34 +5,35 @@
 #include "RVGuardComponent.generated.h"
 
 class ARVCharacterBase;
-class ARVCharacterPlayer;
 class URVStaminaComponent;
 class URVEquipmentComponent;
 
 UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
 class REVENANT_API URVGuardComponent : public UActorComponent
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    URVGuardComponent();
-    virtual void BeginPlay() override;
+	URVGuardComponent();
+	virtual void BeginPlay() override;
 
-    void StartGuard();
-    void EndGuard();
-    void HandleGuardHit(float InDamageAmount);
+	// Called from ARVCharacterPlayer::BeginPlay after all components exist.
+	void Init(URVStaminaComponent* InStamina, URVEquipmentComponent* InEquipment);
 
-    UFUNCTION()
-    void OnStaminaDepletedHandler();
+	void StartGuard();
+	void EndGuard();
+	void HandleGuardHit(float InDamageAmount);
+
+	UFUNCTION()
+	void OnStaminaDepletedHandler();
 
 private:
-    UPROPERTY()
-    TObjectPtr<ARVCharacterBase> OwnerBase;
+	UPROPERTY()
+	TObjectPtr<ARVCharacterBase> OwnerBase;
 
-    // Cached from OwnerBase — set once in BeginPlay after player cast is verified.
-    UPROPERTY()
-    TObjectPtr<URVStaminaComponent> StaminaComponent;
+	UPROPERTY()
+	TObjectPtr<URVStaminaComponent> StaminaComponent;
 
-    UPROPERTY()
-    TObjectPtr<URVEquipmentComponent> EquipmentComponent;
+	UPROPERTY()
+	TObjectPtr<URVEquipmentComponent> EquipmentComponent;
 };

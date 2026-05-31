@@ -59,8 +59,9 @@ public:
     UFUNCTION(BlueprintCallable, Category = "RV|Boss")
     ERVBossPhase GetCurrentPhase() const { return CurrentPhase; }
 
+    // Groggy state is authoritative in CombatStateComponent (ERVCombatState::Groggy).
     UFUNCTION(BlueprintCallable, Category = "RV|Boss")
-    bool IsGroggy() const { return bIsGroggy; }
+    bool IsGroggy() const { return HasCombatState(ERVCombatState::Groggy); }
 
     UFUNCTION(BlueprintCallable, Category = "RV|Boss")
     bool IsAttacking() const;
@@ -109,7 +110,6 @@ private:
     TObjectPtr<UNiagaraComponent> MeleeTrailNC;
 
     ERVBossPhase CurrentPhase     = ERVBossPhase::Phase1;
-    bool         bIsGroggy        = false;
     bool         bIsRushing       = false;
     bool         bIsComboChaining = false;
 
