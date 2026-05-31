@@ -14,7 +14,7 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stats")
 	FDataTableRowHandle PlayerStatRowHandle;
 
-	FORCEINLINE const FRVPlayerStatRow* GetPlayerStatRow() const
+	const FRVPlayerStatRow* GetPlayerStatRow() const
 	{
 		if (PlayerStatRowHandle.IsNull()) { return nullptr; }
 		return PlayerStatRowHandle.GetRow<FRVPlayerStatRow>(TEXT("URVPlayerDataAsset::GetPlayerStatRow"));

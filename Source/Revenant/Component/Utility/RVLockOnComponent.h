@@ -13,80 +13,76 @@ class UUserWidget;
 UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
 class REVENANT_API URVLockOnComponent : public UActorComponent
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    URVLockOnComponent();
+	URVLockOnComponent();
+	virtual void BeginPlay() override;
 
-    virtual void TickComponent(float DeltaTime, ELevelTick TickType,
-        FActorComponentTickFunction* ThisTickFunction) override;
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType,
+	                           FActorComponentTickFunction* ThisTickFunction) override;
 
-    void ToggleLockOn();
-    void BreakLockOn();
+	void ToggleLockOn();
+	void BreakLockOn();
 
-    bool    IsLockedOn()      const { return bIsLockedOn; }
-    AActor* GetLockOnTarget() const;
-
-protected:
-    virtual void BeginPlay() override;
+	FORCEINLINE bool IsLockedOn() const { return bIsLockedOn; }
+	AActor* GetLockOnTarget() const;
 
 private:
-    AActor* TryFindTarget() const;
-    void    UpdateCamera(float DeltaTime) const;
-    void    UpdateCharacterRotation(float DeltaTime) const;
+	AActor* TryFindTarget() const;
+	void UpdateCamera(float DeltaTime) const;
+	void UpdateCharacterRotation(float DeltaTime) const;
 
-    void    ShowIndicator();
-    void    HideIndicator();
-    void    UpdateIndicatorTransform() const;
+	void ShowIndicator();
+	void HideIndicator();
+	void UpdateIndicatorTransform() const;
 
-    // --- Lock-On Search ---
+	// --- Lock-On Search ---
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|LockOn")
-    float LockOnRange = 1500.f;
+	UPROPERTY(EditDefaultsOnly, Category = "RV|LockOn")
+	float LockOnRange = 1500.f;
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|LockOn")
-    float LockOnSearchHalfAngle = 60.f;
-	
+	UPROPERTY(EditDefaultsOnly, Category = "RV|LockOn")
+	float LockOnSearchHalfAngle = 60.f;
+
 	UPROPERTY(EditAnywhere, Category = "RV|LockOn")
 	float IndicatorHeightOffset = 20.f;
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|LockOn")
-    float AutoBreakRange = 2000.f;
+	UPROPERTY(EditDefaultsOnly, Category = "RV|LockOn")
+	float AutoBreakRange = 2000.f;
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|LockOn")
-    float CameraInterpSpeed = 5.f;
+	UPROPERTY(EditDefaultsOnly, Category = "RV|LockOn")
+	float CameraInterpSpeed = 5.f;
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|LockOn")
-    float CharacterRotationInterpSpeed = 40.f;
+	UPROPERTY(EditDefaultsOnly, Category = "RV|LockOn")
+	float CharacterRotationInterpSpeed = 40.f;
 
-    // --- Indicator ---
+	// --- Indicator ---
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|LockOn|Indicator")
-    TSubclassOf<UUserWidget> LockOnIndicatorWidgetClass;
+	UPROPERTY(EditDefaultsOnly, Category = "RV|LockOn|Indicator")
+	TSubclassOf<UUserWidget> LockOnIndicatorWidgetClass;
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|LockOn|Indicator")
-    FVector2D IndicatorDrawSize = FVector2D(64.f, 64.f);
+	UPROPERTY(EditDefaultsOnly, Category = "RV|LockOn|Indicator")
+	FVector2D IndicatorDrawSize = FVector2D(64.f, 64.f);
 
-    // Runtime — created in BeginPlay, lives on the owner actor.
-    UPROPERTY()
-    TObjectPtr<UWidgetComponent> IndicatorWidgetComp;
+	// Runtime — created in BeginPlay, lives on the owner actor.
+	UPROPERTY()
+	TObjectPtr<UWidgetComponent> IndicatorWidgetComp;
 
-    // --- State ---
+	// --- State ---
 
-    bool bIsLockedOn = false;
+	bool bIsLockedOn = false;
 
-    TWeakObjectPtr<AActor> LockOnTarget;
+	TWeakObjectPtr<AActor> LockOnTarget;
 
-    // OwnerBase for combat state queries (HasCombatState).
-    // OwnerCharacter for movement component and transform access.
-    // Both point to the same actor — held separately for type clarity.
-    UPROPERTY()
-    TObjectPtr<ARVCharacterBase> OwnerBase;
+	// OwnerBase for combat state queries (HasCombatState).
+	UPROPERTY()
+	TObjectPtr<ARVCharacterBase> OwnerBase;
 
-    UPROPERTY()
-    TObjectPtr<ACharacter> OwnerCharacter;
+	UPROPERTY()
+	TObjectPtr<ACharacter> OwnerCharacter;
 
-    // Cached in BeginPlay via GetOwner()->GetController().
-    UPROPERTY()
-    TObjectPtr<APlayerController> PlayerController;
+	// Cached in BeginPlay via GetOwner()->GetController().
+	UPROPERTY()
+	TObjectPtr<APlayerController> PlayerController;
 };

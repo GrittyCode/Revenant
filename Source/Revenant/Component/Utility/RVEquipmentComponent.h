@@ -19,6 +19,7 @@ class REVENANT_API URVEquipmentComponent : public UActorComponent
 
 public:
 	URVEquipmentComponent();
+	virtual void BeginPlay() override;
 
 	URVWeaponDataAsset*          GetCurrentWeaponData()          const { return CurrentWeaponData; }
 	URVHitReactionAnimDataAsset* GetCurrentHitReactionAnimData() const;
@@ -44,9 +45,6 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, Category = "RV|Equipment")
 	TObjectPtr<URVWeaponDataAsset> WeaponDataSlotB;
-
-protected:
-	virtual void BeginPlay() override;
 
 private:
 	UPROPERTY(VisibleAnywhere, Category = "RV|Equipment")

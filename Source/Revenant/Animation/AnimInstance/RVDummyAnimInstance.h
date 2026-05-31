@@ -8,7 +8,6 @@ class ARVCharacterBase;
 
 /**
  * Minimal AnimInstance for ARVDummyTarget.
- *   Speed          — locomotion blend (idle at 0)
  *   bIsStaggering  — state machine transition to HitReaction state
  *   StaggerDirection — drives BS_Stagger blendspace axis inside HitReaction state
  */

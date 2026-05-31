@@ -18,6 +18,7 @@ class REVENANT_API URVAttackTraceComponent : public UActorComponent
 
 public:
     URVAttackTraceComponent();
+    virtual void BeginPlay() override;
 
     // Called by ARVCharacterBase::BeginPlay — passes the trace-origin mesh
     void InitTraceMesh(UMeshComponent* InTraceMesh);
@@ -36,9 +37,6 @@ public:
     // Called per-tick by AnimNotifyState_AttackHitCheck::NotifyTick.
     // Reads current montage stat multipliers, performs capsule overlap, applies damage and FX.
     void PerformAttackTrace();
-
-protected:
-    virtual void BeginPlay() override;
 
 private:
     // Resolved in BeginPlay via GetOwner(). Valid for the component's entire lifetime.

@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 
-// Blackboard key names for BB_SevarogAI.
 namespace RVSevarogBlackboardKeys
 {
 	static const FName PlayerPawn                  = TEXT("PlayerPawn");

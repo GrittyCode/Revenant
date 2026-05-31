@@ -4,12 +4,7 @@
 #include "Components/ActorComponent.h"
 #include "RVCombatStateComponent.generated.h"
 
-// [수정] HeavyCharging / HeavyAttacking 제거.
-//         두 값은 URVWeaponAttackComponent 내부 페이즈 구분에만 쓰였으며,
-//         외부 시스템은 항상 셋을 OR로 묶어 Attacking과 동일하게 취급했다.
-//         내부 페이즈 추적은 WeaponAttackComponent의 EHeavyPhase 멤버로 이전.
-//         8비트 → 6비트로 단순화. 런타임 전용 상태이므로 재번호 부여 가능.
-UENUM(BlueprintType, meta=(Bitflags, UseEnumValuesAsMaskValuesInEditor="true"))
+
 enum class ERVCombatState : uint8
 {
 	None        = 0,
@@ -43,30 +38,30 @@ public:
 
     //--- State Mutators ------------------------------------------------------
 
-    FORCEINLINE void AddState(ERVCombatState InState)
+    void AddState(ERVCombatState InState)
     {
         CurrentStates |= InState;
         OnStateChanged.Broadcast(CurrentStates);
     }
 
-    FORCEINLINE void RemoveState(ERVCombatState InState)
+    void RemoveState(ERVCombatState InState)
     {
         CurrentStates &= ~InState;
         OnStateChanged.Broadcast(CurrentStates);
     }
 
-    FORCEINLINE bool HasState(ERVCombatState InState) const
+	bool HasState(ERVCombatState InState) const
     {
         return (CurrentStates & InState) != ERVCombatState::None;
     }
 
-    void SetInvincible(bool bInInvincible) { bIsInvincible = bInInvincible; }
+	void SetInvincible(bool bInInvincible) { bIsInvincible = bInInvincible; }
 
     //--- State Queries -------------------------------------------------------
 
-    bool IsInvincible() const { return bIsInvincible; }
+	bool IsInvincible() const { return bIsInvincible; }
 
-    ERVCombatState GetActiveStates() const { return CurrentStates; }
+    FORCEINLINE ERVCombatState GetActiveStates() const { return CurrentStates; }
 
     // Returns true when no blocking state is active (optionally excluding InCoexistableStates).
     bool CheckAvailableState(ERVCombatState InCoexistableStates = ERVCombatState::None) const;

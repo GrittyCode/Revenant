@@ -16,6 +16,7 @@ class REVENANT_API URVGuardComponent : public UActorComponent
 
 public:
     URVGuardComponent();
+    virtual void BeginPlay() override;
 
     void StartGuard();
     void EndGuard();
@@ -23,9 +24,6 @@ public:
 
     UFUNCTION()
     void OnStaminaDepletedHandler();
-
-protected:
-    virtual void BeginPlay() override;
 
 private:
     UPROPERTY()
