@@ -28,6 +28,8 @@ ARVCharacterBase::ARVCharacterBase()
 void ARVCharacterBase::BeginPlay()
 {
     Super::BeginPlay();
+	
+    OriginalRotationRate = GetCharacterMovement()->RotationRate;
 
     GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
     GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
@@ -74,24 +76,32 @@ void ARVCharacterBase::CloseAttackHitWindow() { AttackTraceComponent->CloseHitWi
 
 //--- AnimInstance state queries ----------------------------------------------
 
-bool  ARVCharacterBase::IsInCombatState(ERVCombatState InState) const { return CombatStateComponent->IsInState(InState); }
-float ARVCharacterBase::GetStaggerDirection() const                    { return HitReactionComponent->GetStaggerDirection(); }
+float ARVCharacterBase::GetStaggerDirection() const { return HitReactionComponent->GetStaggerDirection(); }
 
 //--- Combat state operations -------------------------------------------------
+
+bool ARVCharacterBase::CanAct(ERVCombatState InCoexistableStates) const
+{
+	return CombatStateComponent->CheckAvailableState(InCoexistableStates);
+}
 
 void ARVCharacterBase::AddCombatState(ERVCombatState InState)       { CombatStateComponent->AddState(InState); }
 void ARVCharacterBase::RemoveCombatState(ERVCombatState InState)    { CombatStateComponent->RemoveState(InState); }
 bool ARVCharacterBase::HasCombatState(ERVCombatState InState) const { return CombatStateComponent->HasState(InState); }
 
-bool ARVCharacterBase::CanAct(ERVCombatState InCoexistableStates) const
+
+void ARVCharacterBase::SetInvincible(bool b) { CombatStateComponent->SetInvincible(b); }
+
+bool ARVCharacterBase::IsInvincible()  const { return CombatStateComponent->IsInvincible(); }
+
+void ARVCharacterBase::ForceEndAllActions()  { CombatStateComponent->ForceEndAllActions(); }
+
+bool ARVCharacterBase::IsGrounded() const
 {
-    return CombatStateComponent->CheckAvailableState(InCoexistableStates);
+	const UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+	return IsValid(MoveComp) && !MoveComp->IsFalling();
 }
 
-bool ARVCharacterBase::IsGrounded()    const { return CombatStateComponent->IsGrounded(); }
-void ARVCharacterBase::SetInvincible(bool b) { CombatStateComponent->SetInvincible(b); }
-bool ARVCharacterBase::IsInvincible()  const { return CombatStateComponent->IsInvincible(); }
-void ARVCharacterBase::ForceEndAllActions()  { CombatStateComponent->ForceEndAllActions(); }
 
 //--- Poise operations --------------------------------------------------------
 

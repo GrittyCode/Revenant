@@ -50,7 +50,7 @@ void URVWeaponAttackComponent::HandleLightAttackInput(bool bIsPlayerSprinting)
 {
     if (!bIsLightAttackActive)
     {
-        if (!OwnerBase->CanAct(ERVCombatState::Attacking)) { return; }
+        if (!OwnerBase->CanAct()) { return; }
 
         if (!OwnerBase->IsGrounded())
         {
@@ -235,9 +235,9 @@ void URVWeaponAttackComponent::OnLightAttackMontageBlendingOut(UAnimMontage*, bo
 
 void URVWeaponAttackComponent::StartHeavyAttack()
 {
-    if (!OwnerBase->CanAct())                  { return; }
-    if (!OwnerBase->IsGrounded())              { return; }
-    if (StaminaComponent->GetCurrentStamina() <= 0.f) { return; }
+    if (!OwnerBase->CanAct())                             { return; }
+    if (!OwnerBase->IsGrounded())                         { return; }
+    if (StaminaComponent->GetCurrentStamina() <= 0.f)    { return; }
 
     const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
     if (!ensureMsgf(IsValid(WeaponData),
@@ -248,8 +248,10 @@ void URVWeaponAttackComponent::StartHeavyAttack()
     if (!ensureMsgf(IsValid(ChargeMontage),
         TEXT("[%s] StartHeavyAttack: HeavyChargeMontage not assigned"),
         *GetNameSafe(OwnerBase))) { return; }
+	
+    OwnerBase->AddCombatState(ERVCombatState::Attacking);
+    HeavyPhase = EHeavyPhase::Charging;
 
-    OwnerBase->AddCombatState(ERVCombatState::HeavyCharging);
     bCanHeavyRelease = false;
     bPendingRelease  = false;
     bIsAutoRelease   = false;
@@ -271,7 +273,7 @@ void URVWeaponAttackComponent::StartHeavyAttack()
 
 void URVWeaponAttackComponent::ReleaseHeavyAttack()
 {
-    if (!OwnerBase->HasCombatState(ERVCombatState::HeavyCharging)) { return; }
+    if (HeavyPhase != EHeavyPhase::Charging) { return; }
     if (!bCanHeavyRelease) { bPendingRelease = true; return; }
     ExecuteHeavyAttack();
 }
@@ -308,8 +310,7 @@ void URVWeaponAttackComponent::ExecuteHeavyAttack()
     }
 
     bIsAutoRelease = false;
-    OwnerBase->RemoveCombatState(ERVCombatState::HeavyCharging);
-    OwnerBase->AddCombatState(ERVCombatState::HeavyAttacking);
+    HeavyPhase = EHeavyPhase::Releasing;
 
     FOnMontageBlendingOutStarted ReleaseBlendOut;
     ReleaseBlendOut.BindUObject(this, &URVWeaponAttackComponent::OnReleaseMontageBlendingOut);
@@ -319,10 +320,8 @@ void URVWeaponAttackComponent::ExecuteHeavyAttack()
 
 void URVWeaponAttackComponent::EndHeavyAttack()
 {
-    if (!OwnerBase->HasCombatState(ERVCombatState::HeavyCharging | ERVCombatState::HeavyAttacking))
-    {
-        return;
-    }
+    // [수정] HasCombatState(HeavyCharging | HeavyAttacking) → HeavyPhase != None.
+    if (HeavyPhase == EHeavyPhase::None) { return; }
 
     UAnimInstance* AnimInst = GetAnimInstance();
     if (IsValid(AnimInst))
@@ -330,14 +329,16 @@ void URVWeaponAttackComponent::EndHeavyAttack()
         const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
         if (IsValid(WeaponData))
         {
-            UAnimMontage* MontageToStop = OwnerBase->HasCombatState(ERVCombatState::HeavyCharging)
+            UAnimMontage* MontageToStop = (HeavyPhase == EHeavyPhase::Charging)
                 ? WeaponData->GetHeavyChargeMontage()
                 : AnimInst->GetCurrentActiveMontage();
             if (IsValid(MontageToStop)) { AnimInst->Montage_Stop(0.1f, MontageToStop); }
         }
     }
 
-    OwnerBase->RemoveCombatState(ERVCombatState::HeavyCharging | ERVCombatState::HeavyAttacking);
+    OwnerBase->RemoveCombatState(ERVCombatState::Attacking);
+    HeavyPhase = EHeavyPhase::None;
+
     bCanHeavyRelease = false;
     bPendingRelease  = false;
     bIsAutoRelease   = false;
@@ -352,7 +353,7 @@ void URVWeaponAttackComponent::OnChargeAutoRelease()
 
 void URVWeaponAttackComponent::OnChargeMontageBlendingOut(UAnimMontage*, bool)
 {
-    if (OwnerBase->HasCombatState(ERVCombatState::HeavyCharging)) { EndHeavyAttack(); }
+    if (HeavyPhase == EHeavyPhase::Charging) { EndHeavyAttack(); }
 }
 
 void URVWeaponAttackComponent::OnReleaseMontageBlendingOut(UAnimMontage*, bool)
@@ -375,7 +376,7 @@ void URVWeaponAttackComponent::ForceEndAttack()
         EndCombo();
     }
 
-    if (OwnerBase->HasCombatState(ERVCombatState::HeavyCharging | ERVCombatState::HeavyAttacking))
+    if (HeavyPhase != EHeavyPhase::None)
     {
         EndHeavyAttack();
     }

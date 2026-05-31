@@ -52,10 +52,11 @@ void UBTTask_SevarogAttackBase::TickTask(UBehaviorTreeComponent& OwnerComp, uint
 bool UBTTask_SevarogAttackBase::RotateBossTowardPlayer(ARVSevarogCharacter* InBoss, float DeltaSeconds) const
 {
 	const ARVAIController* AICtrl = Cast<ARVAIController>(InBoss->GetController());
-	if (!IsValid(AICtrl)) { return true; } // no controller — proceed immediately
+
+	if (!IsValid(AICtrl)) { return false; }
 
 	const APawn* Player = AICtrl->GetPlayerPawn();
-	if (!IsValid(Player)) { return true; } // no player — proceed immediately
+	if (!IsValid(Player)) { return false; }
 
 	const FVector ToPlayer = (Player->GetActorLocation() - InBoss->GetActorLocation()).GetSafeNormal2D();
 	if (ToPlayer.IsNearlyZero()) { return true; }

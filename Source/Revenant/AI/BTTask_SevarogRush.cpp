@@ -6,7 +6,8 @@
 
 UBTTask_SevarogRush::UBTTask_SevarogRush()
 {
-    NodeName            = TEXT("Sevarog Rush");
+    NodeName = TEXT("Sevarog Rush");
+    bCreateNodeInstance = true;
     bNotifyTick         = true;
     bNotifyTaskFinished = true;
 }
@@ -25,8 +26,7 @@ void UBTTask_SevarogRush::SubscribeAttackFinished(UBehaviorTreeComponent& OwnerC
 
 EBTNodeResult::Type UBTTask_SevarogRush::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
-    FRVRushMemory* Memory = CastInstanceNodeMemory<FRVRushMemory>(NodeMemory);
-    Memory->bAttackLaunched = false;
+    bAttackLaunched = false;
 
     ARVAIController* Controller = Cast<ARVAIController>(OwnerComp.GetAIOwner());
     if (!IsValid(Controller)) { return EBTNodeResult::Failed; }
@@ -55,7 +55,7 @@ EBTNodeResult::Type UBTTask_SevarogRush::ExecuteTask(UBehaviorTreeComponent& Own
 
         if (!Boss->ExecuteRushAttack()) { return EBTNodeResult::Failed; }
 
-        Memory->bAttackLaunched = true;
+        bAttackLaunched = true;
         SubscribeAttackFinished(OwnerComp, Boss);
     }
 
@@ -64,10 +64,8 @@ EBTNodeResult::Type UBTTask_SevarogRush::ExecuteTask(UBehaviorTreeComponent& Own
 
 void UBTTask_SevarogRush::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
-    FRVRushMemory* Memory = CastInstanceNodeMemory<FRVRushMemory>(NodeMemory);
-
     // Attack already launched — OnAttackFinished delegate handles completion.
-    if (Memory->bAttackLaunched) { return; }
+    if (bAttackLaunched) { return; }
 
     ARVAIController* Controller = Cast<ARVAIController>(OwnerComp.GetAIOwner());
     if (!IsValid(Controller)) { FinishLatentTask(OwnerComp, EBTNodeResult::Failed); return; }
@@ -89,7 +87,7 @@ void UBTTask_SevarogRush::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* Nod
             return;
         }
 
-        Memory->bAttackLaunched = true;
+        bAttackLaunched = true;
         SubscribeAttackFinished(OwnerComp, Boss);
     }
 }

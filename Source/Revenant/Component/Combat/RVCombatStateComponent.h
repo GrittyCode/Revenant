@@ -4,19 +4,21 @@
 #include "Components/ActorComponent.h"
 #include "RVCombatStateComponent.generated.h"
 
-class UCharacterMovementComponent;
-
+// [수정] HeavyCharging / HeavyAttacking 제거.
+//         두 값은 URVWeaponAttackComponent 내부 페이즈 구분에만 쓰였으며,
+//         외부 시스템은 항상 셋을 OR로 묶어 Attacking과 동일하게 취급했다.
+//         내부 페이즈 추적은 WeaponAttackComponent의 EHeavyPhase 멤버로 이전.
+//         8비트 → 6비트로 단순화. 런타임 전용 상태이므로 재번호 부여 가능.
+UENUM(BlueprintType, meta=(Bitflags, UseEnumValuesAsMaskValuesInEditor="true"))
 enum class ERVCombatState : uint8
 {
-	None           = 0,
-	Attacking      = 1 << 0,
-	HeavyAttacking = 1 << 1,
-	Dodging        = 1 << 2,
-	Guarding       = 1 << 3,
-	HeavyCharging  = 1 << 4,
-	HitReaction    = 1 << 5,
-	Groggy         = 1 << 6,
-	Knockdown      = 1 << 7,
+	None        = 0,
+	Attacking   = 1 << 0,
+	Dodging     = 1 << 1,
+	Guarding    = 1 << 2,
+	HitReaction = 1 << 3,
+	Groggy      = 1 << 4,
+	Knockdown   = 1 << 5,
 };
 
 ENUM_CLASS_FLAGS(ERVCombatState);
@@ -62,9 +64,7 @@ public:
 
     //--- State Queries -------------------------------------------------------
 
-    bool IsInState(ERVCombatState InState) const { return HasState(InState); }
     bool IsInvincible() const { return bIsInvincible; }
-    bool IsGrounded() const;
 
     ERVCombatState GetActiveStates() const { return CurrentStates; }
 
@@ -73,18 +73,9 @@ public:
 
     //--- State Control -------------------------------------------------------
 
-    // Broadcasts OnForceEnd — subscribers (WeaponAttackComponent, GuardComponent, etc.)
-    // each terminate their own action. Wired by the owning Actor in BeginPlay.
     void ForceEndAllActions();
 
-protected:
-    virtual void BeginPlay() override;
-
 private:
-    // Resolved in BeginPlay via Cast<ACharacter>(GetOwner())->GetCharacterMovement().
-    UPROPERTY()
-    TObjectPtr<UCharacterMovementComponent> MovementComponent;
-
     ERVCombatState CurrentStates = ERVCombatState::None;
     bool           bIsInvincible = false;
 };

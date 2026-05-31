@@ -17,6 +17,7 @@ class REVENANT_API URVWeaponAttackComponent : public UActorComponent
 
 public:
     URVWeaponAttackComponent();
+    virtual void BeginPlay() override;
 
     void HandleLightAttackInput(bool bIsPlayerSprinting);
     void TryChainNextCombo();
@@ -31,9 +32,6 @@ public:
     void ReleaseHeavyAttack();
     void SetHeavyAttackReady(bool bReady);
     void ForceEndAttack();
-
-protected:
-    virtual void BeginPlay() override;
 
 private:
     UPROPERTY()
@@ -72,6 +70,15 @@ private:
     void OnLightAttackMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted);
 
     //--- Heavy Attack State --------------------------------------------------
+	
+    enum class EHeavyPhase : uint8
+    {
+        None,
+        Charging,  
+        Releasing, 
+    };
+
+    EHeavyPhase HeavyPhase = EHeavyPhase::None;
 
     UPROPERTY(EditDefaultsOnly, Category = "RV|HeavyAttack")
     float MaxChargeTime = 1.5f;

@@ -180,7 +180,8 @@ void ARVCharacterPlayer::Tick(float DeltaTime)
 
     if (LockOnComponent->IsLockedOn()) { return; }
 
-    if (HasCombatState(ERVCombatState::Attacking | ERVCombatState::HeavyCharging | ERVCombatState::HeavyAttacking))
+    // [수정] HeavyCharging / HeavyAttacking 제거 — Heavy 공격도 Attacking 상태를 사용.
+    if (HasCombatState(ERVCombatState::Attacking))
     {
         SetActorRotation(FMath::RInterpTo(
             GetActorRotation(), FRotator(0.f, AttackStartYaw, 0.f), DeltaTime, AttackRotationInterpSpeed));

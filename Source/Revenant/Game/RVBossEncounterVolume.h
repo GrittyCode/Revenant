@@ -7,6 +7,7 @@
 class ARVSevarogCharacter;
 class ALevelSequenceActor;
 class USoundBase;
+class UAudioComponent;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FRVOnBossSpawned, ARVSevarogCharacter* /*SpawnedBoss*/);
 
@@ -32,16 +33,12 @@ private:
 	UPROPERTY(EditInstanceOnly, Category = "RV|Boss")
 	TObjectPtr<AActor> BossSpawnPoint;
 
-	// Played when the cutscene sequence begins.
-	// Assign a cinematic/intro track here.
 	UPROPERTY(EditInstanceOnly, Category = "RV|Boss|Audio")
 	TObjectPtr<USoundBase> CutsceneBGM;
 	
 	UPROPERTY()
 	TObjectPtr<UAudioComponent> CutsceneBGMAudioComponent;
 
-	// Played when the cutscene ends and combat begins.
-	// Assign the main boss battle BGM here.
 	UPROPERTY(EditInstanceOnly, Category = "RV|Boss|Audio")
 	TObjectPtr<USoundBase> CombatBGM;
 
@@ -64,7 +61,6 @@ private:
 
 	void BeginBossEncounter();
 
-	// Called after SpawnDelay. Starts the intro montage + cutscene sequence.
 	void StartCutscene();
 
 	void PauseBossAI();

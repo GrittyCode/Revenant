@@ -1,12 +1,12 @@
 #include "Game/RVGameMode.h"
 #include "Controller/RVPlayerController.h"
-#include "Kismet/GameplayStatics.h"
 
-void ARVGameMode::BeginPlay()
+
+void ARVGameMode::HandleStartingNewPlayer_Implementation(APlayerController* NewPlayer)
 {
-	Super::BeginPlay();
-	
-	if (ARVPlayerController* PC = Cast<ARVPlayerController>(GetWorld()->GetFirstPlayerController()))
+	Super::HandleStartingNewPlayer_Implementation(NewPlayer);
+
+	if (ARVPlayerController* PC = Cast<ARVPlayerController>(NewPlayer))
 	{
 		PC->RestoreGameInput();
 	}

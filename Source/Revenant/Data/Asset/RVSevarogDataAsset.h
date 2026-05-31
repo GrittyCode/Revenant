@@ -79,8 +79,8 @@ public:
 	// Points to a row in DT_BossStats.
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stats", meta = (DisplayPriority = 0))
 	FDataTableRowHandle StatRowHandle;
-
-	FORCEINLINE const FRVCharacterStatRow* GetStatRow() const
+	
+	const FRVCharacterStatRow* GetStatRow() const
 	{
 		if (StatRowHandle.IsNull()) { return nullptr; }
 		return StatRowHandle.GetRow<FRVCharacterStatRow>(TEXT("URVSevarogDataAsset::GetBossStatRow"));
@@ -126,20 +126,15 @@ public:
 		ClampMin = "0.0"))
 	float AttackRadius = 55.f;
 
-	// Cascade hit impact spawned at the struck actor's location on confirmed melee hits.
 	UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4))
 	TObjectPtr<UParticleSystem> MeleeHitImpact; // P_Sevarog_Melee_SucessfulImpact
 
-	// Sound played at the struck actor's location on each confirmed melee hit.
 	UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4))
 	TObjectPtr<USoundBase> MeleeHitSFX;
-
-	// Niagara trail attached to WeaponTip socket on melee swing.
-	// Activated via AnimNotifyState_WeaponTrailFX. Same approach as player weapon trail.
+	
 	UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4))
 	TObjectPtr<UNiagaraSystem> MeleeTrailEffect;
 
-	// Ribbon width injected into User.Width parameter of the trail Niagara system.
 	UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4, ClampMin = "0.0"))
 	float MeleeTrailWidth = 15.f;
 
@@ -169,7 +164,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation", meta = (DisplayPriority = 6))
 	TObjectPtr<UBlendSpace> LocomotionBS;
 
-	// Duration (seconds) over which FadeOut 0→1 is driven on all mesh materials during death.
 	UPROPERTY(EditDefaultsOnly, Category = "Animation", meta = (DisplayPriority = 6, ClampMin = "0.1"))
 	float DissolveDuration = 2.f;
 

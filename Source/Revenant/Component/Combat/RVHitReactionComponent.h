@@ -9,6 +9,7 @@ class ARVCharacterBase;
 class URVHitReactionAnimDataAsset;
 class UAnimMontage;
 
+UENUM(BlueprintType, meta=(Bitflags, UseEnumValuesAsMaskValuesInEditor="true"))
 enum class ERVHitReactCapability : uint8
 {
     None      = 0,
@@ -28,6 +29,7 @@ class REVENANT_API URVHitReactionComponent : public UActorComponent
 
 public:
     URVHitReactionComponent();
+    virtual void BeginPlay() override;
 
     void HandleHit(const FRVHitInfo& InHitInfo);
     void TriggerStaggerWithMontage(UAnimMontage* InMontage);
@@ -45,9 +47,6 @@ public:
     float GetStaggerDirection() const                                 { return StaggerDirection; }
 
     FRVOnGroggySequenceCompleted OnGroggySequenceCompleted;
-
-protected:
-    virtual void BeginPlay() override;
 
 private:
     UPROPERTY()

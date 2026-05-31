@@ -8,7 +8,6 @@
 #include "Data/Asset/RVSevarogDataAsset.h"
 #include "Data/Asset/RVHitReactionAnimDataAsset.h"
 #include "Data/Row/RVCharacterStatRow.h"
-#include "DrawDebugHelpers.h"
 #include "Engine/OverlapResult.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
@@ -411,7 +410,6 @@ void ARVSevarogCharacter::ExecuteSoulSiphonHit()
 
     const FVector HitCenter = GetForwardLocation(SevarogData->SoulSiphon.HitForwardOffset);
 
-    // "피격자 → 공격자" 방향 — HitReaction BlendSpace 기준에 맞게 보스 위치를 향하는 방향으로 전달
     const APawn*  Player      = ResolvePlayerPawn();
     const FVector OverrideDir = IsValid(Player)
         ? (GetActorLocation() - Player->GetActorLocation()).GetSafeNormal2D()
@@ -580,8 +578,6 @@ void ARVSevarogCharacter::ApplyForwardCapsuleDamageAt(const FVector& InLocation,
     float InDamage, float InPoiseDamage, UParticleSystem* InHitFX,
     const FVector& InOverrideDirection)
 {
-    // 캡슐 기본 축(Z)을 보스의 Forward 방향으로 회전시켜 앞뒤 판정 범위를 제어한다.
-    // HalfHeight >= Radius 제약 조건 보장 (UE MakeCapsule 요구사항).
     const float   ClampedHalfHeight = FMath::Max(InHalfHeight, InRadius);
     const FQuat   ForwardRot        = FQuat::FindBetweenNormals(FVector::UpVector, GetActorForwardVector());
 

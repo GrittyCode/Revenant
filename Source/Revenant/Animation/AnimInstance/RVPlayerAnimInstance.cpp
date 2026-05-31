@@ -9,83 +9,82 @@
 
 void URVPlayerAnimInstance::NativeInitializeAnimation()
 {
-    Super::NativeInitializeAnimation();
+	Super::NativeInitializeAnimation();
 
-    OwnerCharacter = Cast<ARVCharacterPlayer>(GetOwningActor());
-    ensureMsgf(IsValid(OwnerCharacter),
-        TEXT("[URVPlayerAnimInstance] Owner is not ARVCharacterPlayer — check ABP assignment"));
-    if (!IsValid(OwnerCharacter)) { return; }
+	OwnerCharacter = Cast<ARVCharacterPlayer>(GetOwningActor());
+	ensureMsgf(IsValid(OwnerCharacter),
+	           TEXT("[URVPlayerAnimInstance] Owner is not ARVCharacterPlayer — check ABP assignment"));
+	if (!IsValid(OwnerCharacter)) { return; }
 
-    MaxLocomotionSpeed = OwnerCharacter->GetSprintSpeed();
+	MaxLocomotionSpeed = OwnerCharacter->GetSprintSpeed();
 
-    OwnerCharacter->GetOnWeaponChanged().AddDynamic(
-        this, &URVPlayerAnimInstance::OnWeaponChangedHandler);
+	OwnerCharacter->GetOnWeaponChanged().AddDynamic(
+		this, &URVPlayerAnimInstance::OnWeaponChangedHandler);
 
-    OnWeaponChangedHandler(OwnerCharacter->GetEquipmentComponent()->GetCurrentWeaponData());
+	OnWeaponChangedHandler(OwnerCharacter->GetEquipmentComponent()->GetCurrentWeaponData());
 }
 
 void URVPlayerAnimInstance::NativeUninitializeAnimation()
 {
-    if (IsValid(OwnerCharacter))
-    {
-        OwnerCharacter->GetOnWeaponChanged().RemoveDynamic(
-            this, &URVPlayerAnimInstance::OnWeaponChangedHandler);
-    }
+	if (IsValid(OwnerCharacter))
+	{
+		OwnerCharacter->GetOnWeaponChanged().RemoveDynamic(
+			this, &URVPlayerAnimInstance::OnWeaponChangedHandler);
+	}
 
-    Super::NativeUninitializeAnimation();
+	Super::NativeUninitializeAnimation();
 }
 
 void URVPlayerAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 {
-    Super::NativeUpdateAnimation(DeltaSeconds);
+	Super::NativeUpdateAnimation(DeltaSeconds);
 
-    if (!IsValid(OwnerCharacter)) { return; }
+	if (!IsValid(OwnerCharacter)) { return; }
 
-    const UWorld* W = GetWorld();
-    if (!W || !W->IsGameWorld()) { return; }
+	const UWorld* W = GetWorld();
+	if (!W || !W->IsGameWorld()) { return; }
 
-    Speed           = OwnerCharacter->GetVelocity().Size2D();
-    NormalizedSpeed = FMath::Clamp(Speed / MaxLocomotionSpeed, 0.f, 1.f);
-    Direction       = UKismetAnimationLibrary::CalculateDirection(
-                          OwnerCharacter->GetVelocity(),
-                          OwnerCharacter->GetActorRotation());
+	Speed = OwnerCharacter->GetVelocity().Size2D();
+	NormalizedSpeed = FMath::Clamp(Speed / MaxLocomotionSpeed, 0.f, 1.f);
+	Direction = UKismetAnimationLibrary::CalculateDirection(
+		OwnerCharacter->GetVelocity(),
+		OwnerCharacter->GetActorRotation());
 
-    bIsInAir         = OwnerCharacter->GetCharacterMovement()->IsFalling();
-    bIsGuarding      = OwnerCharacter->IsInCombatState(ERVCombatState::Guarding);
-    bIsInHitReaction = OwnerCharacter->IsInCombatState(ERVCombatState::HitReaction);
-    bIsKnockedDown   = OwnerCharacter->IsInCombatState(ERVCombatState::Knockdown);
-    bIsLockedOn      = OwnerCharacter->IsLockedOn();
-    bIsSprinting     = OwnerCharacter->IsSprinting();
-    StaggerDirection = OwnerCharacter->GetStaggerDirection();
-    bIsAttacking = OwnerCharacter->IsInCombatState(
-        ERVCombatState::Attacking | ERVCombatState::HeavyCharging | ERVCombatState::HeavyAttacking);
+	bIsInAir = OwnerCharacter->GetCharacterMovement()->IsFalling();
+	bIsGuarding = OwnerCharacter->HasCombatState(ERVCombatState::Guarding);
+	bIsLockedOn = OwnerCharacter->IsLockedOn();
+	bIsSprinting = OwnerCharacter->IsSprinting();
+	bIsAttacking = OwnerCharacter->HasCombatState(ERVCombatState::Attacking);
+	bIsKnockedDown = OwnerCharacter->HasCombatState(ERVCombatState::Knockdown);
+	bIsInHitReaction = OwnerCharacter->HasCombatState(ERVCombatState::HitReaction);
+	StaggerDirection = OwnerCharacter->GetStaggerDirection();
 }
 
 void URVPlayerAnimInstance::OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData)
 {
-    if (!IsValid(NewWeaponData))
-    {
-        CachedLocomotionBS             = nullptr;
-        CachedRunLocomotionBS          = nullptr;
-        CachedLockOnLocomotionBS       = nullptr;
-        CachedGuardLocomotionBS        = nullptr;
-        CachedGuardLocomotionBS_LockOn = nullptr;
-        CachedStaggerBlendSpace        = nullptr;
-        return;
-    }
+	if (!IsValid(NewWeaponData))
+	{
+		CachedLocomotionBS = nullptr;
+		CachedRunLocomotionBS = nullptr;
+		CachedLockOnLocomotionBS = nullptr;
+		CachedGuardLocomotionBS = nullptr;
+		CachedGuardLocomotionBS_LockOn = nullptr;
+		CachedStaggerBlendSpace = nullptr;
+		return;
+	}
 
-    if (!ensureMsgf(IsValid(NewWeaponData->LocomotionAnimData),
-        TEXT("[URVPlayerAnimInstance] WeaponData '%s' has no LocomotionAnimData"),
-        *GetNameSafe(NewWeaponData))) { return; }
+	if (!ensureMsgf(IsValid(NewWeaponData->LocomotionAnimData),
+	                TEXT("[URVPlayerAnimInstance] WeaponData '%s' has no LocomotionAnimData"),
+	                *GetNameSafe(NewWeaponData))) { return; }
 
-    if (!ensureMsgf(IsValid(NewWeaponData->HitReactionAnimData),
-        TEXT("[URVPlayerAnimInstance] WeaponData '%s' has no HitReactionAnimData"),
-        *GetNameSafe(NewWeaponData))) { return; }
+	if (!ensureMsgf(IsValid(NewWeaponData->HitReactionAnimData),
+	                TEXT("[URVPlayerAnimInstance] WeaponData '%s' has no HitReactionAnimData"),
+	                *GetNameSafe(NewWeaponData))) { return; }
 
-    CachedLocomotionBS             = NewWeaponData->LocomotionAnimData->LocomotionBS;
-    CachedRunLocomotionBS          = NewWeaponData->LocomotionAnimData->RunLocomotionBS;
-    CachedLockOnLocomotionBS       = NewWeaponData->LocomotionAnimData->LockOnLocomotionBS;
-    CachedGuardLocomotionBS        = NewWeaponData->LocomotionAnimData->GuardLocomotionBS;
-    CachedGuardLocomotionBS_LockOn = NewWeaponData->LocomotionAnimData->GuardLocomotionBS_LockOn;
-    CachedStaggerBlendSpace        = NewWeaponData->HitReactionAnimData->StaggerBlendSpace;
+	CachedLocomotionBS = NewWeaponData->LocomotionAnimData->LocomotionBS;
+	CachedRunLocomotionBS = NewWeaponData->LocomotionAnimData->RunLocomotionBS;
+	CachedLockOnLocomotionBS = NewWeaponData->LocomotionAnimData->LockOnLocomotionBS;
+	CachedGuardLocomotionBS = NewWeaponData->LocomotionAnimData->GuardLocomotionBS;
+	CachedGuardLocomotionBS_LockOn = NewWeaponData->LocomotionAnimData->GuardLocomotionBS_LockOn;
+	CachedStaggerBlendSpace = NewWeaponData->HitReactionAnimData->StaggerBlendSpace;
 }

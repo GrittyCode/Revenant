@@ -40,14 +40,16 @@ public:
     virtual void ActivateWeaponTrail()   {}
     virtual void DeactivateWeaponTrail() {}
 
-    bool  IsInCombatState(ERVCombatState InState) const;
+
     float GetStaggerDirection() const;
 
     void AddCombatState(ERVCombatState InState);
     void RemoveCombatState(ERVCombatState InState);
     bool HasCombatState(ERVCombatState InState) const;
     bool CanAct(ERVCombatState InCoexistableStates = ERVCombatState::None) const;
-    bool IsGrounded() const;
+	
+	bool IsGrounded() const;
+
     void SetInvincible(bool bInvincible);
     bool IsInvincible() const;
     void ForceEndAllActions();
@@ -94,6 +96,5 @@ protected:
     FRotator AirRotationRate = FRotator(0.f, 0.f, 0.f);
 
 private:
-    // Saved in Falling(), restored in Landed(). Default matches constructor RotationRate.
-    FRotator OriginalRotationRate = FRotator(0.f, 500.f, 0.f);
+    FRotator OriginalRotationRate;
 };
