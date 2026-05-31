@@ -46,6 +46,9 @@ private:
 
     UPROPERTY(EditDefaultsOnly, Category = "RV|LockOn")
     float LockOnSearchHalfAngle = 60.f;
+	
+	UPROPERTY(EditAnywhere, Category = "RV|LockOn")
+	float IndicatorHeightOffset = 20.f;
 
     UPROPERTY(EditDefaultsOnly, Category = "RV|LockOn")
     float AutoBreakRange = 2000.f;
@@ -63,9 +66,6 @@ private:
 
     UPROPERTY(EditDefaultsOnly, Category = "RV|LockOn|Indicator")
     FVector2D IndicatorDrawSize = FVector2D(64.f, 64.f);
-
-    UPROPERTY(EditDefaultsOnly, Category = "RV|LockOn|Indicator")
-    float IndicatorZOffset = 80.f;
 
     // Runtime — created in BeginPlay, lives on the owner actor.
     UPROPERTY()

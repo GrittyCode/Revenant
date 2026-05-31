@@ -174,6 +174,10 @@ void URVLockOnComponent::HideIndicator()
 
 void URVLockOnComponent::UpdateIndicatorTransform() const
 {
-    if (!IsValid(IndicatorWidgetComp) || !LockOnTarget.IsValid()) { return; }
-    IndicatorWidgetComp->SetWorldLocation(LockOnTarget->GetActorLocation());
+	if (!IsValid(IndicatorWidgetComp) || !LockOnTarget.IsValid()) { return; }
+
+	const FVector ChestLocation = LockOnTarget->GetActorLocation()
+		+ FVector(0.f, 0.f, IndicatorHeightOffset);
+
+	IndicatorWidgetComp->SetWorldLocation(ChestLocation);
 }

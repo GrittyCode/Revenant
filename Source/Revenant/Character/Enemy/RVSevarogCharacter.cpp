@@ -442,10 +442,10 @@ void ARVSevarogCharacter::InitSubjugationLocations(UParticleSystem* InCastFX)
     {
         SpawnFXAtLocation(InCastFX, Loc);
 
-#if !UE_BUILD_SHIPPING
-        DrawDebugSphere(GetWorld(), Loc,
-            SevarogData->Subjugation.SwirlDamageRadius, 16, FColor::Yellow, false, 1.5f);
-#endif
+// #if !UE_BUILD_SHIPPING
+//         DrawDebugSphere(GetWorld(), Loc,
+//             SevarogData->Subjugation.SwirlDamageRadius, 16, FColor::Yellow, false, 1.5f);
+// #endif
     }
 }
 
@@ -461,11 +461,11 @@ void ARVSevarogCharacter::SpawnSubjugationBlast(UParticleSystem* InSwirlsFX, USo
     {
         SpawnFXAtLocation(InSwirlsFX, SwirlLocation);
 
-#if !UE_BUILD_SHIPPING
-        DrawDebugSphere(GetWorld(), SwirlLocation,
-            SevarogData->Subjugation.SwirlDamageRadius, 16, FColor::Orange, false,
-            DamageDelay + 1.f);
-#endif
+// #if !UE_BUILD_SHIPPING
+//         DrawDebugSphere(GetWorld(), SwirlLocation,
+//             SevarogData->Subjugation.SwirlDamageRadius, 16, FColor::Orange, false,
+//             DamageDelay + 1.f);
+// #endif
     }
 
     GetWorldTimerManager().SetTimer(
@@ -548,9 +548,9 @@ void ARVSevarogCharacter::ApplySphereDamageAt(const FVector& InLocation, float I
     UKismetSystemLibrary::SphereOverlapActors(
         this, InLocation, InRadius, ObjectTypes, nullptr, IgnoreActors, HitActors);
 
-#if !UE_BUILD_SHIPPING
-    DrawDebugSphere(GetWorld(), InLocation, InRadius, 16, FColor::Cyan, false, 2.f);
-#endif
+// #if !UE_BUILD_SHIPPING
+//     DrawDebugSphere(GetWorld(), InLocation, InRadius, 16, FColor::Cyan, false, 2.f);
+// #endif
 
     for (AActor* HitActor : HitActors)
     {
@@ -603,10 +603,10 @@ void ARVSevarogCharacter::ApplyForwardCapsuleDamageAt(const FVector& InLocation,
         if (AActor* Actor = Overlap.GetActor()) { HitActors.AddUnique(Actor); }
     }
 
-#if !UE_BUILD_SHIPPING
-    DrawDebugCapsule(GetWorld(), InLocation,
-        ClampedHalfHeight, InRadius, ForwardRot, FColor::Cyan, false, 2.f);
-#endif
+// #if !UE_BUILD_SHIPPING
+//     DrawDebugCapsule(GetWorld(), InLocation,
+//         ClampedHalfHeight, InRadius, ForwardRot, FColor::Cyan, false, 2.f);
+// #endif
 
     for (AActor* HitActor : HitActors)
     {

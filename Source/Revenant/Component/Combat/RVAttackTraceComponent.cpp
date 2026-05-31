@@ -101,10 +101,10 @@ void URVAttackTraceComponent::PerformAttackTrace()
         FCollisionShape::MakeCapsule(CachedAttackRadius, HalfHeight),
         Params);
 
-#if !UE_BUILD_SHIPPING
-    DrawDebugCapsule(GetWorld(), Center, HalfHeight, CachedAttackRadius,
-                     Rotation, FColor::Red, false, 1.f);
-#endif
+// #if !UE_BUILD_SHIPPING
+//     DrawDebugCapsule(GetWorld(), Center, HalfHeight, CachedAttackRadius,
+//                      Rotation, FColor::Red, false, 1.f);
+// #endif
 
     for (const FOverlapResult& Overlap : Overlaps)
     {
@@ -123,8 +123,9 @@ void URVAttackTraceComponent::PerformAttackTrace()
             const FVector RawDir = OwnerCharacter->GetActorLocation() - HitActor->GetActorLocation();
             HitInfo.HitDirection = FVector(RawDir.X, RawDir.Y, 0.f).GetSafeNormal();
 
-            Target->ApplyDamage(HitInfo);
-
+            const bool bDamageApplied =  Target->ApplyDamage(HitInfo);
+			if (!bDamageApplied) { continue; }
+        	
             const FVector ImpactLocation = HitActor->GetActorLocation();
 
             if (IsValid(HitImpactEffect))
