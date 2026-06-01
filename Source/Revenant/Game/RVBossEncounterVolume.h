@@ -4,11 +4,11 @@
 #include "Engine/TriggerVolume.h"
 #include "RVBossEncounterVolume.generated.h"
 
+class ARVPlayerController;
 class ARVSevarogCharacter;
 class ALevelSequenceActor;
 class USoundBase;
 class UAudioComponent;
-
 DECLARE_MULTICAST_DELEGATE_OneParam(FRVOnBossSpawned, ARVSevarogCharacter* /*SpawnedBoss*/);
 
 UCLASS()
@@ -52,6 +52,10 @@ private:
 	//--- Runtime state -------------------------------------------------------
 
 	bool bTriggered = false;
+	
+	UPROPERTY()
+	TObjectPtr<ARVPlayerController> CachedPlayerController;
+	
 	TObjectPtr<ARVSevarogCharacter> SpawnedBoss;
 	
 	//--- Internal flow -------------------------------------------------------

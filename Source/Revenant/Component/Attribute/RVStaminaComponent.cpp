@@ -20,18 +20,16 @@ void URVStaminaComponent::InitFromStatRow(const FRVPlayerStatRow& InRow)
 bool URVStaminaComponent::ConsumeStamina(float InAmount)
 {
     if (CurrentStamina < InAmount) { return false; }
-    const float Prev   = CurrentStamina;
-    CurrentStamina     = FMath::Max(0.f, CurrentStamina - InAmount);
-    OnStaminaChanged.Broadcast(CurrentStamina, CurrentStamina - Prev);
+    CurrentStamina = FMath::Max(0.f, CurrentStamina - InAmount);
+    OnStaminaChanged.Broadcast(GetStaminaPercent());
     ResetStaminaRegenDelay();
     return true;
 }
 
 bool URVStaminaComponent::ApplyStaminaDamage(float InAmount)
 {
-    const float Prev = CurrentStamina;
-    CurrentStamina   = FMath::Max(0.f, CurrentStamina - InAmount);
-    OnStaminaChanged.Broadcast(CurrentStamina, CurrentStamina - Prev);
+    CurrentStamina = FMath::Max(0.f, CurrentStamina - InAmount);
+    OnStaminaChanged.Broadcast(GetStaminaPercent());
     ResetStaminaRegenDelay();
 
     if (CurrentStamina <= 0.f) { OnStaminaDepleted.Broadcast(); return false; }
@@ -52,7 +50,6 @@ void URVStaminaComponent::ResetStaminaRegenDelay()
 void URVStaminaComponent::PauseStaminaRegen()
 {
     UWorld* World = GetWorld();
-    if (!IsValid(World)) { return; }
     World->GetTimerManager().ClearTimer(StaminaRegenDelayHandle);
     World->GetTimerManager().ClearTimer(StaminaRegenHandle);
 }
@@ -60,7 +57,6 @@ void URVStaminaComponent::PauseStaminaRegen()
 void URVStaminaComponent::ResumeStaminaRegen()
 {
     UWorld* World = GetWorld();
-    if (!IsValid(World)) { return; }
     World->GetTimerManager().SetTimer(
         StaminaRegenDelayHandle, this,
         &URVStaminaComponent::StartStaminaRegenTick,
@@ -70,7 +66,6 @@ void URVStaminaComponent::ResumeStaminaRegen()
 void URVStaminaComponent::StartStaminaRegenTick()
 {
     UWorld* World = GetWorld();
-    if (!IsValid(World)) { return; }
     World->GetTimerManager().SetTimer(
         StaminaRegenHandle, this,
         &URVStaminaComponent::TickStaminaRegen,
@@ -80,8 +75,7 @@ void URVStaminaComponent::StartStaminaRegenTick()
 void URVStaminaComponent::TickStaminaRegen()
 {
     if (CurrentStamina >= MaxStamina) { PauseStaminaRegen(); return; }
-    const float Prev   = CurrentStamina;
     const float Delta  = FMath::Min(StaminaRegenRate * StaminaRegenInterval, MaxStamina - CurrentStamina);
     CurrentStamina    += Delta;
-    OnStaminaChanged.Broadcast(CurrentStamina, CurrentStamina - Prev);
+    OnStaminaChanged.Broadcast(GetStaminaPercent());
 }

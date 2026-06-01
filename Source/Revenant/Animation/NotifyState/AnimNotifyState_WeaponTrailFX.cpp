@@ -6,8 +6,6 @@ void UAnimNotifyState_WeaponTrailFX::NotifyBegin(USkeletalMeshComponent* MeshCom
 	UAnimSequenceBase* /*Animation*/, float /*TotalDuration*/,
 	const FAnimNotifyEventReference& /*EventReference*/)
 {
-	if (!IsValid(MeshComp)) { return; }
-
 	ARVCharacterBase* Char = Cast<ARVCharacterBase>(MeshComp->GetOwner());
 	if (!Char) { return; }
 
@@ -23,8 +21,6 @@ void UAnimNotifyState_WeaponTrailFX::NotifyEnd(USkeletalMeshComponent* MeshComp,
 	UAnimSequenceBase* /*Animation*/,
 	const FAnimNotifyEventReference& /*EventReference*/)
 {
-	if (!IsValid(MeshComp)) { return; }
-
 	if (ARVCharacterBase* Char = Cast<ARVCharacterBase>(MeshComp->GetOwner()))
 	{
 		Char->DeactivateWeaponTrail();

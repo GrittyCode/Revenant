@@ -9,6 +9,8 @@ void URVSevarogAnimInstance::NativeInitializeAnimation()
 	Super::NativeInitializeAnimation();
 
 	OwnerSevarog = Cast<ARVSevarogCharacter>(GetOwningActor());
+	ensureMsgf(IsValid(OwnerSevarog),
+		TEXT("[URVSevarogAnimInstance] Owner is not ARVSevarogCharacter — check ABP assignment"));
 	if (!IsValid(OwnerSevarog)) { return; }
 
 	const URVSevarogDataAsset* Data = OwnerSevarog->GetSevarogData();

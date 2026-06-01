@@ -8,7 +8,7 @@ class ARVCharacterBase;
 class URVStaminaComponent;
 class URVEquipmentComponent;
 
-UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup=(Revenant))
 class REVENANT_API URVGuardComponent : public UActorComponent
 {
 	GENERATED_BODY()

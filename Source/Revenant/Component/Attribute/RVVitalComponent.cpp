@@ -46,29 +46,27 @@ float URVVitalComponent::GetHealthPercent() const
 
 void URVVitalComponent::ApplyPoiseDamage(float InPoiseDamage)
 {
-    CurrentPoise = FMath::Max(0.f, CurrentPoise - FMath::Max(0.f, InPoiseDamage));
-    OnPoiseChanged.Broadcast(GetPoiseRatio());
+	CurrentPoise = FMath::Max(0.f, CurrentPoise - FMath::Max(0.f, InPoiseDamage));
+	OnPoiseChanged.Broadcast(GetPoiseRatio());
 
-    UWorld* World = GetWorld();
-    if (IsValid(World) && PoiseRegenDelay > 0.f)
-    {
-        World->GetTimerManager().ClearTimer(PoiseRegenDelayHandle);
-        World->GetTimerManager().SetTimer(
-            PoiseRegenDelayHandle, this,
-            &URVVitalComponent::StartPoiseRegen,
-            PoiseRegenDelay, false);
-    }
+	if (PoiseRegenDelay > 0.f)
+	{
+		UWorld* World = GetWorld();
+		World->GetTimerManager().ClearTimer(PoiseRegenDelayHandle);
+		World->GetTimerManager().SetTimer(
+			PoiseRegenDelayHandle, this,
+			&URVVitalComponent::StartPoiseRegen,
+			PoiseRegenDelay, false);
+	}
 
-    if (CurrentPoise <= 0.f) { OnPoiseDepleted.Broadcast(); }
+	if (CurrentPoise <= 0.f) { OnPoiseDepleted.Broadcast(); }
 }
 
 void URVVitalComponent::ResetPoise()
 {
-    UWorld* World = GetWorld();
-    if (IsValid(World)) { World->GetTimerManager().ClearTimer(PoiseRegenDelayHandle); }
-
-    CurrentPoise = MaxPoise;
-    OnPoiseChanged.Broadcast(1.f);
+	GetWorld()->GetTimerManager().ClearTimer(PoiseRegenDelayHandle);
+	CurrentPoise = MaxPoise;
+	OnPoiseChanged.Broadcast(1.f);
 }
 
 void URVVitalComponent::StartPoiseRegen()

@@ -42,7 +42,7 @@ void URVEquipmentComponent::BeginPlay()
     WeaponTrailNC->AttachToComponent(
         WeaponMeshComponent,
         FAttachmentTransformRules::SnapToTargetNotIncludingScale,
-        SocketWeaponMiddle);  // [이디엄-7]
+        SocketWeaponMiddle);
 
     // SlotA is the default starting weapon.
     SetCurrentWeaponData(WeaponDataSlotA);
@@ -77,9 +77,7 @@ void URVEquipmentComponent::SetCurrentWeaponData(URVWeaponDataAsset* InWeaponDat
         *GetNameSafe(GetOwner()), *GetNameSafe(InWeaponData));
 
     CurrentWeaponData = InWeaponData;
-
-    // [IsValid-3] WeaponMeshComponent는 BeginPlay에서 NewObject+UPROPERTY()로 생성.
-    // 오너가 살아있는 한 GC 대상이 아니므로 IsValid 불필요.
+	
     UStaticMesh* NewMesh = nullptr;
     if (IsValid(InWeaponData) && !InWeaponData->WeaponMesh.IsNull())
     {

@@ -4,9 +4,6 @@
 #include "Data/Row/RVCharacterStatRow.h"
 #include "RVBossStatRow.generated.h"
 
-// Boss-specific combat stats that belong in DT_BossStats alongside the base character stats.
-
-// consistent with the data-driven policy applied to all other stats.
 USTRUCT(BlueprintType)
 struct REVENANT_API FRVBossStatRow : public FRVCharacterStatRow
 {
@@ -21,4 +18,8 @@ struct REVENANT_API FRVBossStatRow : public FRVCharacterStatRow
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (ClampMin = "0.0"))
 	float AttackRadius = 55.f;
+
+	// Duration the boss remains in Groggy stun (Start → Loop held for this duration → End).
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (ClampMin = "0.0"))
+	float GroggyDuration = 4.f;
 };

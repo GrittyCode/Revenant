@@ -4,7 +4,7 @@
 void UAnimNotify_PlaySFX::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* /*Animation*/,
 	const FAnimNotifyEventReference& /*EventReference*/)
 {
-	if (!IsValid(MeshComp) || !IsValid(SFX)) { return; }
+	if (!IsValid(SFX)) { return; }
 
 	const FVector Loc = (SocketName != NAME_None)
 		? MeshComp->GetSocketLocation(SocketName)

@@ -1,9 +1,15 @@
 #include "Character/Base/RVCharacterBase.h"
 #include "Component/Attribute/RVVitalComponent.h"
 #include "Component/Combat/RVHitReactionComponent.h"
-#include "Component/Combat/RVAttackTraceComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "Animation/AnimInstance.h"
+#include "Data/Asset/RVMontageStatData.h"
+#include "Data/Row/RVAttackActionMultiplierRow.h"
+#include "Engine/OverlapResult.h"
+
+static const FName SocketWeaponRoot(TEXT("WeaponRoot"));
+static const FName SocketWeaponTip(TEXT("WeaponTip"));
 
 ARVCharacterBase::ARVCharacterBase()
 {
@@ -22,35 +28,30 @@ ARVCharacterBase::ARVCharacterBase()
     VitalComponent       = CreateDefaultSubobject<URVVitalComponent>      (TEXT("VitalComponent"));
     CombatStateComponent = CreateDefaultSubobject<URVCombatStateComponent>(TEXT("CombatStateComponent"));
     HitReactionComponent = CreateDefaultSubobject<URVHitReactionComponent>(TEXT("HitReactionComponent"));
-    AttackTraceComponent = CreateDefaultSubobject<URVAttackTraceComponent>(TEXT("AttackTraceComponent"));
 }
 
 void ARVCharacterBase::BeginPlay()
 {
     Super::BeginPlay();
 
-    // Capture once — never overwritten again (Falling/Landed only swap against this value).
     OriginalRotationRate = GetCharacterMovement()->RotationRate;
 
     GetCapsuleComponent()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
     GetMesh()->SetCollisionResponseToChannel(ECC_Camera, ECR_Ignore);
 
-    AttackTraceComponent->InitTraceMesh(GetWeaponTraceMesh());
+    WeaponTraceMesh = GetWeaponTraceMesh();
+    // DummyTarget legitimately has no attack sockets — only check null here.
+    ensureMsgf(IsValid(WeaponTraceMesh),
+        TEXT("[%s] GetWeaponTraceMesh() returned null"), *GetNameSafe(this));
 
     InitStats();
 
     VitalComponent->OnDeath.AddDynamic(this, &ARVCharacterBase::OnDeath);
 
-    CombatStateComponent->OnForceEnd.AddUObject(
-        AttackTraceComponent, &URVAttackTraceComponent::CloseHitWindow);
+    CombatStateComponent->OnForceEnd.AddUObject(this, &ARVCharacterBase::CloseAttackHitWindow);
 }
 
-//--- IRVHitCheckTarget / IRVDamageable ---------------------------------------
-
-void ARVCharacterBase::ActivateHitCheck()
-{
-    AttackTraceComponent->PerformAttackTrace();
-}
+//--- IRVDamageable -----------------------------------------------------------
 
 bool ARVCharacterBase::ApplyDamage(const FRVHitInfo& InHitInfo)
 {
@@ -70,10 +71,81 @@ FRVOnDeath&         ARVCharacterBase::GetOnDeath()         { return VitalCompone
 FRVOnPoiseDepleted& ARVCharacterBase::GetOnPoiseDepleted() { return VitalComponent->OnPoiseDepleted; }
 FRVOnPoiseChanged&  ARVCharacterBase::GetOnPoiseChanged()  { return VitalComponent->OnPoiseChanged; }
 
-//--- AnimNotify entry points -------------------------------------------------
+//--- Hit window --------------------------------------------------------------
 
-void ARVCharacterBase::OpenAttackHitWindow()  { AttackTraceComponent->OpenHitWindow(); }
-void ARVCharacterBase::CloseAttackHitWindow() { AttackTraceComponent->CloseHitWindow(); }
+void ARVCharacterBase::OpenAttackHitWindow()  { HitActors.Empty(); }
+void ARVCharacterBase::CloseAttackHitWindow() { HitActors.Empty(); }
+
+void ARVCharacterBase::ActivateHitCheck()
+{
+    PerformHit();
+}
+
+void ARVCharacterBase::PerformHit()
+{
+    if (!IsValid(WeaponTraceMesh))                           { return; }
+    if (!WeaponTraceMesh->DoesSocketExist(SocketWeaponRoot)) { return; }
+    if (!WeaponTraceMesh->DoesSocketExist(SocketWeaponTip))  { return; }
+
+    UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
+    if (!IsValid(AnimInst)) { return; }
+
+    UAnimMontage* CurrentMontage = AnimInst->GetCurrentActiveMontage();
+    const URVMontageStatData* StatData = CurrentMontage
+        ? CurrentMontage->GetAssetUserData<URVMontageStatData>()
+        : nullptr;
+    const FRVAttackActionMultiplierRow* AttackStat = StatData ? StatData->GetStatRow() : nullptr;
+
+    const float DmgMult   = AttackStat ? AttackStat->DamageMultiplier      : 1.f;
+    const float PoiseMult = AttackStat ? AttackStat->PoiseDamageMultiplier : 1.f;
+    const float Damage      = CachedBaseDamage      * DmgMult;
+    const float PoiseDamage = CachedBasePoiseDamage * PoiseMult;
+
+    const FVector Root = WeaponTraceMesh->GetSocketLocation(SocketWeaponRoot);
+    const FVector Tip  = WeaponTraceMesh->GetSocketLocation(SocketWeaponTip);
+
+    const float HalfHeight = FVector::Dist(Root, Tip) * 0.5f;
+    if (HalfHeight < KINDA_SMALL_NUMBER) { return; }
+
+    const FVector Center   = (Root + Tip) * 0.5f;
+    const FQuat   Rotation = FRotationMatrix::MakeFromZ(Tip - Root).ToQuat();
+
+    FCollisionObjectQueryParams ObjectQueryParams;
+    ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
+
+    FCollisionQueryParams QueryParams;
+    QueryParams.AddIgnoredActor(this);
+
+    TArray<FOverlapResult> Overlaps;
+    GetWorld()->OverlapMultiByObjectType(
+        Overlaps, Center, Rotation, ObjectQueryParams,
+        FCollisionShape::MakeCapsule(CachedAttackRadius, HalfHeight),
+        QueryParams);
+
+    for (const FOverlapResult& Overlap : Overlaps)
+    {
+        AActor* HitActor = Overlap.GetActor();
+        if (!IsValid(HitActor))           { continue; }
+        if (HitActors.Contains(HitActor)) { continue; }
+
+        HitActors.Add(HitActor);
+
+        IRVDamageable* Target = Cast<IRVDamageable>(HitActor);
+        if (!Target) { continue; }
+
+        FRVHitInfo HitInfo;
+        HitInfo.Damage      = Damage;
+        HitInfo.PoiseDamage = PoiseDamage;
+        HitInfo.Instigator  = this;
+        const FVector RawDir = GetActorLocation() - HitActor->GetActorLocation();
+        HitInfo.HitDirection = FVector(RawDir.X, RawDir.Y, 0.f).GetSafeNormal();
+
+        const bool bDamageApplied = Target->ApplyDamage(HitInfo);
+        if (!bDamageApplied) { continue; }
+
+        OnHitConfirmed.Broadcast(HitActor->GetActorLocation());
+    }
+}
 
 //--- AnimInstance state queries ----------------------------------------------
 
@@ -83,26 +155,22 @@ float ARVCharacterBase::GetStaggerDirection() const { return HitReactionComponen
 
 bool ARVCharacterBase::CanAct(ERVCombatState InCoexistableStates) const
 {
-	return CombatStateComponent->CheckAvailableState(InCoexistableStates);
+    return CombatStateComponent->CheckAvailableState(InCoexistableStates);
 }
 
-void ARVCharacterBase::AddCombatState(ERVCombatState InState)       { CombatStateComponent->AddState(InState); }
-void ARVCharacterBase::RemoveCombatState(ERVCombatState InState)    { CombatStateComponent->RemoveState(InState); }
-bool ARVCharacterBase::HasCombatState(ERVCombatState InState) const { return CombatStateComponent->HasState(InState); }
-
+void ARVCharacterBase::AddCombatState   (ERVCombatState InState)       { CombatStateComponent->AddState(InState); }
+void ARVCharacterBase::RemoveCombatState(ERVCombatState InState)        { CombatStateComponent->RemoveState(InState); }
+bool ARVCharacterBase::HasCombatState   (ERVCombatState InState) const  { return CombatStateComponent->HasState(InState); }
 
 void ARVCharacterBase::SetInvincible(bool b) { CombatStateComponent->SetInvincible(b); }
-
 bool ARVCharacterBase::IsInvincible()  const { return CombatStateComponent->IsInvincible(); }
-
 void ARVCharacterBase::ForceEndAllActions()  { CombatStateComponent->ForceEndAllActions(); }
 
 bool ARVCharacterBase::IsGrounded() const
 {
-	const UCharacterMovementComponent* MoveComp = GetCharacterMovement();
-	return IsValid(MoveComp) && !MoveComp->IsFalling();
+    const UCharacterMovementComponent* MoveComp = GetCharacterMovement();
+    return IsValid(MoveComp) && !MoveComp->IsFalling();
 }
-
 
 //--- Poise operations --------------------------------------------------------
 
@@ -111,16 +179,13 @@ float ARVCharacterBase::GetPoiseRatio()  const        { return VitalComponent->G
 void  ARVCharacterBase::ApplyPoiseDamage(float InAmt) { VitalComponent->ApplyPoiseDamage(InAmt); }
 void  ARVCharacterBase::ResetPoise()                  { VitalComponent->ResetPoise(); }
 
-//--- Attack trace operations -------------------------------------------------
+//--- Attack stat injection ---------------------------------------------------
 
 void ARVCharacterBase::SetCombatStat(float InDamage, float InPoise, float InRadius)
 {
-    AttackTraceComponent->SetCombatStat(InDamage, InPoise, InRadius);
-}
-
-void ARVCharacterBase::SetHitFX(UNiagaraSystem* InNiagara, UParticleSystem* InCascade, USoundBase* InSFX)
-{
-    AttackTraceComponent->SetHitFX(InNiagara, InCascade, InSFX);
+    CachedBaseDamage      = InDamage;
+    CachedBasePoiseDamage = InPoise;
+    CachedAttackRadius    = InRadius;
 }
 
 //--- Hit reaction operations -------------------------------------------------
@@ -147,7 +212,6 @@ FVector ARVCharacterBase::GetGroundOrigin() const
 void ARVCharacterBase::Falling()
 {
     Super::Falling();
-    // OriginalRotationRate is fixed at BeginPlay; only swap against it here.
     GetCharacterMovement()->RotationRate = AirRotationRate;
 }
 

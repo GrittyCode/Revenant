@@ -12,7 +12,7 @@ class UNiagaraSystem;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRVOnWeaponChanged, URVWeaponDataAsset*, NewWeaponData);
 
-UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup=(Revenant))
 class REVENANT_API URVEquipmentComponent : public UActorComponent
 {
 	GENERATED_BODY()

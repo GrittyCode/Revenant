@@ -2,7 +2,6 @@
 #include "Character/Base/RVCharacterBase.h"
 #include "Interface/RVDamageable.h"
 #include "Components/WidgetComponent.h"
-#include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
@@ -17,15 +16,11 @@ void URVLockOnComponent::BeginPlay()
 {
     Super::BeginPlay();
 
-    OwnerBase      = Cast<ARVCharacterBase>(GetOwner());
-    OwnerCharacter = Cast<ACharacter>(GetOwner());
-
+    OwnerBase = Cast<ARVCharacterBase>(GetOwner());
     ensureMsgf(IsValid(OwnerBase),
         TEXT("[URVLockOnComponent] Owner must be ARVCharacterBase"));
-    ensureMsgf(IsValid(OwnerCharacter),
-        TEXT("[URVLockOnComponent] Owner must be ACharacter"));
 
-    PlayerController = Cast<APlayerController>(OwnerCharacter->GetController());
+    PlayerController = Cast<APlayerController>(OwnerBase->GetController());
     ensureMsgf(IsValid(PlayerController),
         TEXT("[%s] URVLockOnComponent: PlayerController missing — ensure possession before BeginPlay"),
         *GetNameSafe(OwnerBase));
@@ -53,7 +48,7 @@ void URVLockOnComponent::ToggleLockOn()
 
     ShowIndicator();
 
-    OwnerCharacter->GetCharacterMovement()->bOrientRotationToMovement = false;
+    OwnerBase->GetCharacterMovement()->bOrientRotationToMovement = false;
     SetComponentTickEnabled(true);
 }
 
@@ -64,7 +59,7 @@ void URVLockOnComponent::BreakLockOn()
 
     HideIndicator();
 
-    OwnerCharacter->GetCharacterMovement()->bOrientRotationToMovement = true;
+    OwnerBase->GetCharacterMovement()->bOrientRotationToMovement = true;
     SetComponentTickEnabled(false);
 }
 
@@ -82,7 +77,7 @@ void URVLockOnComponent::TickComponent(float DeltaTime, ELevelTick TickType,
     if (!LockOnTarget.IsValid()) { BreakLockOn(); return; }
 
     const float DistSq = FVector::DistSquared(
-        OwnerCharacter->GetActorLocation(), LockOnTarget->GetActorLocation());
+        OwnerBase->GetActorLocation(), LockOnTarget->GetActorLocation());
     if (DistSq > FMath::Square(AutoBreakRange)) { BreakLockOn(); return; }
 
     UpdateCamera(DeltaTime);
@@ -108,8 +103,8 @@ AActor* URVLockOnComponent::TryFindTarget() const
 
     for (AActor* Candidate : Candidates)
     {
-        if (!IsValid(Candidate))         { continue; }
-        if (Candidate == OwnerCharacter) { continue; }
+        if (!IsValid(Candidate))    { continue; }
+        if (Candidate == OwnerBase) { continue; }
 
         const FVector ToCandidate = Candidate->GetActorLocation() - CameraLocation;
         const float   DistSq      = ToCandidate.SizeSquared();
@@ -147,12 +142,12 @@ void URVLockOnComponent::UpdateCharacterRotation(float DeltaTime) const
         return;
     }
 
-    FVector ToTarget = LockOnTarget->GetActorLocation() - OwnerCharacter->GetActorLocation();
+    FVector ToTarget = LockOnTarget->GetActorLocation() - OwnerBase->GetActorLocation();
     ToTarget.Z = 0.f;
     if (ToTarget.IsNearlyZero()) { return; }
 
-    OwnerCharacter->SetActorRotation(FMath::RInterpTo(
-        OwnerCharacter->GetActorRotation(),
+    OwnerBase->SetActorRotation(FMath::RInterpTo(
+        OwnerBase->GetActorRotation(),
         ToTarget.ToOrientationRotator(),
         DeltaTime, CharacterRotationInterpSpeed));
 }
@@ -174,10 +169,10 @@ void URVLockOnComponent::HideIndicator()
 
 void URVLockOnComponent::UpdateIndicatorTransform() const
 {
-	if (!IsValid(IndicatorWidgetComp) || !LockOnTarget.IsValid()) { return; }
+    if (!IsValid(IndicatorWidgetComp) || !LockOnTarget.IsValid()) { return; }
 
-	const FVector ChestLocation = LockOnTarget->GetActorLocation()
-		+ FVector(0.f, 0.f, IndicatorHeightOffset);
+    const FVector ChestLocation = LockOnTarget->GetActorLocation()
+        + FVector(0.f, 0.f, IndicatorHeightOffset);
 
-	IndicatorWidgetComp->SetWorldLocation(ChestLocation);
+    IndicatorWidgetComp->SetWorldLocation(ChestLocation);
 }

@@ -13,7 +13,6 @@
 #include "GameFramework/PlayerController.h"
 #include "Interface/RVDamageable.h"
 #include "Kismet/GameplayStatics.h"
-#include "Kismet/KismetSystemLibrary.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Particles/ParticleSystem.h"
 #include "NiagaraComponent.h"
@@ -28,7 +27,7 @@ ARVSevarogCharacter::ARVSevarogCharacter()
 void ARVSevarogCharacter::InitStats()
 {
     if (!ensureMsgf(IsValid(SevarogData),
-        TEXT("[%s] SevarogData must be URVSevarogDataAsset"), *GetNameSafe(this))) { return; }
+        TEXT("[%s] SevarogData must be assigned"), *GetNameSafe(this))) { return; }
 
     ensureMsgf(IsValid(SevarogData->HitReactionAnimData),
         TEXT("[%s] SevarogData.HitReactionAnimData not assigned"), *GetNameSafe(this));
@@ -49,9 +48,7 @@ void ARVSevarogCharacter::InitStats()
     CachedGroggyDuration = StatRow->GroggyDuration;
     GetCharacterMovement()->MaxWalkSpeed = NormalWalkSpeed;
 
-    // Combat attack stats are now stored in DT_BossStats (FRVBossStatRow).
     SetCombatStat(StatRow->BaseDamage, StatRow->BasePoiseDamage, StatRow->AttackRadius);
-    SetHitFX(nullptr, SevarogData->MeleeHitImpact, SevarogData->MeleeHitSFX);
 }
 
 void ARVSevarogCharacter::BeginPlay()
@@ -65,7 +62,10 @@ void ARVSevarogCharacter::BeginPlay()
     VitalComponent->OnHealthChanged.AddDynamic(this, &ARVSevarogCharacter::CheckPhaseTransition);
     VitalComponent->OnPoiseDepleted.AddDynamic(this, &ARVSevarogCharacter::OnPoiseDepleted);
 
-    if (IsValid(SevarogData) && IsValid(SevarogData->MeleeTrailEffect))
+    OnHitConfirmed.AddUObject(this, &ARVSevarogCharacter::OnHitConfirmedHandler);
+
+    // SevarogData guaranteed valid after Super::BeginPlay() → InitStats.
+    if (IsValid(SevarogData->MeleeTrailEffect))
     {
         MeleeTrailNC = UNiagaraFunctionLibrary::SpawnSystemAttached(
             SevarogData->MeleeTrailEffect,
@@ -151,10 +151,8 @@ void ARVSevarogCharacter::OnDeathMontageBlendingOut(UAnimMontage*, bool)
 
 void ARVSevarogCharacter::StartDissolve()
 {
-    UWorld* World = GetWorld();
-    if (!IsValid(World)) { return; }
-
-    DissolveDuration  = IsValid(SevarogData) ? SevarogData->DissolveDuration : 2.f;
+    UWorld* World    = GetWorld();
+    DissolveDuration = SevarogData->DissolveDuration;
     DissolveStartTime = World->GetTimeSeconds();
 
     USkeletalMeshComponent* SkelMesh = GetMesh();
@@ -173,8 +171,6 @@ void ARVSevarogCharacter::StartDissolve()
 void ARVSevarogCharacter::TickDissolve()
 {
     UWorld* World = GetWorld();
-    if (!IsValid(World)) { return; }
-
     const float Alpha = FMath::Clamp(
         (World->GetTimeSeconds() - DissolveStartTime) / DissolveDuration, 0.f, 1.f);
 
@@ -227,8 +223,8 @@ bool ARVSevarogCharacter::ExecutePhaseAttack()
 
 bool ARVSevarogCharacter::ExecuteRushAttack()
 {
-    if (IsGroggy() || IsAttacking())                                              { return false; }
-    if (!IsValid(SevarogData) || !IsValid(SevarogData->RushAttackMontage))       { return false; }
+    if (IsGroggy() || IsAttacking())              { return false; }
+    if (!IsValid(SevarogData->RushAttackMontage)) { return false; }
 
     StartComboChain({ SevarogData->RushAttackMontage });
     return true;
@@ -388,7 +384,6 @@ void ARVSevarogCharacter::OnGroggySequenceCompleted()
 
 void ARVSevarogCharacter::StartRush()
 {
-    if (!IsValid(SevarogData)) { return; }
     bIsRushing = true;
     GetCharacterMovement()->MaxWalkSpeed = SevarogData->RushSpeed;
 }
@@ -403,12 +398,9 @@ void ARVSevarogCharacter::EndRush()
 
 void ARVSevarogCharacter::ExecuteSoulSiphonHit()
 {
-    if (!IsValid(SevarogData)) { return; }
-
     const FVector HitCenter = GetForwardLocation(SevarogData->SoulSiphon.HitForwardOffset);
 
-    const APawn*  Player      = ResolvePlayerPawn();
-    // Pull direction: from player toward Sevarog (consistent with toward-attacker convention).
+    const APawn* Player       = ResolvePlayerPawn();
     const FVector OverrideDir = IsValid(Player)
         ? (GetActorLocation() - Player->GetActorLocation()).GetSafeNormal2D()
         : -GetActorForwardVector();
@@ -426,8 +418,6 @@ void ARVSevarogCharacter::ExecuteSoulSiphonHit()
 
 void ARVSevarogCharacter::InitSubjugationLocations(UParticleSystem* InCastFX)
 {
-    if (!IsValid(SevarogData)) { return; }
-
     const FVector Origin      = GetGroundOrigin();
     const float MinSeparation = SevarogData->Subjugation.SwirlDamageRadius * 2.f;
 
@@ -442,7 +432,7 @@ void ARVSevarogCharacter::InitSubjugationLocations(UParticleSystem* InCastFX)
 
 void ARVSevarogCharacter::SpawnSubjugationBlast(UParticleSystem* InSwirlsFX, USoundBase* InSwirlsSFX)
 {
-    if (!IsValid(SevarogData) || PendingSubjugationLocations.IsEmpty()) { return; }
+    if (PendingSubjugationLocations.IsEmpty()) { return; }
 
     PendingSwirlsSFX = InSwirlsSFX;
 
@@ -463,8 +453,6 @@ void ARVSevarogCharacter::SpawnSubjugationBlast(UParticleSystem* InSwirlsFX, USo
 
 void ARVSevarogCharacter::ApplySubjugationDamage()
 {
-    if (!IsValid(SevarogData)) { return; }
-
     for (const FVector& SwirlLocation : PendingSubjugationLocations)
     {
         if (IsValid(PendingSwirlsSFX))
@@ -519,21 +507,20 @@ TArray<FVector> ARVSevarogCharacter::GenerateSwirlLocations(const FVector& InOri
     return Result;
 }
 
-//--- Radial damage -----------------------------------------------------------
+//--- Damage helpers ----------------------------------------------------------
 
-void ARVSevarogCharacter::ApplySphereDamageAt(const FVector& InLocation, float InRadius,
-    float InDamage, float InPoiseDamage, UParticleSystem* InHitFX,
+void ARVSevarogCharacter::ApplyDamageToOverlapResults(const TArray<FOverlapResult>& InOverlaps,
+    float InDamage, float InPoiseDamage,
+    UParticleSystem* InHitFX,
     const FVector& InOverrideDirection)
 {
-    const TArray<TEnumAsByte<EObjectTypeQuery>> ObjectTypes
-        { UEngineTypes::ConvertToObjectType(ECC_Pawn) };
-    const TArray<AActor*> IgnoreActors{ this };
+    TArray<AActor*> DamageTargets;
+    for (const FOverlapResult& Overlap : InOverlaps)
+    {
+        if (AActor* Actor = Overlap.GetActor()) { DamageTargets.AddUnique(Actor); }
+    }
 
-    TArray<AActor*> HitActors;
-    UKismetSystemLibrary::SphereOverlapActors(
-        this, InLocation, InRadius, ObjectTypes, nullptr, IgnoreActors, HitActors);
-
-    for (AActor* HitActor : HitActors)
+    for (AActor* HitActor : DamageTargets)
     {
         if (!IsValid(HitActor)) { continue; }
         if (IRVDamageable* Target = Cast<IRVDamageable>(HitActor))
@@ -541,9 +528,8 @@ void ARVSevarogCharacter::ApplySphereDamageAt(const FVector& InLocation, float I
             FRVHitInfo HitInfo;
             HitInfo.Damage      = InDamage;
             HitInfo.PoiseDamage = InPoiseDamage;
-            // Direction toward attacker (explosion center) — consistent with PerformAttackTrace convention.
             const FVector RawDir = InOverrideDirection.IsNearlyZero()
-                ? (InLocation - HitActor->GetActorLocation())
+                ? (GetActorLocation() - HitActor->GetActorLocation())
                 : InOverrideDirection;
             HitInfo.HitDirection = FVector(RawDir.X, RawDir.Y, 0.f).GetSafeNormal();
             HitInfo.Instigator   = this;
@@ -557,18 +543,38 @@ void ARVSevarogCharacter::ApplySphereDamageAt(const FVector& InLocation, float I
     }
 }
 
+void ARVSevarogCharacter::ApplySphereDamageAt(const FVector& InLocation, float InRadius,
+    float InDamage, float InPoiseDamage, UParticleSystem* InHitFX,
+    const FVector& InOverrideDirection)
+{
+    FCollisionObjectQueryParams ObjectQueryParams;
+    ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
+
+    FCollisionQueryParams QueryParams;
+    QueryParams.AddIgnoredActor(this);
+
+    TArray<FOverlapResult> Overlaps;
+    GetWorld()->OverlapMultiByObjectType(
+        Overlaps, InLocation, FQuat::Identity, ObjectQueryParams,
+        FCollisionShape::MakeSphere(InRadius),
+        QueryParams);
+
+    ApplyDamageToOverlapResults(Overlaps, InDamage, InPoiseDamage, InHitFX, InOverrideDirection);
+}
+
 void ARVSevarogCharacter::ApplyForwardCapsuleDamageAt(const FVector& InLocation,
     float InRadius, float InHalfHeight,
     float InDamage, float InPoiseDamage, UParticleSystem* InHitFX,
     const FVector& InOverrideDirection)
 {
-    const float   ClampedHalfHeight = FMath::Max(InHalfHeight, InRadius);
-    const FQuat   ForwardRot        = FQuat::FindBetweenNormals(FVector::UpVector, GetActorForwardVector());
+    const float ClampedHalfHeight = FMath::Max(InHalfHeight, InRadius);
+    const FQuat ForwardRot        = FQuat::FindBetweenNormals(FVector::UpVector, GetActorForwardVector());
 
-    FCollisionQueryParams      QueryParams;
     FCollisionObjectQueryParams ObjectQueryParams;
-    QueryParams.AddIgnoredActor(this);
     ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn);
+
+    FCollisionQueryParams QueryParams;
+    QueryParams.AddIgnoredActor(this);
 
     TArray<FOverlapResult> Overlaps;
     GetWorld()->OverlapMultiByObjectType(
@@ -577,33 +583,18 @@ void ARVSevarogCharacter::ApplyForwardCapsuleDamageAt(const FVector& InLocation,
         FCollisionShape::MakeCapsule(InRadius, ClampedHalfHeight),
         QueryParams);
 
-    TArray<AActor*> HitActors;
-    for (const FOverlapResult& Overlap : Overlaps)
-    {
-        if (AActor* Actor = Overlap.GetActor()) { HitActors.AddUnique(Actor); }
-    }
+    ApplyDamageToOverlapResults(Overlaps, InDamage, InPoiseDamage, InHitFX, InOverrideDirection);
+}
 
-    for (AActor* HitActor : HitActors)
-    {
-        if (!IsValid(HitActor)) { continue; }
-        if (IRVDamageable* Target = Cast<IRVDamageable>(HitActor))
-        {
-            FRVHitInfo HitInfo;
-            HitInfo.Damage      = InDamage;
-            HitInfo.PoiseDamage = InPoiseDamage;
-            // Direction toward attacker — consistent with PerformAttackTrace convention.
-            const FVector RawDir = InOverrideDirection.IsNearlyZero()
-                ? (InLocation - HitActor->GetActorLocation())
-                : InOverrideDirection;
-            HitInfo.HitDirection = FVector(RawDir.X, RawDir.Y, 0.f).GetSafeNormal();
-            HitInfo.Instigator   = this;
+//--- Hit FX ------------------------------------------------------------------
 
-            const bool bDamaged = Target->ApplyDamage(HitInfo);
-            if (bDamaged && IsValid(InHitFX))
-            {
-                SpawnFXAtLocation(InHitFX, HitActor->GetActorLocation());
-            }
-        }
+void ARVSevarogCharacter::OnHitConfirmedHandler(FVector ImpactLocation)
+{
+    SpawnFXAtLocation(SevarogData->MeleeHitImpact, ImpactLocation);
+
+    if (IsValid(SevarogData->MeleeHitSFX))
+    {
+        UGameplayStatics::PlaySoundAtLocation(this, SevarogData->MeleeHitSFX, ImpactLocation);
     }
 }
 
@@ -640,7 +631,6 @@ void ARVSevarogCharacter::SetBossPhase(ERVBossPhase InNewPhase)
 void ARVSevarogCharacter::CheckPhaseTransition(float InNewHealthRatio)
 {
     if (CurrentPhase != ERVBossPhase::Phase1) { return; }
-    if (!IsValid(SevarogData)) { return; }
 
     if (InNewHealthRatio <= SevarogData->Phase2Threshold)
     {
@@ -665,14 +655,15 @@ APawn* ARVSevarogCharacter::ResolvePlayerPawn() const
 
 void ARVSevarogCharacter::RotateToFacePlayer(const APawn* InPlayer)
 {
-    if (!IsValid(InPlayer) || !IsValid(SevarogData)) { return; }
+    if (!IsValid(InPlayer)) { return; }
 
     const FVector ToPlayer = (InPlayer->GetActorLocation() - GetActorLocation()).GetSafeNormal2D();
     if (ToPlayer.IsNearlyZero()) { return; }
 
     const FRotator CurrentRotation = GetActorRotation();
     const float DeltaYaw   = FMath::FindDeltaAngleDegrees(CurrentRotation.Yaw, ToPlayer.Rotation().Yaw);
-    const float ClampedYaw = FMath::Clamp(DeltaYaw, -SevarogData->MaxComboTurnDegrees, SevarogData->MaxComboTurnDegrees);
+    const float ClampedYaw = FMath::Clamp(DeltaYaw,
+        -SevarogData->MaxComboTurnDegrees, SevarogData->MaxComboTurnDegrees);
 
     SetActorRotation(FRotator(0.f, CurrentRotation.Yaw + ClampedYaw, 0.f));
 }

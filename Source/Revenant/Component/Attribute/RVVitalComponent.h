@@ -11,9 +11,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRVOnPoiseChanged,  float, NewPoiseR
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnDeath);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnPoiseDepleted);
 
-// Owns Health and Poise for any character (player and boss).
-// Stamina is player-only — lives in URVStaminaComponent on ARVCharacterPlayer.
-UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
+// Stamina is player-only
+UCLASS(ClassGroup=(Revenant))
 class REVENANT_API URVVitalComponent : public UActorComponent
 {
     GENERATED_BODY()

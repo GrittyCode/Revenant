@@ -48,18 +48,13 @@ void URVGuardComponent::HandleGuardHit(float InDamageAmount)
     if (!bGuardHeld) { return; }
 
     const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
-    if (!ensureMsgf(IsValid(WeaponData),
-        TEXT("[%s] HandleGuardHit: WeaponData not assigned"), *GetNameSafe(OwnerBase))) { return; }
-    if (!ensureMsgf(IsValid(WeaponData->CombatAnimData),
-        TEXT("[%s] HandleGuardHit: CombatAnimData not assigned"), *GetNameSafe(OwnerBase))) { return; }
+    if (!IsValid(WeaponData) || !IsValid(WeaponData->CombatAnimData)) { return; }
 
     UAnimMontage* GuardHitMontage = WeaponData->CombatAnimData->GuardHitMontage;
-    if (!ensureMsgf(IsValid(GuardHitMontage),
-        TEXT("[%s] HandleGuardHit: GuardHitMontage not assigned"), *GetNameSafe(OwnerBase))) { return; }
+    if (!IsValid(GuardHitMontage)) { return; }
 
     UAnimInstance* AnimInst = OwnerBase->GetMesh()->GetAnimInstance();
-    if (!ensureMsgf(IsValid(AnimInst),
-        TEXT("[%s] HandleGuardHit: AnimInstance missing"), *GetNameSafe(OwnerBase))) { return; }
+    if (!IsValid(AnimInst)) { return; }
 
     AnimInst->Montage_Play(GuardHitMontage);
 }

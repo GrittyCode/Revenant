@@ -39,8 +39,8 @@ public:
     bool  IsLockedOn()     const;
 
     //--- Stamina queries (external: PlayerController, HUD) -------------------
-	
-	float GetStaminaRatio() const;
+
+    float GetStaminaRatio() const;
 
     FRVOnStaminaChanged& GetOnStaminaChanged();
     URVStaminaComponent* GetStaminaComponent() const { return StaminaComponent; }
@@ -49,7 +49,7 @@ public:
 
     void OpenComboWindow();
     void CloseComboWindow();
-    void TryChainNextCombo();
+    void TryChainCombo();
     void SetHeavyAttackReady(bool bReady);
 
     //--- Equipment -----------------------------------------------------------
@@ -84,9 +84,9 @@ protected:
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
     TObjectPtr<URVEquipmentComponent> EquipmentComponent;
-	
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
-	TObjectPtr<URVLockOnComponent> LockOnComponent;
+
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    TObjectPtr<URVLockOnComponent> LockOnComponent;
 
 private:
     //--- Input ---------------------------------------------------------------
@@ -104,6 +104,10 @@ private:
     void InputGuardCompleted(const FInputActionValue& Value);
     void InputLockOn(const FInputActionValue& Value);
     void InputWeaponSwap(const FInputActionValue& Value);
+
+    //--- Hit FX (subscriber of ARVCharacterBase::OnHitConfirmed) -------------
+
+    void OnHitConfirmedHandler(FVector ImpactLocation);
 
     //--- Attack direction ----------------------------------------------------
 

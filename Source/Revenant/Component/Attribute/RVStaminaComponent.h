@@ -6,12 +6,10 @@
 
 struct FRVPlayerStatRow;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FRVOnStaminaChanged, float, NewStamina, float, InDelta);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRVOnStaminaChanged, float, NewStaminaRatio);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnStaminaDepleted);
 
-// Player-only stamina — owned exclusively by ARVCharacterPlayer.
-// Boss characters do not have this component.
-UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup=(Revenant))
 class REVENANT_API URVStaminaComponent : public UActorComponent
 {
     GENERATED_BODY()
@@ -38,13 +36,12 @@ public:
 
     // Guard hit path: consumes stamina, returns true if guard holds.
     bool ApplyStaminaDamage(float InAmount);
-	
-	float GetStaminaPercent() const;
-	float GetCurrentStamina() const { return CurrentStamina; }
+
+    float GetStaminaPercent() const;
+    float GetCurrentStamina() const { return CurrentStamina; }
 
     //--- Regen control -------------------------------------------------------
 
-    // Call after any stamina-consuming action to restart the regen delay.
     void ResetStaminaRegenDelay();
     void PauseStaminaRegen();
     void ResumeStaminaRegen();

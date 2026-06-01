@@ -23,7 +23,7 @@ DECLARE_MULTICAST_DELEGATE(FRVOnForceEnd);
 
 // Pure state authority — owns the combat state bitmask and broadcasts changes.
 // Attack trace logic lives in URVAttackTraceComponent.
-UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup=(Revenant))
 class REVENANT_API URVCombatStateComponent : public UActorComponent
 {
     GENERATED_BODY()

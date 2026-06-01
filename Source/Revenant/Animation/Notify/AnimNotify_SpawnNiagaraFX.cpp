@@ -6,8 +6,6 @@
 void UAnimNotify_SpawnNiagaraFX::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* /*Animation*/,
 	const FAnimNotifyEventReference& /*EventReference*/)
 {
-	if (!IsValid(MeshComp)) { return; }
-
 	for (const FRVNiagaraFXEntry& Entry : FXList)
 	{
 		if (IsValid(Entry.NiagaraFX))

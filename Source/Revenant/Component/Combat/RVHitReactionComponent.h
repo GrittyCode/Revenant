@@ -22,7 +22,7 @@ ENUM_CLASS_FLAGS(ERVHitReactCapability)
 
 DECLARE_MULTICAST_DELEGATE(FRVOnGroggySequenceCompleted);
 
-UCLASS(ClassGroup=(Revenant), meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup=(Revenant))
 class REVENANT_API URVHitReactionComponent : public UActorComponent
 {
     GENERATED_BODY()

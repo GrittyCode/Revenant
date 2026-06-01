@@ -5,8 +5,6 @@
 void UAnimNotify_SpawnCascadeFX::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* /*Animation*/,
 	const FAnimNotifyEventReference& /*EventReference*/)
 {
-	if (!IsValid(MeshComp)) { return; }
-
 	for (const FRVCascadeFXEntry& Entry : FXList)
 	{
 		if (IsValid(Entry.FX))

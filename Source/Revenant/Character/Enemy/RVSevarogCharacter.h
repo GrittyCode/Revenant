@@ -16,7 +16,6 @@ enum class ERVBossPhase : uint8
     Phase2 UMETA(DisplayName = "Phase 2"),
 };
 
-// Blueprint-assignable — exposed for external systems (UI, GameMode).
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRVOnBossPhaseChanged, ERVBossPhase, NewPhase);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnBossDefeated);
 
@@ -59,7 +58,6 @@ public:
     UFUNCTION(BlueprintCallable, Category = "RV|Boss")
     ERVBossPhase GetCurrentPhase() const { return CurrentPhase; }
 
-    // Groggy state is authoritative in CombatStateComponent (ERVCombatState::Groggy).
     UFUNCTION(BlueprintCallable, Category = "RV|Boss")
     bool IsGroggy() const { return HasCombatState(ERVCombatState::Groggy); }
 
@@ -127,7 +125,17 @@ private:
 
     static int32 SelectWeightedPattern(const TArray<struct FRVBossAttackPattern>& InPatterns);
 
+    //--- Hit FX --------------------------------------------------------------
+
+    void OnHitConfirmedHandler(FVector ImpactLocation);
+
     //--- Damage helpers ------------------------------------------------------
+
+    // Shared post-processing for both sphere and capsule overlap results.
+    void ApplyDamageToOverlapResults(const TArray<FOverlapResult>& InOverlaps,
+        float InDamage, float InPoiseDamage,
+        UParticleSystem* InHitFX,
+        const FVector& InOverrideDirection);
 
     void ApplySphereDamageAt(const FVector& InLocation, float InRadius,
         float InDamage, float InPoiseDamage,
@@ -178,10 +186,10 @@ private:
     TArray<TObjectPtr<UMaterialInstanceDynamic>> DissolveMIDs;
 
     FTimerHandle DissolveTimerHandle;
-    float        DissolveStartTime        = 0.f;
-    float        DissolveDuration         = 2.f;
-    bool         bDissolveCompleted       = false;
-    bool         bDeathMontageBlendedOut  = false;
+    float        DissolveStartTime       = 0.f;
+    float        DissolveDuration        = 2.f;
+    bool         bDissolveCompleted      = false;
+    bool         bDeathMontageBlendedOut = false;
 
     void OnGroggySequenceCompleted();
     void OnAttackMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);

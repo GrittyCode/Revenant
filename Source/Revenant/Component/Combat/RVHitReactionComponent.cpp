@@ -23,6 +23,9 @@ void URVHitReactionComponent::InitParams(
     URVHitReactionAnimDataAsset* InHitReactionAnimData,
     float InStaggerDuration, float InStaggerThreshold, float InKnockdownThreshold)
 {
+    if (!ensureMsgf(IsValid(InHitReactionAnimData),
+        TEXT("[%s] InitParams: HitReactionAnimData not assigned"), *GetNameSafe(OwnerBase))) { return; }
+
     HitReactionAnimData  = InHitReactionAnimData;
     StaggerDuration      = InStaggerDuration;
     StaggerThreshold     = InStaggerThreshold;
@@ -73,7 +76,7 @@ void URVHitReactionComponent::HandleHit(const FRVHitInfo& InHitInfo)
     {
         if (OwnerBase->HasCombatState(ERVCombatState::HitReaction))
         {
-            if (UWorld* World = GetWorld()) { World->GetTimerManager().ClearTimer(StaggerHandle); }
+            GetWorld()->GetTimerManager().ClearTimer(StaggerHandle);
             OwnerBase->RemoveCombatState(ERVCombatState::HitReaction);
         }
         TriggerKnockdown(InHitInfo.HitDirection);
@@ -88,9 +91,7 @@ void URVHitReactionComponent::HandleHit(const FRVHitInfo& InHitInfo)
 
 void URVHitReactionComponent::TriggerStaggerWithMontage(UAnimMontage* InMontage)
 {
-    if (!ensureMsgf(IsValid(InMontage),
-        TEXT("[%s] TriggerStaggerWithMontage: InMontage is null — check GuardBreakMontage assignment"),
-        *GetNameSafe(OwnerBase))) { return; }
+    if (!IsValid(InMontage)) { return; }
 
     UAnimInstance* AnimInst = GetAnimInstance();
     if (!IsValid(AnimInst)) { return; }
@@ -121,11 +122,8 @@ void URVHitReactionComponent::TriggerGroggy(float InGroggyDuration)
     {
         UAnimMontage* LoopMontage = HitReactionAnimData->GroggyStunLoopMontage;
         if (IsValid(LoopMontage)) { AnimInst->Montage_Play(LoopMontage); }
-        if (UWorld* World = GetWorld())
-        {
-            World->GetTimerManager().SetTimer(
-                GroggyTimerHandle, this, &URVHitReactionComponent::EndGroggy, GroggyDuration, false);
-        }
+        GetWorld()->GetTimerManager().SetTimer(
+            GroggyTimerHandle, this, &URVHitReactionComponent::EndGroggy, GroggyDuration, false);
         return;
     }
 
@@ -138,7 +136,7 @@ void URVHitReactionComponent::TriggerGroggy(float InGroggyDuration)
 
 void URVHitReactionComponent::EndGroggy()
 {
-    if (UWorld* World = GetWorld()) { World->GetTimerManager().ClearTimer(GroggyTimerHandle); }
+    GetWorld()->GetTimerManager().ClearTimer(GroggyTimerHandle);
 
     if (!ensureMsgf(IsValid(HitReactionAnimData),
         TEXT("[%s] EndGroggy: HitReactionAnimData not assigned"),
@@ -162,7 +160,7 @@ void URVHitReactionComponent::EndGroggy()
 
 void URVHitReactionComponent::AbortGroggy()
 {
-    if (UWorld* World = GetWorld()) { World->GetTimerManager().ClearTimer(GroggyTimerHandle); }
+    GetWorld()->GetTimerManager().ClearTimer(GroggyTimerHandle);
 }
 
 //--- Reaction Triggers -------------------------------------------------------
@@ -174,23 +172,15 @@ void URVHitReactionComponent::TriggerStagger(const FVector& InHitDirection)
 
     OwnerBase->AddCombatState(ERVCombatState::HitReaction);
 
-    if (UWorld* World = GetWorld())
-    {
-        World->GetTimerManager().SetTimer(
-            StaggerHandle, this, &URVHitReactionComponent::OnStaggerEnd, StaggerDuration, false);
-    }
+    GetWorld()->GetTimerManager().SetTimer(
+        StaggerHandle, this, &URVHitReactionComponent::OnStaggerEnd, StaggerDuration, false);
 }
 
 void URVHitReactionComponent::TriggerKnockdown(const FVector& InHitDirection)
 {
-    if (!ensureMsgf(IsValid(HitReactionAnimData),
-        TEXT("[%s] TriggerKnockdown: HitReactionAnimData not assigned"),
-        *GetNameSafe(OwnerBase))) { return; }
-
-    UAnimMontage* KnockdownMontage = HitReactionAnimData->KnockdownMontage;
-    if (!ensureMsgf(IsValid(KnockdownMontage),
-        TEXT("[%s] TriggerKnockdown: KnockdownMontage not assigned"),
-        *GetNameSafe(OwnerBase))) { return; }
+    UAnimMontage* KnockdownMontage = IsValid(HitReactionAnimData)
+        ? HitReactionAnimData->KnockdownMontage : nullptr;
+    if (!IsValid(KnockdownMontage)) { return; }
 
     UAnimInstance* AnimInst = GetAnimInstance();
     if (!IsValid(AnimInst)) { return; }
@@ -219,14 +209,9 @@ void URVHitReactionComponent::OnStaggerMontageBlendingOut(UAnimMontage*, bool)
 
 void URVHitReactionComponent::OnKnockdownMontageBlendingOut(UAnimMontage*, bool)
 {
-    if (!ensureMsgf(IsValid(HitReactionAnimData),
-        TEXT("[%s] OnKnockdownMontageBlendingOut: HitReactionAnimData not assigned"),
-        *GetNameSafe(OwnerBase))) { return; }
-
-    UAnimMontage* GetUpMontage = HitReactionAnimData->GetUpMontage;
-    if (!ensureMsgf(IsValid(GetUpMontage),
-        TEXT("[%s] OnKnockdownMontageBlendingOut: GetUpMontage not assigned"),
-        *GetNameSafe(OwnerBase))) { return; }
+    UAnimMontage* GetUpMontage = IsValid(HitReactionAnimData)
+        ? HitReactionAnimData->GetUpMontage : nullptr;
+    if (!IsValid(GetUpMontage)) { return; }
 
     UAnimInstance* AnimInst = GetAnimInstance();
     if (!IsValid(AnimInst)) { return; }
@@ -247,25 +232,17 @@ void URVHitReactionComponent::OnGroggyStartMontageBlendingOut(UAnimMontage*, boo
 {
     if (bInterrupted) { return; }
 
-    if (!ensureMsgf(IsValid(HitReactionAnimData),
-        TEXT("[%s] OnGroggyStartMontageBlendingOut: HitReactionAnimData not assigned"),
-        *GetNameSafe(OwnerBase))) { return; }
-
-    UAnimMontage* LoopMontage = HitReactionAnimData->GroggyStunLoopMontage;
-    if (!ensureMsgf(IsValid(LoopMontage),
-        TEXT("[%s] OnGroggyStartMontageBlendingOut: GroggyStunLoopMontage not assigned"),
-        *GetNameSafe(OwnerBase))) { return; }
+    UAnimMontage* LoopMontage = IsValid(HitReactionAnimData)
+        ? HitReactionAnimData->GroggyStunLoopMontage : nullptr;
+    if (!IsValid(LoopMontage)) { return; }
 
     UAnimInstance* AnimInst = GetAnimInstance();
     if (!IsValid(AnimInst)) { return; }
 
     AnimInst->Montage_Play(LoopMontage);
 
-    if (UWorld* World = GetWorld())
-    {
-        World->GetTimerManager().SetTimer(
-            GroggyTimerHandle, this, &URVHitReactionComponent::EndGroggy, GroggyDuration, false);
-    }
+    GetWorld()->GetTimerManager().SetTimer(
+        GroggyTimerHandle, this, &URVHitReactionComponent::EndGroggy, GroggyDuration, false);
 }
 
 void URVHitReactionComponent::OnGroggyEndMontageBlendingOut(UAnimMontage*, bool)

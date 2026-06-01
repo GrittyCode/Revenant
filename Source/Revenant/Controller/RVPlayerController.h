@@ -4,7 +4,6 @@
 #include "GameFramework/PlayerController.h"
 #include "RVPlayerController.generated.h"
 
-class UInputMappingContext;
 class URVHUDWidget;
 class URVBossHPBarWidget;
 class URVGameResultWidget;
@@ -16,59 +15,55 @@ DECLARE_LOG_CATEGORY_EXTERN(LogRVPlayerController, Log, All);
 UCLASS()
 class REVENANT_API ARVPlayerController : public APlayerController
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
 public:
-    void RestoreGameInput();
-    void OnBossSpawned(ARVSevarogCharacter* InBoss);
-    void ShowGameResult(bool bVictory);
-    void LockInputForCutscene();
-    void UnlockInputAfterCutscene();
-    void SetHUDVisible(bool bVisible);
+	void RestoreGameInput();
+	void OnBossSpawned(ARVSevarogCharacter* InBoss);
+	void ShowGameResult(bool bVictory);
+	void LockInputForCutscene();
+	void UnlockInputAfterCutscene();
+	void SetHUDVisible(bool bVisible);
 
 protected:
-    virtual void BeginPlay() override;
+	virtual void BeginPlay() override;
 
 private:
-    //--- Widget classes (assign in BP_PlayerController) ----------------------
+	//--- Widget classes (assign in BP_PlayerController) ----------------------
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|UI")
-    TSubclassOf<URVHUDWidget> HUDWidgetClass;
+	UPROPERTY(EditDefaultsOnly, Category = "RV|UI")
+	TSubclassOf<URVHUDWidget> HUDWidgetClass;
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|UI")
-    TSubclassOf<URVBossHPBarWidget> BossHPBarWidgetClass;
+	UPROPERTY(EditDefaultsOnly, Category = "RV|UI")
+	TSubclassOf<URVBossHPBarWidget> BossHPBarWidgetClass;
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|UI")
-    TSubclassOf<URVGameResultWidget> GameResultWidgetClass;
+	UPROPERTY(EditDefaultsOnly, Category = "RV|UI")
+	TSubclassOf<URVGameResultWidget> GameResultWidgetClass;
 
-    //--- Runtime widget instances --------------------------------------------
+	//--- Runtime widget instances --------------------------------------------
 
-    UPROPERTY()
-    TObjectPtr<URVHUDWidget> HUDWidget;
+	UPROPERTY()
+	TObjectPtr<URVHUDWidget> HUDWidget;
 
-    UPROPERTY()
-    TObjectPtr<URVBossHPBarWidget> BossHPBarWidget;
+	UPROPERTY()
+	TObjectPtr<URVBossHPBarWidget> BossHPBarWidget;
 
-    UPROPERTY()
-    TObjectPtr<URVGameResultWidget> GameResultWidget;
+	UPROPERTY()
+	TObjectPtr<URVGameResultWidget> GameResultWidget;
 
-    //--- Player attribute delegate handlers ----------------------------------
+	//--- Delegate handlers ---------------------------------------------------
 
-    TWeakObjectPtr<ARVCharacterPlayer> PlayerCharRef;
+	UFUNCTION()
+	void OnPlayerHealthChanged(float NewHealthRatio);
 
-    UFUNCTION()
-    void OnPlayerHealthChanged(float NewHealthRatio);
+	UFUNCTION()
+	void OnPlayerStaminaChanged(float NewStaminaRatio);
 
-    UFUNCTION()
-    void OnPlayerStaminaChanged(float NewStamina, float InDelta);
+	UFUNCTION()
+	void OnPlayerDeath();
 
-    UFUNCTION()
-    void OnPlayerDeath();
+	UFUNCTION()
+	void OnBossDefeated();
 
-    //--- Boss delegate handlers ----------------------------------------------
-
-    UFUNCTION()
-    void OnBossDefeated();
-
-    TWeakObjectPtr<ARVSevarogCharacter> BossRef;
+	TWeakObjectPtr<ARVSevarogCharacter> BossRef;
 };

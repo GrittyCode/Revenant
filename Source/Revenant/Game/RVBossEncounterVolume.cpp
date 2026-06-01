@@ -17,6 +17,14 @@ void ARVBossEncounterVolume::BeginPlay()
 {
     Super::BeginPlay();
     OnActorBeginOverlap.AddDynamic(this, &ARVBossEncounterVolume::OnOverlapBegin);
+
+    // Cache once — PlayerController exists before level actors run BeginPlay.
+    CachedPlayerController = Cast<ARVPlayerController>(GetWorld()->GetFirstPlayerController());
+
+    if (IsValid(CachedPlayerController))
+    {
+        OnBossSpawned.AddUObject(CachedPlayerController, &ARVPlayerController::OnBossSpawned);
+    }
 }
 
 void ARVBossEncounterVolume::OnOverlapBegin(AActor* /*OverlappedActor*/, AActor* OtherActor)
@@ -51,10 +59,10 @@ void ARVBossEncounterVolume::BeginBossEncounter()
 
     PauseBossAI();
 
-    if (ARVPlayerController* RVPC = Cast<ARVPlayerController>(GetWorld()->GetFirstPlayerController()))
+    if (IsValid(CachedPlayerController))
     {
-        RVPC->LockInputForCutscene();
-        RVPC->SetHUDVisible(false);
+        CachedPlayerController->LockInputForCutscene();
+        CachedPlayerController->SetHUDVisible(false);
     }
 
     StartCutscene();
@@ -62,14 +70,12 @@ void ARVBossEncounterVolume::BeginBossEncounter()
 
 void ARVBossEncounterVolume::StartCutscene()
 {
-    ARVPlayerController* RVPC = Cast<ARVPlayerController>(GetWorld()->GetFirstPlayerController());
-
     if (!IsValid(CutsceneSequenceActor))
     {
-        if (IsValid(RVPC))
+        if (IsValid(CachedPlayerController))
         {
-            RVPC->SetHUDVisible(true);
-            RVPC->UnlockInputAfterCutscene();
+            CachedPlayerController->SetHUDVisible(true);
+            CachedPlayerController->UnlockInputAfterCutscene();
         }
         if (IsValid(CombatBGM))
         {
@@ -111,10 +117,10 @@ void ARVBossEncounterVolume::OnCutsceneFinished()
         CutsceneBGMAudioComponent->Stop();
     }
 
-    if (ARVPlayerController* RVPC = Cast<ARVPlayerController>(GetWorld()->GetFirstPlayerController()))
+    if (IsValid(CachedPlayerController))
     {
-        RVPC->SetHUDVisible(true);
-        RVPC->UnlockInputAfterCutscene();
+        CachedPlayerController->SetHUDVisible(true);
+        CachedPlayerController->UnlockInputAfterCutscene();
     }
 
     if (IsValid(CombatBGM))
@@ -134,9 +140,9 @@ void ARVBossEncounterVolume::PauseBossAI()
     if (!IsValid(AICon)) { return; }
 
     AICon->StopMovement();
-    if (IsValid(AICon->BrainComponent))
+    if (UBrainComponent* Brain = AICon->GetBrainComponent())
     {
-        AICon->BrainComponent->StopLogic(TEXT("Cutscene"));
+        Brain->StopLogic(TEXT("Cutscene"));
     }
 }
 
@@ -147,8 +153,8 @@ void ARVBossEncounterVolume::ResumeBossAI()
     AAIController* AICon = Cast<AAIController>(SpawnedBoss->GetController());
     if (!IsValid(AICon)) { return; }
 
-    if (IsValid(AICon->BrainComponent))
+    if (UBrainComponent* Brain = AICon->GetBrainComponent())
     {
-        AICon->BrainComponent->RestartLogic();
+        Brain->RestartLogic();
     }
 }

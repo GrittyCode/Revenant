@@ -35,7 +35,7 @@ void ARVAIController::OnUnPossess()
 
 ARVSevarogCharacter* ARVAIController::GetBossCharacter() const
 {
-	/* Need to modify to RVCharacter Boss when adding boss */
+	// TODO: generalize to ARVBossCharacter base when a second boss is added
 	return Cast<ARVSevarogCharacter>(GetPawn());
 }
 

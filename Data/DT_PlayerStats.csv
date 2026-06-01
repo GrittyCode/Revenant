@@ -1,3 +1,3 @@
-Name,MaxHealth,MaxPoise,MoveSpeed,StaggerDuration,StaggerThreshold,KnockdownThreshold,PoiseRegenDelay,MaxStamina,StaminaRegenRate,StaminaRegenDelay,DodgeStaminaCost, GroggyDuration
-Player,500,100,500,0.4,0.4,0.4,3.0,120,60,1.5,20,0
-Dummyr,99999,80,500,0.5,0.4,0.4,3.0,120,40,1.5,20,0
+Name,MaxHealth,MaxPoise,MoveSpeed,StaggerDuration,StaggerThreshold,KnockdownThreshold,PoiseRegenDelay,MaxStamina,StaminaRegenRate,StaminaRegenDelay,DodgeStaminaCost
+Player,500,100,500,0.4,0.4,0.4,3.0,120,60,1.5,20
+Dummyr,99999,80,500,0.5,0.4,0.4,3.0,120,40,1.5,20
