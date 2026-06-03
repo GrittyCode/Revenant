@@ -8,10 +8,11 @@ URVStaminaComponent::URVStaminaComponent()
 
 void URVStaminaComponent::InitFromStatRow(const FRVPlayerStatRow& InRow)
 {
-    MaxStamina        = InRow.MaxStamina;
-    StaminaRegenRate  = InRow.StaminaRegenRate;
-    StaminaRegenDelay = InRow.StaminaRegenDelay;
-    CurrentStamina    = MaxStamina;
+    MaxStamina           = InRow.MaxStamina;
+    StaminaRegenRate     = InRow.StaminaRegenRate;
+    StaminaRegenDelay    = InRow.StaminaRegenDelay;
+    StaminaRegenInterval = InRow.StaminaRegenInterval;
+    CurrentStamina       = MaxStamina;
 
     PauseStaminaRegen();
     ResumeStaminaRegen();

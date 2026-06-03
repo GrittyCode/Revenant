@@ -42,11 +42,11 @@ ARVCharacterPlayer::ARVCharacterPlayer()
 	FollowCamera->bUsePawnControlRotation = false;
 	FollowCamera->FieldOfView = 75.f;
 
-	LockOnComponent = CreateDefaultSubobject<URVLockOnComponent>(TEXT("LockOnComponent"));
+	LockOnComponent       = CreateDefaultSubobject<URVLockOnComponent>      (TEXT("LockOnComponent"));
 	WeaponAttackComponent = CreateDefaultSubobject<URVWeaponAttackComponent>(TEXT("WeaponAttackComponent"));
-	GuardComponent = CreateDefaultSubobject<URVGuardComponent>(TEXT("GuardComponent"));
-	StaminaComponent = CreateDefaultSubobject<URVStaminaComponent>(TEXT("StaminaComponent"));
-	EquipmentComponent = CreateDefaultSubobject<URVEquipmentComponent>(TEXT("EquipmentComponent"));
+	GuardComponent        = CreateDefaultSubobject<URVGuardComponent>       (TEXT("GuardComponent"));
+	StaminaComponent      = CreateDefaultSubobject<URVStaminaComponent>     (TEXT("StaminaComponent"));
+	EquipmentComponent    = CreateDefaultSubobject<URVEquipmentComponent>   (TEXT("EquipmentComponent"));
 }
 
 void ARVCharacterPlayer::InitStats()
@@ -70,6 +70,7 @@ void ARVCharacterPlayer::InitStats()
 		Stat->KnockdownThreshold);
 
 	GetCharacterMovement()->MaxWalkSpeed = Stat->MoveSpeed;
+	SprintSpeed = Stat->SprintSpeed;
 }
 
 void ARVCharacterPlayer::BeginPlay()
@@ -88,9 +89,8 @@ void ARVCharacterPlayer::BeginPlay()
 
 	Subsystem->AddMappingContext(DefaultMappingContext, 0);
 
-	PC->PlayerCameraManager->ViewPitchMin = -70.f;
-	PC->PlayerCameraManager->ViewPitchMax = 20.f;
-
+	PC->PlayerCameraManager->ViewPitchMin = ViewPitchMin;
+	PC->PlayerCameraManager->ViewPitchMax = ViewPitchMax;
 
 	WeaponAttackComponent->Init(StaminaComponent, EquipmentComponent);
 	GuardComponent->Init(StaminaComponent, EquipmentComponent);
@@ -107,26 +107,25 @@ void ARVCharacterPlayer::BeginPlay()
 	OnHitConfirmed.AddUObject(this, &ARVCharacterPlayer::OnHitConfirmedHandler);
 	EquipmentComponent->OnWeaponChanged.AddUObject(this, &ARVCharacterPlayer::OnWeaponChangedHandler);
 
-
 	OnWeaponChangedHandler(EquipmentComponent->GetCurrentWeaponData());
 }
 
 //--- Facades -----------------------------------------------------------------
 
-FRVOnWeaponChanged& ARVCharacterPlayer::GetOnWeaponChanged() { return EquipmentComponent->OnWeaponChanged; }
+FRVOnWeaponChanged&  ARVCharacterPlayer::GetOnWeaponChanged()  { return EquipmentComponent->OnWeaponChanged; }
 FRVOnStaminaChanged& ARVCharacterPlayer::GetOnStaminaChanged() { return StaminaComponent->OnStaminaChanged; }
-float ARVCharacterPlayer::GetStaminaRatio() const { return StaminaComponent->GetStaminaPercent(); }
+float ARVCharacterPlayer::GetStaminaRatio()  const { return StaminaComponent->GetStaminaPercent(); }
 
 float ARVCharacterPlayer::GetSprintSpeed() const { return SprintSpeed; }
-bool ARVCharacterPlayer::IsSprinting() const { return bIsSprinting; }
-bool ARVCharacterPlayer::IsComboActive() const { return WeaponAttackComponent->IsLightAttackActive(); }
-bool ARVCharacterPlayer::IsLockedOn() const { return LockOnComponent->IsLockedOn(); }
+bool  ARVCharacterPlayer::IsSprinting()    const { return bIsSprinting; }
+bool  ARVCharacterPlayer::IsComboActive()  const { return WeaponAttackComponent->IsLightAttackActive(); }
+bool  ARVCharacterPlayer::IsLockedOn()     const { return LockOnComponent->IsLockedOn(); }
 
 //--- AnimNotify forwarding ---------------------------------------------------
 
-void ARVCharacterPlayer::OpenComboWindow() { WeaponAttackComponent->OpenComboWindow(); }
-void ARVCharacterPlayer::CloseComboWindow() { WeaponAttackComponent->CloseComboWindow(); }
-void ARVCharacterPlayer::TryChainCombo() { WeaponAttackComponent->TryChainNextCombo(); }
+void ARVCharacterPlayer::OpenComboWindow()           { WeaponAttackComponent->OpenComboWindow(); }
+void ARVCharacterPlayer::CloseComboWindow()          { WeaponAttackComponent->CloseComboWindow(); }
+void ARVCharacterPlayer::TryChainCombo()             { WeaponAttackComponent->TryChainNextCombo(); }
 void ARVCharacterPlayer::SetHeavyAttackReady(bool b) { WeaponAttackComponent->SetHeavyAttackReady(b); }
 
 //--- Overrides ---------------------------------------------------------------
@@ -142,7 +141,7 @@ UMeshComponent* ARVCharacterPlayer::GetWeaponTraceMesh() const
 	return EquipmentComponent->GetWeaponMeshComponent();
 }
 
-void ARVCharacterPlayer::ActivateWeaponTrail() { EquipmentComponent->ActivateWeaponTrail(); }
+void ARVCharacterPlayer::ActivateWeaponTrail()   { EquipmentComponent->ActivateWeaponTrail(); }
 void ARVCharacterPlayer::DeactivateWeaponTrail() { EquipmentComponent->DeactivateWeaponTrail(); }
 
 void ARVCharacterPlayer::OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData)
@@ -266,18 +265,18 @@ void ARVCharacterPlayer::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 
 	Eic->BindAction(InputConfig->MoveAction, ETriggerEvent::Triggered, this, &ARVCharacterPlayer::InputMove);
 	Eic->BindAction(InputConfig->LookAction, ETriggerEvent::Triggered, this, &ARVCharacterPlayer::InputLook);
-	Eic->BindAction(InputConfig->JumpAction, ETriggerEvent::Started, this, &ARVCharacterPlayer::InputJump);
+	Eic->BindAction(InputConfig->JumpAction, ETriggerEvent::Started,   this, &ARVCharacterPlayer::InputJump);
 
-	Eic->BindAction(InputConfig->AttackAction, ETriggerEvent::Started, this, &ARVCharacterPlayer::InputAttack);
-	Eic->BindAction(InputConfig->HeavyAttackAction, ETriggerEvent::Started, this, &ARVCharacterPlayer::InputHeavyAttackStarted);
-	Eic->BindAction(InputConfig->HeavyAttackAction, ETriggerEvent::Completed, this, &ARVCharacterPlayer::InputHeavyAttackCompleted);
-	Eic->BindAction(InputConfig->HeavyModifierAction, ETriggerEvent::Completed, this, &ARVCharacterPlayer::InputHeavyAttackCompleted);
+	Eic->BindAction(InputConfig->AttackAction,      ETriggerEvent::Started,    this, &ARVCharacterPlayer::InputAttack);
+	Eic->BindAction(InputConfig->HeavyAttackAction, ETriggerEvent::Started,    this, &ARVCharacterPlayer::InputHeavyAttackStarted);
+	Eic->BindAction(InputConfig->HeavyAttackAction, ETriggerEvent::Completed,  this, &ARVCharacterPlayer::InputHeavyAttackCompleted);
+	Eic->BindAction(InputConfig->HeavyModifierAction, ETriggerEvent::Completed,this, &ARVCharacterPlayer::InputHeavyAttackCompleted);
 
-	Eic->BindAction(InputConfig->DodgeAction, ETriggerEvent::Triggered, this, &ARVCharacterPlayer::InputDodge);
-	Eic->BindAction(InputConfig->SprintAction, ETriggerEvent::Triggered, this, &ARVCharacterPlayer::InputSprintStarted);
-	Eic->BindAction(InputConfig->SprintAction, ETriggerEvent::Completed, this, &ARVCharacterPlayer::InputSprintCompleted);
-	Eic->BindAction(InputConfig->GuardAction, ETriggerEvent::Started, this, &ARVCharacterPlayer::InputGuardStarted);
-	Eic->BindAction(InputConfig->GuardAction, ETriggerEvent::Completed, this, &ARVCharacterPlayer::InputGuardCompleted);
+	Eic->BindAction(InputConfig->DodgeAction,  ETriggerEvent::Triggered,  this, &ARVCharacterPlayer::InputDodge);
+	Eic->BindAction(InputConfig->SprintAction, ETriggerEvent::Triggered,  this, &ARVCharacterPlayer::InputSprintStarted);
+	Eic->BindAction(InputConfig->SprintAction, ETriggerEvent::Completed,  this, &ARVCharacterPlayer::InputSprintCompleted);
+	Eic->BindAction(InputConfig->GuardAction,  ETriggerEvent::Started,    this, &ARVCharacterPlayer::InputGuardStarted);
+	Eic->BindAction(InputConfig->GuardAction,  ETriggerEvent::Completed,  this, &ARVCharacterPlayer::InputGuardCompleted);
 
 	if (IsValid(InputConfig->LockOnAction))
 	{
@@ -443,10 +442,10 @@ void ARVCharacterPlayer::InputDodge(const FInputActionValue& Value)
 	StartDodge(Montage);
 }
 
-void ARVCharacterPlayer::InputSprintStarted(const FInputActionValue&) { StartSprint(); }
+void ARVCharacterPlayer::InputSprintStarted  (const FInputActionValue&) { StartSprint(); }
 void ARVCharacterPlayer::InputSprintCompleted(const FInputActionValue&) { EndSprint(); }
-void ARVCharacterPlayer::InputGuardStarted(const FInputActionValue&) { GuardComponent->StartGuard(); }
-void ARVCharacterPlayer::InputGuardCompleted(const FInputActionValue&) { GuardComponent->EndGuard(); }
+void ARVCharacterPlayer::InputGuardStarted   (const FInputActionValue&) { GuardComponent->StartGuard(); }
+void ARVCharacterPlayer::InputGuardCompleted (const FInputActionValue&) { GuardComponent->EndGuard(); }
 
 void ARVCharacterPlayer::InputLockOn(const FInputActionValue&)
 {

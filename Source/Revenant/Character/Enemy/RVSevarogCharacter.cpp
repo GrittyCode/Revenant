@@ -151,7 +151,7 @@ void ARVSevarogCharacter::OnDeathMontageBlendingOut(UAnimMontage*, bool)
 void ARVSevarogCharacter::StartDissolve()
 {
     UWorld* World    = GetWorld();
-    DissolveDuration = SevarogData->DissolveDuration;
+
     DissolveStartTime = World->GetTimeSeconds();
 
     USkeletalMeshComponent* SkelMesh = GetMesh();
@@ -171,7 +171,7 @@ void ARVSevarogCharacter::TickDissolve()
 {
     UWorld* World = GetWorld();
     const float Alpha = FMath::Clamp(
-        (World->GetTimeSeconds() - DissolveStartTime) / DissolveDuration, 0.f, 1.f);
+        (World->GetTimeSeconds() - DissolveStartTime) / SevarogData->DissolveDuration, 0.f, 1.f);
 
     static const FName FadeOutParam(TEXT("FadeOut"));
     for (UMaterialInstanceDynamic* MID : DissolveMIDs)

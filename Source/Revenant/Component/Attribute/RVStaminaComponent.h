@@ -18,8 +18,8 @@ public:
     URVStaminaComponent();
 
     //--- Delegates -----------------------------------------------------------
-	
-	FRVOnStaminaChanged OnStaminaChanged;
+
+	FRVOnStaminaChanged  OnStaminaChanged;
     FRVOnStaminaDepleted OnStaminaDepleted;
 
     //--- Init ----------------------------------------------------------------
@@ -54,10 +54,10 @@ private:
     float StaminaRegenRate = 10.f;
 
     UPROPERTY(EditDefaultsOnly, Category = "RV|Stamina")
-    float StaminaRegenInterval = 0.1f;
-
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Stamina")
     float StaminaRegenDelay = 1.5f;
+
+    // Set from DT_PlayerStats via InitFromStatRow — not editable per-instance.
+    float StaminaRegenInterval = 0.1f;
 
     FTimerHandle StaminaRegenDelayHandle;
     FTimerHandle StaminaRegenHandle;

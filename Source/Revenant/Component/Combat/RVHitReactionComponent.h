@@ -9,13 +9,13 @@ class ARVCharacterBase;
 class URVHitReactionAnimDataAsset;
 class UAnimMontage;
 
-UENUM(BlueprintType, meta=(Bitflags, UseEnumValuesAsMaskValuesInEditor="true"))
+UENUM(meta=(Bitflags, UseEnumValuesAsMaskValuesInEditor="true"))
 enum class ERVHitReactCapability : uint8
 {
-	None = 0,
-	Stagger = 1 << 0,
+	None      = 0,
+	Stagger   = 1 << 0,
 	Knockdown = 1 << 1,
-	Groggy = 1 << 2,
+	Groggy    = 1 << 2,
 };
 
 ENUM_CLASS_FLAGS(ERVHitReactCapability)
@@ -58,10 +58,10 @@ private:
 	FTimerHandle StaggerHandle;
 	FTimerHandle GroggyTimerHandle;
 
-	float StaggerDirection = 0.f;
-	float StaggerDuration = 0.5f;
-	float GroggyDuration = 0.f;
-	float StaggerThreshold = 0.5f;
+	float StaggerDirection   = 0.f;
+	float StaggerDuration    = 0.5f;
+	float GroggyDuration     = 0.f;
+	float StaggerThreshold   = 0.5f;
 	float KnockdownThreshold = 0.4f;
 
 	ERVHitReactCapability HitReactCapability =
@@ -73,10 +73,9 @@ private:
 	}
 
 	UAnimInstance* GetAnimInstance() const;
-	
+
 	void TriggerStagger(const FVector& InHitDirection);
 	void TriggerKnockdown(const FVector& InHitDirection);
-
 
 	void OnStaggerEnd();
 	void OnStaggerMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted);

@@ -236,9 +236,9 @@ void URVWeaponAttackComponent::OnLightAttackMontageBlendingOut(UAnimMontage*, bo
 
 void URVWeaponAttackComponent::StartHeavyAttack()
 {
-    if (!OwnerBase->CanAct())                             { return; }
-    if (!OwnerBase->IsGrounded())                         { return; }
-    if (StaminaComponent->GetCurrentStamina() <= 0.f)    { return; }
+    if (!OwnerBase->CanAct())                          { return; }
+    if (!OwnerBase->IsGrounded())                      { return; }
+    if (StaminaComponent->GetCurrentStamina() <= 0.f) { return; }
 
     const URVWeaponDataAsset* WeaponData = EquipmentComponent->GetCurrentWeaponData();
     if (!ensureMsgf(IsValid(WeaponData),
@@ -267,9 +267,11 @@ void URVWeaponAttackComponent::StartHeavyAttack()
     AnimInst->Montage_Play(ChargeMontage);
     AnimInst->Montage_SetBlendingOutDelegate(ChargeBlendOut, ChargeMontage);
 
+    const FRVWeaponStatRow* WeaponStat = WeaponData->GetWeaponStatRow();
+    const float ChargeTime = WeaponStat ? WeaponStat->MaxChargeTime : 1.5f;
     GetWorld()->GetTimerManager().SetTimer(
         ChargeAutoReleaseHandle, this, &URVWeaponAttackComponent::OnChargeAutoRelease,
-        MaxChargeTime, false);
+        ChargeTime, false);
 }
 
 void URVWeaponAttackComponent::ReleaseHeavyAttack()

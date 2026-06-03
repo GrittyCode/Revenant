@@ -13,28 +13,28 @@ class UParticleSystem;
 class UNiagaraSystem;
 class USoundBase;
 
-USTRUCT(BlueprintType)
+USTRUCT()
 struct FRVBossAttackPattern
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(EditDefaultsOnly)
 	TArray<TObjectPtr<UAnimMontage>> ComboMontages;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (ClampMin = "1"))
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "1"))
 	int32 Weight = 1;
 };
 
-USTRUCT(BlueprintType)
+USTRUCT()
 struct FRVBossPhaseAttacks
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(EditDefaultsOnly)
 	TArray<FRVBossAttackPattern> Patterns;
 };
 
-USTRUCT(BlueprintType)
+USTRUCT()
 struct FRVSoulSiphonData
 {
 	GENERATED_BODY()
@@ -47,12 +47,12 @@ struct FRVSoulSiphonData
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitPoiseDamage   = 30.f;
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitRadius        = 300.f;
 	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitForwardOffset = 10.f;
-	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitHalfHeight	  = 150.f;
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0")) float HitHalfHeight    = 150.f;
 
 	UPROPERTY(EditDefaultsOnly) TObjectPtr<UParticleSystem> ImpactFX;
 };
 
-USTRUCT(BlueprintType)
+USTRUCT()
 struct FRVSubjugationData
 {
 	GENERATED_BODY()
@@ -76,7 +76,7 @@ public:
 	//--- Stat ----------------------------------------------------------------
 
 	// Points to a row in DT_BossStats (row type: FRVBossStatRow).
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stats", meta = (DisplayPriority = 0))
+	UPROPERTY(EditDefaultsOnly, Category = "Stats", meta = (DisplayPriority = 0))
 	FDataTableRowHandle StatRowHandle;
 
 	const FRVBossStatRow* GetStatRow() const
@@ -104,7 +104,7 @@ public:
 
 	//--- Combat --------------------------------------------------------------
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat", meta = (DisplayPriority = 4,
+	UPROPERTY(EditDefaultsOnly, Category = "Combat", meta = (DisplayPriority = 4,
 		ClampMin = "0.0"))
 	float MeleeEngagementRange = 250.f;
 
@@ -130,15 +130,15 @@ public:
 		ClampMin = "0.0"))
 	float ArrivalRange = 200.f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement", meta = (DisplayPriority = 5,
+	UPROPERTY(EditDefaultsOnly, Category = "Movement", meta = (DisplayPriority = 5,
 		ClampMin = "0.0"))
 	float RushTriggerRadius = 700.f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement", meta = (DisplayPriority = 5,
+	UPROPERTY(EditDefaultsOnly, Category = "Movement", meta = (DisplayPriority = 5,
 		ClampMin = "0.0"))
 	float RushSpeed = 700.f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Movement", meta = (DisplayPriority = 5,
+	UPROPERTY(EditDefaultsOnly, Category = "Movement", meta = (DisplayPriority = 5,
 		ClampMin = "0.0"))
 	float RushCooldown = 5.f;
 
@@ -147,7 +147,7 @@ public:
 
 	//--- Animation -----------------------------------------------------------
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation", meta = (DisplayPriority = 6))
+	UPROPERTY(EditDefaultsOnly, Category = "Animation", meta = (DisplayPriority = 6))
 	TObjectPtr<UBlendSpace> LocomotionBS;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Animation", meta = (DisplayPriority = 6, ClampMin = "0.1"))
@@ -158,9 +158,9 @@ public:
 
 	//--- Special Attacks -----------------------------------------------------
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "SoulSiphon", meta = (DisplayPriority = 7))
+	UPROPERTY(EditDefaultsOnly, Category = "SoulSiphon", meta = (DisplayPriority = 7))
 	FRVSoulSiphonData SoulSiphon;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Subjugation", meta = (DisplayPriority = 8))
+	UPROPERTY(EditDefaultsOnly, Category = "Subjugation", meta = (DisplayPriority = 8))
 	FRVSubjugationData Subjugation;
 };

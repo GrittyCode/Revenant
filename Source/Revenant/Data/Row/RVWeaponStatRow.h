@@ -20,4 +20,8 @@ struct REVENANT_API FRVWeaponStatRow : public FTableRowBase
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	float AttackRadius = 40.f;
+
+	// Seconds until heavy attack auto-releases at max charge.
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (ClampMin = "0.1"))
+	float MaxChargeTime = 1.5f;
 };

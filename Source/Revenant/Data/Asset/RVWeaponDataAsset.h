@@ -18,16 +18,16 @@ UCLASS(BlueprintType)
 class REVENANT_API URVWeaponDataAsset : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
-	
+
 public:
 
 	//--- Stat ----------------------------------------------------------------
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stat")
+	UPROPERTY(EditDefaultsOnly, Category = "Stat")
 	FDataTableRowHandle WeaponStatRowHandle;
 
 	//--- Weapon Mesh ---------------------------------------------------------
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Mesh")
+	UPROPERTY(EditDefaultsOnly, Category = "Mesh")
 	TSoftObjectPtr<UStaticMesh> WeaponMesh;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Transform")
@@ -35,16 +35,16 @@ public:
 
 	//--- Animation -----------------------------------------------------------
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation")
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	TObjectPtr<URVLocomotionAnimDataAsset> LocomotionAnimData;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation")
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	TObjectPtr<URVPlayerCombatAnimDataAsset> CombatAnimData;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animation")
+	UPROPERTY(EditDefaultsOnly, Category = "Animation")
 	TObjectPtr<URVHitReactionAnimDataAsset> HitReactionAnimData;
-	
-	
+
+
 	//--- VFX / SFX -----------------------------------------------------------
 
 	// Weapon trail Niagara system.
@@ -67,31 +67,31 @@ public:
 
 	//--- Per-Instance Montage Overrides --------------------------------------
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Override|HeavyAttack",
+	UPROPERTY(EditDefaultsOnly, Category = "Override|HeavyAttack",
 	          meta = (InlineEditConditionToggle))
 	uint8 bOverrideHeavyChargeMontage : 1;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Override|HeavyAttack",
+	UPROPERTY(EditDefaultsOnly, Category = "Override|HeavyAttack",
 	          meta = (EditCondition = "bOverrideHeavyChargeMontage"))
 	TObjectPtr<UAnimMontage> OverrideHeavyChargeMontage;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Override|HeavyAttack",
+	UPROPERTY(EditDefaultsOnly, Category = "Override|HeavyAttack",
 	          meta = (InlineEditConditionToggle))
 	uint8 bOverrideHeavyAttackMontage : 1;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Override|HeavyAttack",
+	UPROPERTY(EditDefaultsOnly, Category = "Override|HeavyAttack",
 	          meta = (EditCondition = "bOverrideHeavyAttackMontage"))
 	TObjectPtr<UAnimMontage> OverrideHeavyAttackMontage;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Override|HeavyAttack",
+	UPROPERTY(EditDefaultsOnly, Category = "Override|HeavyAttack",
 	          meta = (EditCondition = "bOverrideHeavyAttackMontage"))
 	TObjectPtr<UAnimMontage> OverrideMaxHeavyAttackMontage;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Override|Dodge",
+	UPROPERTY(EditDefaultsOnly, Category = "Override|Dodge",
 	          meta = (InlineEditConditionToggle))
 	uint8 bOverrideDodgeMontage : 1;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Override|Dodge",
+	UPROPERTY(EditDefaultsOnly, Category = "Override|Dodge",
 	          meta = (EditCondition = "bOverrideDodgeMontage"))
 	TObjectPtr<UAnimMontage> OverrideDodgeMontage;
 

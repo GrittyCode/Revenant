@@ -29,10 +29,10 @@ class REVENANT_API ARVSevarogCharacter : public ARVCharacterBase
 
 public:
     ARVSevarogCharacter();
-	
+
 	virtual void ActivateWeaponTrail()   override;
 	virtual void DeactivateWeaponTrail() override;
-	
+
     //--- BT task interface ---------------------------------------------------
 
     bool ExecutePhaseAttack();
@@ -54,30 +54,29 @@ public:
     void SpawnSubjugationBlast(UParticleSystem* InSwirlsFX, USoundBase* InSwirlsSFX);
 
     void ExecuteSoulSiphonHit();
-	
 
     //--- State queries -------------------------------------------------------
 
 	const URVSevarogDataAsset* GetSevarogData() const { return SevarogData; }
     ERVBossPhase GetCurrentPhase() const { return CurrentPhase; }
-	bool IsGroggy() const { return HasCombatState(ERVCombatState::Groggy); }
-    bool IsAttacking() const;
-	bool IsRushing() const { return bIsRushing; }
+	bool IsGroggy()        const { return HasCombatState(ERVCombatState::Groggy); }
+    bool IsAttacking()     const;
+	bool IsRushing()       const { return bIsRushing; }
 	bool IsInHitReaction() const;
-	bool IsKnockedDown() const;
+	bool IsKnockedDown()   const;
 	float GetStaggerDirectionForAnim() const;
 
     //--- Delegates -----------------------------------------------------------
 
-    FRVOnBossPhaseChanged OnBossPhaseChanged;
-	FRVOnBossDefeated OnBossDefeated;
+    FRVOnBossPhaseChanged   OnBossPhaseChanged;
+	FRVOnBossDefeated       OnBossDefeated;
     FRVOnBossGroggyStarted  OnBossGroggyStarted;
     FRVOnBossGroggyEnded    OnBossGroggyEnded;
     FRVOnBossAttackFinished OnAttackFinished;
 
 protected:
     virtual void BeginPlay() override;
-    virtual void OnDeath() override;
+    virtual void OnDeath()   override;
     virtual void InitStats() override;
     virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const override;
 
@@ -112,7 +111,6 @@ private:
 
     //--- Damage helpers ------------------------------------------------------
 
-    // Shared post-processing for both sphere and capsule overlap results.
     void ApplyDamageToOverlapResults(const TArray<FOverlapResult>& InOverlaps,
         float InDamage, float InPoiseDamage,
         UParticleSystem* InHitFX,
@@ -167,7 +165,6 @@ private:
 
     FTimerHandle DissolveTimerHandle;
     float        DissolveStartTime       = 0.f;
-    float        DissolveDuration        = 2.f;
     bool         bDissolveCompleted      = false;
     bool         bDeathMontageBlendedOut = false;
 

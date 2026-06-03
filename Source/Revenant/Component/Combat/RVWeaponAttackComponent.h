@@ -58,14 +58,14 @@ private:
         ERootMotionMode::RootMotionFromMontagesOnly;
 
     UAnimInstance* GetAnimInstance() const;
-	
+
     void StartCombo();
     void StartRunAttack();
     void StartJumpAttack();
     void EndCombo();
     void PlayLightAttackMontage(UAnimMontage* InMontage);
     bool ConsumeAttackStamina(UAnimMontage* InMontage);
-	
+
     void OnLightAttackMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted);
 
     //--- Heavy Attack State --------------------------------------------------
@@ -79,9 +79,6 @@ private:
 
     EHeavyPhase HeavyPhase = EHeavyPhase::None;
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|HeavyAttack")
-    float MaxChargeTime = 1.5f;
-
     FTimerHandle ChargeAutoReleaseHandle;
 
     bool bCanHeavyRelease = false;
@@ -91,7 +88,7 @@ private:
     void ExecuteHeavyAttack();
     void EndHeavyAttack();
     void OnChargeAutoRelease();
-	
+
     void OnChargeMontageBlendingOut (UAnimMontage*, bool bInterrupted);
     void OnReleaseMontageBlendingOut(UAnimMontage*, bool bInterrupted);
 };

@@ -26,7 +26,7 @@ class REVENANT_API ARVCharacterPlayer : public ARVCharacterBase
 
 public:
     ARVCharacterPlayer();
-	
+
     virtual void Tick(float DeltaTime) override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
     virtual bool ApplyDamage(const FRVHitInfo& InHitInfo) override;
@@ -119,9 +119,8 @@ private:
     void EndSprint();
     void OnCombatStateChangedForSprint(ERVCombatState InNewState);
 
-    UPROPERTY(EditDefaultsOnly, Category = "RV|Sprint")
-    float SprintSpeed = 1000.f;
-
+    // Set from DT_PlayerStats via InitStats — not editable per-instance.
+    float SprintSpeed       = 1000.f;
     float OriginalWalkSpeed = 0.f;
     bool  bIsSprinting      = false;
 
@@ -130,7 +129,7 @@ private:
     bool CanStartDodge() const;
     void StartDodge(UAnimMontage* InMontage);
     void EndDodge();
-	
+
     void OnDodgeMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
 
     UPROPERTY()
@@ -154,6 +153,12 @@ private:
 
     UPROPERTY(VisibleAnywhere, Category = "RV|Components")
     TObjectPtr<UCameraComponent> FollowCamera;
+
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Camera")
+    float ViewPitchMin = -70.f;
+
+    UPROPERTY(EditDefaultsOnly, Category = "RV|Camera")
+    float ViewPitchMax = 20.f;
 
     //--- Attack rotation -----------------------------------------------------
 
