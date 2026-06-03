@@ -81,6 +81,5 @@ private:
 
     float MaxLocomotionSpeed = 1.f;
 
-    UFUNCTION()
     void OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData);
 };

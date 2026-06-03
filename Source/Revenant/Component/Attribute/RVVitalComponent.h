@@ -6,10 +6,10 @@
 
 struct FRVCharacterStatRow;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRVOnHealthChanged, float, NewHealthRatio);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRVOnPoiseChanged,  float, NewPoiseRatio);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnDeath);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnPoiseDepleted);
+DECLARE_MULTICAST_DELEGATE_OneParam(FRVOnHealthChanged, float);
+DECLARE_MULTICAST_DELEGATE_OneParam(FRVOnPoiseChanged,  float);
+DECLARE_MULTICAST_DELEGATE(FRVOnDeath);
+DECLARE_MULTICAST_DELEGATE(FRVOnPoiseDepleted);
 
 // Stamina is player-only
 UCLASS(ClassGroup=(Revenant))
@@ -22,17 +22,10 @@ public:
 
     //--- Delegates -----------------------------------------------------------
 
-    UPROPERTY(BlueprintAssignable, Category = "RV|Vital")
+	FRVOnDeath OnDeath;
     FRVOnHealthChanged OnHealthChanged;
-
-    UPROPERTY(BlueprintAssignable, Category = "RV|Vital")
-    FRVOnPoiseChanged OnPoiseChanged;
-
-    UPROPERTY(BlueprintAssignable, Category = "RV|Vital")
-    FRVOnDeath OnDeath;
-
-    UPROPERTY(BlueprintAssignable, Category = "RV|Vital")
-    FRVOnPoiseDepleted OnPoiseDepleted;
+	FRVOnPoiseChanged OnPoiseChanged;
+	FRVOnPoiseDepleted OnPoiseDepleted;
 
     //--- Init ----------------------------------------------------------------
 

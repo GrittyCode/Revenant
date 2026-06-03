@@ -30,9 +30,9 @@ void ARVPlayerController::BeginPlay()
 
     if (ARVCharacterPlayer* PlayerChar = Cast<ARVCharacterPlayer>(GetPawn()))
     {
-        PlayerChar->GetOnHealthChanged().AddDynamic(this, &ARVPlayerController::OnPlayerHealthChanged);
-        PlayerChar->GetOnStaminaChanged().AddDynamic(this, &ARVPlayerController::OnPlayerStaminaChanged);
-        PlayerChar->GetOnDeath().AddDynamic(this, &ARVPlayerController::OnPlayerDeath);
+        PlayerChar->GetOnHealthChanged().AddUObject(this, &ARVPlayerController::OnPlayerHealthChanged);
+        PlayerChar->GetOnStaminaChanged().AddUObject(this, &ARVPlayerController::OnPlayerStaminaChanged);
+        PlayerChar->GetOnDeath().AddUObject(this, &ARVPlayerController::OnPlayerDeath);
     }
     else
     {
@@ -87,7 +87,7 @@ void ARVPlayerController::OnBossSpawned(ARVSevarogCharacter* InBoss)
         BossHPBarWidget->AddToViewport();
     }
 
-    InBoss->OnBossDefeated.AddDynamic(this, &ARVPlayerController::OnBossDefeated);
+    InBoss->OnBossDefeated.AddUObject(this, &ARVPlayerController::OnBossDefeated);
 }
 
 void ARVPlayerController::OnBossDefeated()

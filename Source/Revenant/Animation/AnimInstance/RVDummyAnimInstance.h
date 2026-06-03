@@ -9,7 +9,6 @@ class ARVCharacterBase;
 /**
  * Minimal AnimInstance for ARVDummyTarget.
  *   bIsStaggering  — state machine transition to HitReaction state
- *   StaggerDirection — drives BS_Stagger blendspace axis inside HitReaction state
  */
 UCLASS()
 class REVENANT_API URVDummyAnimInstance : public UAnimInstance

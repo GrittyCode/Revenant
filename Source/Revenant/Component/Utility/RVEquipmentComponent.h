@@ -10,7 +10,7 @@ class UStaticMeshComponent;
 class UNiagaraComponent;
 class UNiagaraSystem;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRVOnWeaponChanged, URVWeaponDataAsset*, NewWeaponData);
+DECLARE_MULTICAST_DELEGATE_OneParam(FRVOnWeaponChanged, URVWeaponDataAsset*);
 
 UCLASS(ClassGroup=(Revenant))
 class REVENANT_API URVEquipmentComponent : public UActorComponent
@@ -36,7 +36,6 @@ public:
 	// Called by AnimNotifyState_WeaponTrailFX::NotifyEnd.
 	void DeactivateWeaponTrail();
 
-	UPROPERTY(BlueprintAssignable, Category = "RV|Equipment")
 	FRVOnWeaponChanged OnWeaponChanged;
 
 	// Slot A is the default starting weapon (equipped in BeginPlay).
@@ -54,13 +53,11 @@ private:
 	TObjectPtr<UStaticMeshComponent> WeaponMeshComponent;
 
 	// Permanently attached Niagara component for the blade trail.
-	// Inactive by default; activated only during AttackHitCheck window.
 	UPROPERTY()
 	TObjectPtr<UNiagaraComponent> WeaponTrailNC;
 
 	bool bIsSlotA = true;
 
 	// Applies the trail asset and width from the given weapon data.
-	// Called on weapon equip / swap. Deactivates any active trail first.
 	void SetupWeaponTrail(URVWeaponDataAsset* InWeaponData);
 };

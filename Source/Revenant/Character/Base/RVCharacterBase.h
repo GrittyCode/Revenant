@@ -80,16 +80,12 @@ protected:
     virtual void BeginPlay() override;
     virtual void Falling()   override;
     virtual void Landed(const FHitResult& Hit) override;
-
-    virtual void InitStats() {}
-    virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const { return nullptr; }
-
-    UFUNCTION()
     virtual void OnDeath();
+    virtual void InitStats() {}
 
+    virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const { return nullptr; }
+	
     // Returns the mesh that owns WeaponRoot / WeaponTip sockets.
-    // Player: weapon static mesh. Boss: character skeletal mesh.
-    // DummyTarget: character mesh (never attacks, PerformHit is never called).
     virtual UMeshComponent* GetWeaponTraceMesh() const { return GetMesh(); }
 
     FVector GetForwardLocation(float InOffset = 1.f) const;

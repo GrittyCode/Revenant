@@ -35,12 +35,8 @@ private:
 
     //--- Delegate handlers ---------------------------------------------------
 	
-	UFUNCTION()
     void OnBossHealthChanged(float NewHealthRatio);
-
-    UFUNCTION()
-    void OnBossPoiseChangedHandler(float NewPoiseRatio);
-
+	void OnBossPoiseChangedHandler(float NewPoiseRatio);
     void OnGroggyStarted();
     void OnGroggyEnded();
 };

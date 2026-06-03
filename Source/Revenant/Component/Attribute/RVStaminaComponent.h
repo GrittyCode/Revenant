@@ -6,8 +6,8 @@
 
 struct FRVPlayerStatRow;
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRVOnStaminaChanged, float, NewStaminaRatio);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnStaminaDepleted);
+DECLARE_MULTICAST_DELEGATE_OneParam(FRVOnStaminaChanged, float);
+DECLARE_MULTICAST_DELEGATE(FRVOnStaminaDepleted);
 
 UCLASS(ClassGroup=(Revenant))
 class REVENANT_API URVStaminaComponent : public UActorComponent
@@ -18,11 +18,8 @@ public:
     URVStaminaComponent();
 
     //--- Delegates -----------------------------------------------------------
-
-    UPROPERTY(BlueprintAssignable, Category = "RV|Stamina")
-    FRVOnStaminaChanged OnStaminaChanged;
-
-    UPROPERTY(BlueprintAssignable, Category = "RV|Stamina")
+	
+	FRVOnStaminaChanged OnStaminaChanged;
     FRVOnStaminaDepleted OnStaminaDepleted;
 
     //--- Init ----------------------------------------------------------------

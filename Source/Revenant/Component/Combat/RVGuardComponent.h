@@ -23,8 +23,6 @@ public:
 	void StartGuard();
 	void EndGuard();
 	void HandleGuardHit(float InDamageAmount);
-
-	UFUNCTION()
 	void OnStaminaDepletedHandler();
 
 private:

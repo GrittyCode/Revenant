@@ -18,8 +18,7 @@ void URVPlayerAnimInstance::NativeInitializeAnimation()
 
 	MaxLocomotionSpeed = OwnerCharacter->GetSprintSpeed();
 
-	OwnerCharacter->GetOnWeaponChanged().AddDynamic(
-		this, &URVPlayerAnimInstance::OnWeaponChangedHandler);
+	OwnerCharacter->GetOnWeaponChanged().AddUObject(this, &URVPlayerAnimInstance::OnWeaponChangedHandler);
 
 	OnWeaponChangedHandler(OwnerCharacter->GetEquipmentComponent()->GetCurrentWeaponData());
 }
@@ -28,8 +27,7 @@ void URVPlayerAnimInstance::NativeUninitializeAnimation()
 {
 	if (IsValid(OwnerCharacter))
 	{
-		OwnerCharacter->GetOnWeaponChanged().RemoveDynamic(
-			this, &URVPlayerAnimInstance::OnWeaponChangedHandler);
+		OwnerCharacter->GetOnWeaponChanged().RemoveAll(this);
 	}
 
 	Super::NativeUninitializeAnimation();

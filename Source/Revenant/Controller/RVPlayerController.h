@@ -52,17 +52,10 @@ private:
 	TObjectPtr<URVGameResultWidget> GameResultWidget;
 
 	//--- Delegate handlers ---------------------------------------------------
-
-	UFUNCTION()
+	
 	void OnPlayerHealthChanged(float NewHealthRatio);
-
-	UFUNCTION()
 	void OnPlayerStaminaChanged(float NewStaminaRatio);
-
-	UFUNCTION()
 	void OnPlayerDeath();
-
-	UFUNCTION()
 	void OnBossDefeated();
 
 	TWeakObjectPtr<ARVSevarogCharacter> BossRef;

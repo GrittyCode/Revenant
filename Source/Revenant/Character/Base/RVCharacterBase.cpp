@@ -45,9 +45,11 @@ void ARVCharacterBase::BeginPlay()
         TEXT("[%s] GetWeaponTraceMesh() returned null"), *GetNameSafe(this));
 
     InitStats();
-
-    VitalComponent->OnDeath.AddDynamic(this, &ARVCharacterBase::OnDeath);
-
+	
+	
+	// -- Wiring -----------------------------------------------------------------------------
+	
+    VitalComponent->OnDeath.AddUObject(this, &ARVCharacterBase::OnDeath);
     CombatStateComponent->OnForceEnd.AddUObject(this, &ARVCharacterBase::CloseAttackHitWindow);
 }
 

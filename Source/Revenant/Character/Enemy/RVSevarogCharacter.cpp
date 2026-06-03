@@ -58,13 +58,12 @@ void ARVSevarogCharacter::BeginPlay()
     HitReactionComponent->SetHitReactCapability(ERVHitReactCapability::Groggy);
     HitReactionComponent->OnGroggySequenceCompleted.AddUObject(
         this, &ARVSevarogCharacter::OnGroggySequenceCompleted);
-
-    VitalComponent->OnHealthChanged.AddDynamic(this, &ARVSevarogCharacter::CheckPhaseTransition);
-    VitalComponent->OnPoiseDepleted.AddDynamic(this, &ARVSevarogCharacter::OnPoiseDepleted);
-
     OnHitConfirmed.AddUObject(this, &ARVSevarogCharacter::OnHitConfirmedHandler);
 
-    // SevarogData guaranteed valid after Super::BeginPlay() → InitStats.
+    VitalComponent->OnHealthChanged.AddUObject(this, &ARVSevarogCharacter::CheckPhaseTransition);
+    VitalComponent->OnPoiseDepleted.AddUObject(this, &ARVSevarogCharacter::OnPoiseDepleted);
+
+
     if (IsValid(SevarogData->MeleeTrailEffect))
     {
         MeleeTrailNC = UNiagaraFunctionLibrary::SpawnSystemAttached(
@@ -634,7 +633,7 @@ void ARVSevarogCharacter::CheckPhaseTransition(float InNewHealthRatio)
 
     if (InNewHealthRatio <= SevarogData->Phase2Threshold)
     {
-        VitalComponent->OnHealthChanged.RemoveDynamic(this, &ARVSevarogCharacter::CheckPhaseTransition);
+        VitalComponent->OnHealthChanged.RemoveAll(this);
         SetBossPhase(ERVBossPhase::Phase2);
     }
 }

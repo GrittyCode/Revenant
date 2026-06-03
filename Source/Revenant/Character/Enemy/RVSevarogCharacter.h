@@ -16,12 +16,11 @@ enum class ERVBossPhase : uint8
     Phase2 UMETA(DisplayName = "Phase 2"),
 };
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FRVOnBossPhaseChanged, ERVBossPhase, NewPhase);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE(FRVOnBossDefeated);
-
+DECLARE_MULTICAST_DELEGATE(FRVOnBossDefeated);
 DECLARE_MULTICAST_DELEGATE(FRVOnBossGroggyStarted);
 DECLARE_MULTICAST_DELEGATE(FRVOnBossGroggyEnded);
 DECLARE_MULTICAST_DELEGATE(FRVOnBossAttackFinished);
+DECLARE_MULTICAST_DELEGATE_OneParam(FRVOnBossPhaseChanged, ERVBossPhase);
 
 UCLASS()
 class REVENANT_API ARVSevarogCharacter : public ARVCharacterBase
@@ -30,7 +29,10 @@ class REVENANT_API ARVSevarogCharacter : public ARVCharacterBase
 
 public:
     ARVSevarogCharacter();
-
+	
+	virtual void ActivateWeaponTrail()   override;
+	virtual void DeactivateWeaponTrail() override;
+	
     //--- BT task interface ---------------------------------------------------
 
     bool ExecutePhaseAttack();
@@ -52,41 +54,23 @@ public:
     void SpawnSubjugationBlast(UParticleSystem* InSwirlsFX, USoundBase* InSwirlsSFX);
 
     void ExecuteSoulSiphonHit();
+	
 
     //--- State queries -------------------------------------------------------
 
-    UFUNCTION(BlueprintCallable, Category = "RV|Boss")
+	const URVSevarogDataAsset* GetSevarogData() const { return SevarogData; }
     ERVBossPhase GetCurrentPhase() const { return CurrentPhase; }
-
-    UFUNCTION(BlueprintCallable, Category = "RV|Boss")
-    bool IsGroggy() const { return HasCombatState(ERVCombatState::Groggy); }
-
-    UFUNCTION(BlueprintCallable, Category = "RV|Boss")
+	bool IsGroggy() const { return HasCombatState(ERVCombatState::Groggy); }
     bool IsAttacking() const;
-
-    UFUNCTION(BlueprintCallable, Category = "RV|Boss")
-    bool IsRushing() const { return bIsRushing; }
-
-    UFUNCTION(BlueprintCallable, Category = "RV|Boss")
-    const URVSevarogDataAsset* GetSevarogData() const { return SevarogData; }
-
-    UFUNCTION(BlueprintCallable, Category = "RV|Boss")
-    bool IsInHitReaction() const;
-
-    UFUNCTION(BlueprintCallable, Category = "RV|Boss")
-    bool IsKnockedDown() const;
-
-    UFUNCTION(BlueprintCallable, Category = "RV|Boss")
-    float GetStaggerDirectionForAnim() const;
+	bool IsRushing() const { return bIsRushing; }
+	bool IsInHitReaction() const;
+	bool IsKnockedDown() const;
+	float GetStaggerDirectionForAnim() const;
 
     //--- Delegates -----------------------------------------------------------
 
-    UPROPERTY(BlueprintAssignable, Category = "RV|Boss")
     FRVOnBossPhaseChanged OnBossPhaseChanged;
-
-    UPROPERTY(BlueprintAssignable, Category = "RV|Boss")
-    FRVOnBossDefeated OnBossDefeated;
-
+	FRVOnBossDefeated OnBossDefeated;
     FRVOnBossGroggyStarted  OnBossGroggyStarted;
     FRVOnBossGroggyEnded    OnBossGroggyEnded;
     FRVOnBossAttackFinished OnAttackFinished;
@@ -96,9 +80,6 @@ protected:
     virtual void OnDeath() override;
     virtual void InitStats() override;
     virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const override;
-
-    virtual void ActivateWeaponTrail()   override;
-    virtual void DeactivateWeaponTrail() override;
 
 private:
     UPROPERTY(EditDefaultsOnly, Category = "RV|Data")
@@ -159,7 +140,6 @@ private:
     static TArray<FVector> GenerateSwirlLocations(const FVector& InOrigin,
         float InSpreadRadius, float InMinSeparation, int32 InCount);
 
-    UFUNCTION()
     void ApplySubjugationDamage();
 
     //--- VFX helpers ---------------------------------------------------------
@@ -194,7 +174,6 @@ private:
     void OnGroggySequenceCompleted();
     void OnAttackMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
     void OnSingleShotActionBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
-
-    UFUNCTION() void CheckPhaseTransition(float InNewHealthRatio);
-    UFUNCTION() void OnPoiseDepleted();
+    void CheckPhaseTransition(float InNewHealthRatio);
+    void OnPoiseDepleted();
 };

@@ -19,8 +19,8 @@ void URVBossHPBarWidget::SetBoss(ARVSevarogCharacter* InBoss)
     HPBar->SetPercent(InBoss->GetHealthRatio());
     PoiseBar->SetPercent(0.f);
 
-    InBoss->GetOnHealthChanged().AddDynamic(this, &URVBossHPBarWidget::OnBossHealthChanged);
-    InBoss->GetOnPoiseChanged().AddDynamic(this, &URVBossHPBarWidget::OnBossPoiseChangedHandler);
+    InBoss->GetOnHealthChanged().AddUObject(this, &URVBossHPBarWidget::OnBossHealthChanged);
+    InBoss->GetOnPoiseChanged().AddUObject(this, &URVBossHPBarWidget::OnBossPoiseChangedHandler);
     InBoss->OnBossGroggyStarted.AddUObject(this, &URVBossHPBarWidget::OnGroggyStarted);
     InBoss->OnBossGroggyEnded.AddUObject  (this, &URVBossHPBarWidget::OnGroggyEnded);
 }
@@ -29,8 +29,8 @@ void URVBossHPBarWidget::NativeDestruct()
 {
     if (BossRef.IsValid())
     {
-        BossRef->GetOnHealthChanged().RemoveDynamic(this, &URVBossHPBarWidget::OnBossHealthChanged);
-        BossRef->GetOnPoiseChanged().RemoveDynamic(this, &URVBossHPBarWidget::OnBossPoiseChangedHandler);
+        BossRef->GetOnHealthChanged().RemoveAll(this);
+        BossRef->GetOnPoiseChanged().RemoveAll(this);
         BossRef->OnBossGroggyStarted.RemoveAll(this);
         BossRef->OnBossGroggyEnded.RemoveAll(this);
     }

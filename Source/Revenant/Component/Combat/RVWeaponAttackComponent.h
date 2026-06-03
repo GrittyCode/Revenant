@@ -57,17 +57,15 @@ private:
     TEnumAsByte<ERootMotionMode::Type> CachedRootMotionMode =
         ERootMotionMode::RootMotionFromMontagesOnly;
 
+    UAnimInstance* GetAnimInstance() const;
+	
     void StartCombo();
     void StartRunAttack();
     void StartJumpAttack();
     void EndCombo();
     void PlayLightAttackMontage(UAnimMontage* InMontage);
-
     bool ConsumeAttackStamina(UAnimMontage* InMontage);
-
-    UAnimInstance* GetAnimInstance() const;
-
-    UFUNCTION()
+	
     void OnLightAttackMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted);
 
     //--- Heavy Attack State --------------------------------------------------
@@ -92,10 +90,8 @@ private:
 
     void ExecuteHeavyAttack();
     void EndHeavyAttack();
-
-    UFUNCTION()
     void OnChargeAutoRelease();
-
+	
     void OnChargeMontageBlendingOut (UAnimMontage*, bool bInterrupted);
     void OnReleaseMontageBlendingOut(UAnimMontage*, bool bInterrupted);
 };

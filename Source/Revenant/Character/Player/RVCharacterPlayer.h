@@ -26,10 +26,12 @@ class REVENANT_API ARVCharacterPlayer : public ARVCharacterBase
 
 public:
     ARVCharacterPlayer();
-
+	
     virtual void Tick(float DeltaTime) override;
     virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
     virtual bool ApplyDamage(const FRVHitInfo& InHitInfo) override;
+	virtual void ActivateWeaponTrail()   override;
+	virtual void DeactivateWeaponTrail() override;
 
     //--- AnimInstance accessors ----------------------------------------------
 
@@ -65,10 +67,7 @@ protected:
 
     virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const override;
     virtual UMeshComponent* GetWeaponTraceMesh()   const override;
-    virtual void ActivateWeaponTrail()   override;
-    virtual void DeactivateWeaponTrail() override;
 
-    UFUNCTION()
     void OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData);
 
     //--- Player-only components ----------------------------------------------
@@ -131,14 +130,11 @@ private:
     bool CanStartDodge() const;
     void StartDodge(UAnimMontage* InMontage);
     void EndDodge();
-
-    UFUNCTION()
+	
     void OnDodgeMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
 
     UPROPERTY()
     TObjectPtr<UAnimMontage> ActiveDodgeMontage;
-
-    float CachedDodgeStaminaCost = 30.f;
 
     //--- Config --------------------------------------------------------------
 
