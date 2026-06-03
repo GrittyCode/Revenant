@@ -4,22 +4,22 @@
 #include "UObject/Interface.h"
 #include "RVDamageable.generated.h"
 
-USTRUCT(BlueprintType)
+USTRUCT()
 struct REVENANT_API FRVHitInfo
 {
 	GENERATED_BODY()
 
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY()
 	float Damage = 0.f;
 
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY()
 	float PoiseDamage = 0.f;
 
 	// World-space direction from instigator toward target (normalized).
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY()
 	FVector HitDirection = FVector::ZeroVector;
 
-	UPROPERTY(BlueprintReadWrite)
+	UPROPERTY()
 	TObjectPtr<AActor> Instigator;
 };
 

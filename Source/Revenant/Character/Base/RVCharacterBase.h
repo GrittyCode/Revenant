@@ -84,20 +84,20 @@ protected:
     virtual void InitStats() {}
 
     virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const { return nullptr; }
-	
+
     // Returns the mesh that owns WeaponRoot / WeaponTip sockets.
     virtual UMeshComponent* GetWeaponTraceMesh() const { return GetMesh(); }
 
     FVector GetForwardLocation(float InOffset = 1.f) const;
     FVector GetGroundOrigin() const;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    UPROPERTY(VisibleAnywhere, Category = "RV|Components")
     TObjectPtr<URVVitalComponent> VitalComponent;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    UPROPERTY(VisibleAnywhere, Category = "RV|Components")
     TObjectPtr<URVCombatStateComponent> CombatStateComponent;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    UPROPERTY(VisibleAnywhere, Category = "RV|Components")
     TObjectPtr<URVHitReactionComponent> HitReactionComponent;
 
     UPROPERTY(EditDefaultsOnly, Category = "RV|Movement")

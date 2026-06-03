@@ -66,25 +66,25 @@ protected:
     virtual void Landed(const FHitResult& Hit) override;
 
     virtual URVHitReactionAnimDataAsset* GetHitReactionAnimData() const override;
-    virtual UMeshComponent* GetWeaponTraceMesh()   const override;
+    virtual UMeshComponent* GetWeaponTraceMesh() const override;
 
     void OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData);
 
     //--- Player-only components ----------------------------------------------
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    UPROPERTY(VisibleAnywhere, Category = "RV|Components")
     TObjectPtr<URVStaminaComponent> StaminaComponent;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    UPROPERTY(VisibleAnywhere, Category = "RV|Components")
     TObjectPtr<URVWeaponAttackComponent> WeaponAttackComponent;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    UPROPERTY(VisibleAnywhere, Category = "RV|Components")
     TObjectPtr<URVGuardComponent> GuardComponent;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    UPROPERTY(VisibleAnywhere, Category = "RV|Components")
     TObjectPtr<URVEquipmentComponent> EquipmentComponent;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Components")
+    UPROPERTY(VisibleAnywhere, Category = "RV|Components")
     TObjectPtr<URVLockOnComponent> LockOnComponent;
 
 private:

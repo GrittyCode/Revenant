@@ -16,8 +16,6 @@ void URVPlayerAnimInstance::NativeInitializeAnimation()
 	           TEXT("[URVPlayerAnimInstance] Owner is not ARVCharacterPlayer — check ABP assignment"));
 	if (!IsValid(OwnerCharacter)) { return; }
 
-	MaxLocomotionSpeed = OwnerCharacter->GetSprintSpeed();
-
 	OwnerCharacter->GetOnWeaponChanged().AddUObject(this, &URVPlayerAnimInstance::OnWeaponChangedHandler);
 
 	OnWeaponChangedHandler(OwnerCharacter->GetEquipmentComponent()->GetCurrentWeaponData());
@@ -43,17 +41,14 @@ void URVPlayerAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	if (!W || !W->IsGameWorld()) { return; }
 
 	Speed = OwnerCharacter->GetVelocity().Size2D();
-	NormalizedSpeed = FMath::Clamp(Speed / MaxLocomotionSpeed, 0.f, 1.f);
 	Direction = UKismetAnimationLibrary::CalculateDirection(
 		OwnerCharacter->GetVelocity(),
 		OwnerCharacter->GetActorRotation());
 
-	bIsInAir = OwnerCharacter->GetCharacterMovement()->IsFalling();
-	bIsGuarding = OwnerCharacter->HasCombatState(ERVCombatState::Guarding);
-	bIsLockedOn = OwnerCharacter->IsLockedOn();
-	bIsSprinting = OwnerCharacter->IsSprinting();
-	bIsAttacking = OwnerCharacter->HasCombatState(ERVCombatState::Attacking);
-	bIsKnockedDown = OwnerCharacter->HasCombatState(ERVCombatState::Knockdown);
+	bIsInAir         = OwnerCharacter->GetCharacterMovement()->IsFalling();
+	bIsGuarding      = OwnerCharacter->HasCombatState(ERVCombatState::Guarding);
+	bIsLockedOn      = OwnerCharacter->IsLockedOn();
+	bIsSprinting     = OwnerCharacter->IsSprinting();
 	bIsInHitReaction = OwnerCharacter->HasCombatState(ERVCombatState::HitReaction);
 	StaggerDirection = OwnerCharacter->GetStaggerDirection();
 }
@@ -62,12 +57,12 @@ void URVPlayerAnimInstance::OnWeaponChangedHandler(URVWeaponDataAsset* NewWeapon
 {
 	if (!IsValid(NewWeaponData))
 	{
-		CachedLocomotionBS = nullptr;
-		CachedRunLocomotionBS = nullptr;
-		CachedLockOnLocomotionBS = nullptr;
-		CachedGuardLocomotionBS = nullptr;
+		CachedLocomotionBS             = nullptr;
+		CachedRunLocomotionBS          = nullptr;
+		CachedLockOnLocomotionBS       = nullptr;
+		CachedGuardLocomotionBS        = nullptr;
 		CachedGuardLocomotionBS_LockOn = nullptr;
-		CachedStaggerBlendSpace = nullptr;
+		CachedStaggerBlendSpace        = nullptr;
 		return;
 	}
 
@@ -79,10 +74,10 @@ void URVPlayerAnimInstance::OnWeaponChangedHandler(URVWeaponDataAsset* NewWeapon
 	                TEXT("[URVPlayerAnimInstance] WeaponData '%s' has no HitReactionAnimData"),
 	                *GetNameSafe(NewWeaponData))) { return; }
 
-	CachedLocomotionBS = NewWeaponData->LocomotionAnimData->LocomotionBS;
-	CachedRunLocomotionBS = NewWeaponData->LocomotionAnimData->RunLocomotionBS;
-	CachedLockOnLocomotionBS = NewWeaponData->LocomotionAnimData->LockOnLocomotionBS;
-	CachedGuardLocomotionBS = NewWeaponData->LocomotionAnimData->GuardLocomotionBS;
+	CachedLocomotionBS             = NewWeaponData->LocomotionAnimData->LocomotionBS;
+	CachedRunLocomotionBS          = NewWeaponData->LocomotionAnimData->RunLocomotionBS;
+	CachedLockOnLocomotionBS       = NewWeaponData->LocomotionAnimData->LockOnLocomotionBS;
+	CachedGuardLocomotionBS        = NewWeaponData->LocomotionAnimData->GuardLocomotionBS;
 	CachedGuardLocomotionBS_LockOn = NewWeaponData->LocomotionAnimData->GuardLocomotionBS_LockOn;
-	CachedStaggerBlendSpace = NewWeaponData->HitReactionAnimData->StaggerBlendSpace;
+	CachedStaggerBlendSpace        = NewWeaponData->HitReactionAnimData->StaggerBlendSpace;
 }

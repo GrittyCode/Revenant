@@ -25,9 +25,6 @@ protected:
     float Speed;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
-    float NormalizedSpeed;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     float Direction;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
@@ -51,9 +48,6 @@ protected:
     uint8 bIsInAir : 1;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
-    uint8 bIsAttacking : 1;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     uint8 bIsLockedOn : 1;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
@@ -66,9 +60,6 @@ protected:
     uint8 bIsInHitReaction : 1;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
-    uint8 bIsKnockedDown : 1;
-
-    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
     TObjectPtr<UBlendSpace> CachedStaggerBlendSpace;
 
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RV|Animation")
@@ -78,8 +69,6 @@ private:
     // All state queries go through ARVCharacterPlayer facade — no cached component pointers.
     UPROPERTY()
     TObjectPtr<ARVCharacterPlayer> OwnerCharacter;
-
-    float MaxLocomotionSpeed = 1.f;
 
     void OnWeaponChangedHandler(URVWeaponDataAsset* NewWeaponData);
 };

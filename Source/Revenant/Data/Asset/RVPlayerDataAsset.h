@@ -11,7 +11,7 @@ class REVENANT_API URVPlayerDataAsset : public UPrimaryDataAsset
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Stats")
+	UPROPERTY(EditDefaultsOnly, Category = "Stats")
 	FDataTableRowHandle PlayerStatRowHandle;
 
 	const FRVPlayerStatRow* GetPlayerStatRow() const

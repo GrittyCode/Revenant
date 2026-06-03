@@ -12,13 +12,13 @@ USTRUCT(BlueprintType)
 struct REVENANT_API FRVAttackActionMultiplierRow : public FTableRowBase
 {
 	GENERATED_BODY()
-	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+
+	UPROPERTY(EditDefaultsOnly)
 	float DamageMultiplier = 1.f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(EditDefaultsOnly)
 	float PoiseDamageMultiplier = 1.f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(EditDefaultsOnly)
 	float StaminaCostMultiplier = 0.f;
 };

@@ -33,12 +33,7 @@ void URVSevarogAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
 	const UWorld* W = GetWorld();
 	if (!W || !W->IsGameWorld()) { return; }
 
-	Speed = OwnerSevarog->GetCharacterMovement()->Velocity.Size2D();
-
-	bIsAttacking     = OwnerSevarog->IsAttacking();
+	Speed            = OwnerSevarog->GetCharacterMovement()->Velocity.Size2D();
 	bIsInHitReaction = OwnerSevarog->IsInHitReaction();
-	bIsKnockedDown   = OwnerSevarog->IsKnockedDown();
-	bIsGroggy        = OwnerSevarog->IsGroggy();
-
 	StaggerDirection = OwnerSevarog->GetStaggerDirectionForAnim();
 }

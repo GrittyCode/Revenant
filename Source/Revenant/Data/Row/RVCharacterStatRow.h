@@ -11,31 +11,31 @@ struct REVENANT_API FRVCharacterStatRow : public FTableRowBase
 
 	//--- Attribute -----------------------------------------------------------
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(EditDefaultsOnly)
 	float MaxHealth = 100.f;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(EditDefaultsOnly)
 	float MaxPoise = 100.f;
 
 	//--- Movement ------------------------------------------------------------
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(EditDefaultsOnly)
 	float MoveSpeed = 400.f;
 
 	//--- Hit Reaction --------------------------------------------------------
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(EditDefaultsOnly)
 	float StaggerDuration = 0.5f;
 
 	// CurrentPoise / MaxPoise drops to or below this ratio → Stagger.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float StaggerThreshold = 0.5f;
 
 	// Single-hit PoiseDamage / MaxPoise reaches or exceeds this ratio → Knockdown.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	UPROPERTY(EditDefaultsOnly, meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float KnockdownThreshold = 0.4f;
 
 	// Seconds after the last poise hit before poise begins recovering.
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	UPROPERTY(EditDefaultsOnly)
 	float PoiseRegenDelay = 3.f;
 };

@@ -9,24 +9,24 @@
 USTRUCT(BlueprintType)
 struct REVENANT_API FRVPlayerStatRow : public FRVCharacterStatRow
 {
-    GENERATED_BODY()
+	GENERATED_BODY()
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-    float MaxStamina = 100.f;
+	UPROPERTY(EditDefaultsOnly)
+	float MaxStamina = 100.f;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-    float StaminaRegenRate = 20.f;
+	UPROPERTY(EditDefaultsOnly)
+	float StaminaRegenRate = 20.f;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-    float StaminaRegenDelay = 1.5f;
+	UPROPERTY(EditDefaultsOnly)
+	float StaminaRegenDelay = 1.5f;
 
-    // Timer interval (seconds) between each stamina regen tick.
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-    float StaminaRegenInterval = 0.1f;
+	// Timer interval (seconds) between each stamina regen tick.
+	UPROPERTY(EditDefaultsOnly)
+	float StaminaRegenInterval = 0.1f;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-    float DodgeStaminaCost = 30.f;
+	UPROPERTY(EditDefaultsOnly)
+	float DodgeStaminaCost = 30.f;
 
-    UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
-    float SprintSpeed = 1000.f;
+	UPROPERTY(EditDefaultsOnly)
+	float SprintSpeed = 1000.f;
 };

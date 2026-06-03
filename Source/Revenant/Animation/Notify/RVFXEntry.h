@@ -8,8 +8,7 @@ class UNiagaraSystem;
 class USoundBase;
 
 // Entry for a Niagara VFX spawn.
-// SFX is optional — plays once at the socket location when the FX spawns.
-USTRUCT(BlueprintType)
+USTRUCT()
 struct FRVNiagaraFXEntry
 {
 	GENERATED_BODY()
@@ -36,8 +35,7 @@ struct FRVNiagaraFXEntry
 };
 
 // Entry for a Cascade (legacy particle) VFX spawn.
-// SFX is optional — plays once at the socket location when the FX spawns.
-USTRUCT(BlueprintType)
+USTRUCT()
 struct FRVCascadeFXEntry
 {
 	GENERATED_BODY()
