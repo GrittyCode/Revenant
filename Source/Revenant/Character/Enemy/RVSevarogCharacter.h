@@ -5,6 +5,7 @@
 #include "RVSevarogCharacter.generated.h"
 
 class URVSevarogDataAsset;
+class URVHitReactionComponent;
 class UNiagaraComponent;
 class UParticleSystem;
 class USoundBase;
@@ -18,7 +19,6 @@ enum class ERVBossPhase : uint8
 
 DECLARE_MULTICAST_DELEGATE(FRVOnBossDefeated);
 DECLARE_MULTICAST_DELEGATE(FRVOnBossGroggyStarted);
-DECLARE_MULTICAST_DELEGATE(FRVOnBossGroggyEnded);
 DECLARE_MULTICAST_DELEGATE(FRVOnBossAttackFinished);
 DECLARE_MULTICAST_DELEGATE_OneParam(FRVOnBossPhaseChanged, ERVBossPhase);
 
@@ -30,8 +30,8 @@ class REVENANT_API ARVSevarogCharacter : public ARVCharacterBase
 public:
     ARVSevarogCharacter();
 
-	virtual void ActivateWeaponTrail()   override;
-	virtual void DeactivateWeaponTrail() override;
+    virtual void ActivateWeaponTrail()   override;
+    virtual void DeactivateWeaponTrail() override;
 
     //--- BT task interface ---------------------------------------------------
 
@@ -57,21 +57,22 @@ public:
 
     //--- State queries -------------------------------------------------------
 
-	const URVSevarogDataAsset* GetSevarogData() const { return SevarogData; }
+    const URVSevarogDataAsset* GetSevarogData() const { return SevarogData; }
     ERVBossPhase GetCurrentPhase() const { return CurrentPhase; }
-	bool IsGroggy()        const { return HasCombatState(ERVCombatState::Groggy); }
+    bool IsGroggy()        const { return HasCombatState(ERVCombatState::Groggy); }
     bool IsAttacking()     const;
-	bool IsRushing()       const { return bIsRushing; }
-	bool IsInHitReaction() const;
-	bool IsKnockedDown()   const;
-	float GetStaggerDirectionForAnim() const;
+    bool IsRushing()       const { return bIsRushing; }
+    bool IsInHitReaction() const;
+    bool IsKnockedDown()   const;
+    float GetStaggerDirectionForAnim() const;
+
+    URVHitReactionComponent* GetHitReactionComponent() const { return HitReactionComponent; }
 
     //--- Delegates -----------------------------------------------------------
 
     FRVOnBossPhaseChanged   OnBossPhaseChanged;
-	FRVOnBossDefeated       OnBossDefeated;
+    FRVOnBossDefeated       OnBossDefeated;
     FRVOnBossGroggyStarted  OnBossGroggyStarted;
-    FRVOnBossGroggyEnded    OnBossGroggyEnded;
     FRVOnBossAttackFinished OnAttackFinished;
 
 protected:

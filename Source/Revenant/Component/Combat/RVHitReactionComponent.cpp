@@ -112,26 +112,20 @@ void URVHitReactionComponent::TriggerGroggy(float InGroggyDuration)
         TEXT("[%s] TriggerGroggy: HitReactionAnimData not assigned"),
         *GetNameSafe(OwnerBase))) { return; }
 
+    if (!ensureMsgf(IsValid(HitReactionAnimData->GroggyStunStartMontage),
+        TEXT("[%s] TriggerGroggy: GroggyStunStartMontage not assigned"),
+        *GetNameSafe(OwnerBase))) { return; }
+
     UAnimInstance* AnimInst = GetAnimInstance();
     if (!IsValid(AnimInst)) { return; }
 
     GroggyDuration = InGroggyDuration;
 
-    UAnimMontage* StartMontage = HitReactionAnimData->GroggyStunStartMontage;
-    if (!IsValid(StartMontage))
-    {
-        UAnimMontage* LoopMontage = HitReactionAnimData->GroggyStunLoopMontage;
-        if (IsValid(LoopMontage)) { AnimInst->Montage_Play(LoopMontage); }
-        GetWorld()->GetTimerManager().SetTimer(
-            GroggyTimerHandle, this, &URVHitReactionComponent::EndGroggy, GroggyDuration, false);
-        return;
-    }
-
-    AnimInst->Montage_Play(StartMontage);
+    AnimInst->Montage_Play(HitReactionAnimData->GroggyStunStartMontage);
 
     FOnMontageBlendingOutStarted BlendOutDelegate;
     BlendOutDelegate.BindUObject(this, &URVHitReactionComponent::OnGroggyStartMontageBlendingOut);
-    AnimInst->Montage_SetBlendingOutDelegate(BlendOutDelegate, StartMontage);
+    AnimInst->Montage_SetBlendingOutDelegate(BlendOutDelegate, HitReactionAnimData->GroggyStunStartMontage);
 }
 
 void URVHitReactionComponent::EndGroggy()
@@ -230,7 +224,11 @@ void URVHitReactionComponent::OnGetUpMontageBlendingOut(UAnimMontage*, bool)
 
 void URVHitReactionComponent::OnGroggyStartMontageBlendingOut(UAnimMontage*, bool bInterrupted)
 {
-    if (bInterrupted) { return; }
+    if (bInterrupted)
+    {
+        OnGroggySequenceCompleted.Broadcast();
+        return;
+    }
 
     UAnimMontage* LoopMontage = IsValid(HitReactionAnimData)
         ? HitReactionAnimData->GroggyStunLoopMontage : nullptr;

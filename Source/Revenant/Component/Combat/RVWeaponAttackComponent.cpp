@@ -227,9 +227,9 @@ void URVWeaponAttackComponent::EndCombo()
     OwnerBase->RemoveCombatState(ERVCombatState::Attacking);
 }
 
-void URVWeaponAttackComponent::OnLightAttackMontageBlendingOut(UAnimMontage*, bool bInterrupted)
+void URVWeaponAttackComponent::OnLightAttackMontageBlendingOut(UAnimMontage*, bool)
 {
-    if (!bInterrupted && bIsLightAttackActive) { EndCombo(); }
+    if (bIsLightAttackActive) { EndCombo(); }
 }
 
 //--- Heavy Attack ------------------------------------------------------------

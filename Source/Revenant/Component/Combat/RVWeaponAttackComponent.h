@@ -66,7 +66,7 @@ private:
     void PlayLightAttackMontage(UAnimMontage* InMontage);
     bool ConsumeAttackStamina(UAnimMontage* InMontage);
 
-    void OnLightAttackMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted);
+    void OnLightAttackMontageBlendingOut(UAnimMontage*, bool);
 
     //--- Heavy Attack State --------------------------------------------------
 
@@ -89,6 +89,6 @@ private:
     void EndHeavyAttack();
     void OnChargeAutoRelease();
 
-    void OnChargeMontageBlendingOut (UAnimMontage*, bool bInterrupted);
-    void OnReleaseMontageBlendingOut(UAnimMontage*, bool bInterrupted);
+    void OnChargeMontageBlendingOut (UAnimMontage*, bool);
+    void OnReleaseMontageBlendingOut(UAnimMontage*, bool);
 };

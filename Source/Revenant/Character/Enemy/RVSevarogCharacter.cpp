@@ -265,7 +265,7 @@ void ARVSevarogCharacter::ForceEndCurrentAction()
 
     UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
     AnimInst->Montage_Stop(0.2f);
-    
+
     RemoveCombatState(ERVCombatState::Attacking);
 }
 
@@ -305,7 +305,7 @@ void ARVSevarogCharacter::PlayComboMontageAt(int32 InIndex)
 
     UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
     UAnimMontage* Montage = ActiveComboMontages[InIndex];
-    
+
     if (!IsValid(Montage)) { return; }
 
     AddCombatState(ERVCombatState::Attacking);
@@ -333,11 +333,14 @@ void ARVSevarogCharacter::OnAttackMontageBlendingOut(UAnimMontage*, bool bInterr
         return;
     }
 
+    const bool bIsLastInChain = ActiveComboMontages.IsEmpty() ||
+        (ActiveComboIndex >= ActiveComboMontages.Num() - 1);
+
     RemoveCombatState(ERVCombatState::Attacking);
     ActiveComboMontages.Empty();
     ActiveComboIndex = 0;
 
-    if (!bInterrupted) { OnAttackFinished.Broadcast(); }
+    if (!bInterrupted && bIsLastInChain) { OnAttackFinished.Broadcast(); }
 }
 
 void ARVSevarogCharacter::OnSingleShotActionBlendingOut(UAnimMontage*, bool bInterrupted)
@@ -368,7 +371,6 @@ void ARVSevarogCharacter::OnGroggySequenceCompleted()
 {
     RemoveCombatState(ERVCombatState::Groggy);
     ResetPoise();
-    OnBossGroggyEnded.Broadcast();
 }
 
 void ARVSevarogCharacter::OnPoiseDepleted()
