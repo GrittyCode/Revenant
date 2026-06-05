@@ -7,7 +7,6 @@
 UBTTask_SevarogRush::UBTTask_SevarogRush()
 {
     NodeName = TEXT("Sevarog Rush");
-    // bCreateNodeInstance, bNotifyTick, bNotifyTaskFinished are set by the base constructor.
 }
 
 bool UBTTask_SevarogRush::LaunchAttack(ARVSevarogCharacter* InBoss)
@@ -15,7 +14,8 @@ bool UBTTask_SevarogRush::LaunchAttack(ARVSevarogCharacter* InBoss)
     return InBoss->ExecuteRushAttack();
 }
 
-EBTNodeResult::Type UBTTask_SevarogRush::ExecuteTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
+EBTNodeResult::Type UBTTask_SevarogRush::ExecuteTask(
+    UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
     bAttackLaunched = false;
 
@@ -40,22 +40,13 @@ EBTNodeResult::Type UBTTask_SevarogRush::ExecuteTask(UBehaviorTreeComponent& Own
         return EBTNodeResult::Failed;
     }
 
-    if (MoveResult.Code == EPathFollowingRequestResult::AlreadyAtGoal)
-    {
-        Boss->EndRush();
-
-        if (!LaunchAttack(Boss)) { return EBTNodeResult::Failed; }
-
-        bAttackLaunched = true;
-        SubscribeAttackFinished(OwnerComp, Boss);
-    }
-
+    // AlreadyAtGoal falls through — TickTask handles EndRush + rotation + launch.
     return EBTNodeResult::InProgress;
 }
 
-void UBTTask_SevarogRush::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
+void UBTTask_SevarogRush::TickTask(
+    UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
-    // OnAttackFinished delegate handles completion once the attack is launched.
     if (bAttackLaunched) { return; }
 
     ARVAIController* Controller = Cast<ARVAIController>(OwnerComp.GetAIOwner());
@@ -65,25 +56,33 @@ void UBTTask_SevarogRush::TickTask(UBehaviorTreeComponent& OwnerComp, uint8* Nod
     APawn*               Player = Controller->GetPlayerPawn();
     if (!IsValid(Boss) || !IsValid(Player)) { FinishLatentTask(OwnerComp, EBTNodeResult::Failed); return; }
 
-    const float Dist = FVector::Dist(Boss->GetActorLocation(), Player->GetActorLocation());
-
-    if (Dist <= Boss->GetSevarogData()->ArrivalRange)
+    if (Boss->IsRushing())
     {
+        // Still in movement phase — wait for arrival.
+        const float Dist = FVector::Dist(Boss->GetActorLocation(), Player->GetActorLocation());
+        if (Dist > Boss->GetSevarogData()->ArrivalRange) { return; }
+
         Controller->StopMovement();
         Boss->EndRush();
-
-        if (!LaunchAttack(Boss))
-        {
-            FinishLatentTask(OwnerComp, EBTNodeResult::Failed);
-            return;
-        }
-
-        bAttackLaunched = true;
-        SubscribeAttackFinished(OwnerComp, Boss);
     }
+
+    // Arrived — align before attacking.
+    if (!RotateBossTowardPlayer(Boss, DeltaSeconds)) { return; }
+
+    SubscribeAttackFinished(OwnerComp, Boss);
+
+    if (!LaunchAttack(Boss))
+    {
+        Boss->OnAttackFinished.RemoveAll(this);
+        FinishLatentTask(OwnerComp, EBTNodeResult::Failed);
+        return;
+    }
+
+    bAttackLaunched = true;
 }
 
-EBTNodeResult::Type UBTTask_SevarogRush::AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
+EBTNodeResult::Type UBTTask_SevarogRush::AbortTask(
+    UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
     Super::AbortTask(OwnerComp, NodeMemory);
 
@@ -96,7 +95,6 @@ EBTNodeResult::Type UBTTask_SevarogRush::AbortTask(UBehaviorTreeComponent& Owner
 void UBTTask_SevarogRush::OnTaskFinished(
     UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, EBTNodeResult::Type TaskResult)
 {
-    // Base cleans up the OnAttackFinished delegate and calls ForceEndCurrentAction if still attacking.
     Super::OnTaskFinished(OwnerComp, NodeMemory, TaskResult);
 
     ARVAIController* Controller = Cast<ARVAIController>(OwnerComp.GetAIOwner());

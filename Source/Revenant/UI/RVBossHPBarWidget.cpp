@@ -22,7 +22,6 @@ void URVBossHPBarWidget::SetBoss(ARVSevarogCharacter* InBoss)
     InBoss->GetOnHealthChanged().AddUObject(this, &URVBossHPBarWidget::OnBossHealthChanged);
     InBoss->GetOnPoiseChanged().AddUObject(this, &URVBossHPBarWidget::OnBossPoiseChangedHandler);
     InBoss->OnBossGroggyStarted.AddUObject(this, &URVBossHPBarWidget::OnGroggyStarted);
-    InBoss->OnBossGroggyEnded.AddUObject  (this, &URVBossHPBarWidget::OnGroggyEnded);
 }
 
 void URVBossHPBarWidget::NativeDestruct()
@@ -32,7 +31,6 @@ void URVBossHPBarWidget::NativeDestruct()
         BossRef->GetOnHealthChanged().RemoveAll(this);
         BossRef->GetOnPoiseChanged().RemoveAll(this);
         BossRef->OnBossGroggyStarted.RemoveAll(this);
-        BossRef->OnBossGroggyEnded.RemoveAll(this);
     }
 
     Super::NativeDestruct();

@@ -7,6 +7,7 @@ namespace RVSevarogBlackboardKeys
 	static const FName PlayerPawn                  = TEXT("PlayerPawn");
 	static const FName CurrentPhase                = TEXT("CurrentPhase");
 	static const FName bIsGroggy                   = TEXT("bIsGroggy");
+	static const FName bIsAttacking                = TEXT("bIsAttacking");
 	static const FName bIsRushRadius               = TEXT("bIsRushRadius");
 	static const FName bIsAttackRadius             = TEXT("bIsAttackRadius");
 	static const FName bIsSoulSiphonRadius         = TEXT("bIsSoulSiphonRadius");

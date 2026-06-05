@@ -44,6 +44,9 @@ private:
 
     UPROPERTY()
     TObjectPtr<URVEquipmentComponent> EquipmentComponent;
+	
+	UPROPERTY()
+	TObjectPtr<UAnimMontage> ActiveLightMontage;
 
     //--- Light Attack State --------------------------------------------------
 

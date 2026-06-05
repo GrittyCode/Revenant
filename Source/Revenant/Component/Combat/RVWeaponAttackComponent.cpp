@@ -200,36 +200,38 @@ bool URVWeaponAttackComponent::ConsumeAttackStamina(UAnimMontage* InMontage)
 
 void URVWeaponAttackComponent::PlayLightAttackMontage(UAnimMontage* InMontage)
 {
-    UAnimInstance* AnimInst = GetAnimInstance();
-    if (!IsValid(AnimInst)) { return; }
+	UAnimInstance* AnimInst = GetAnimInstance();
+	if (!IsValid(AnimInst)) { return; }
 
-    AnimInst->Montage_Play(InMontage);
+	ActiveLightMontage = InMontage;
+	AnimInst->Montage_Play(InMontage);
 
-    FOnMontageBlendingOutStarted BlendingOutDelegate;
-    BlendingOutDelegate.BindUObject(this, &URVWeaponAttackComponent::OnLightAttackMontageBlendingOut);
-    AnimInst->Montage_SetBlendingOutDelegate(BlendingOutDelegate, InMontage);
+	FOnMontageBlendingOutStarted BlendingOutDelegate;
+	BlendingOutDelegate.BindUObject(this, &URVWeaponAttackComponent::OnLightAttackMontageBlendingOut);
+	AnimInst->Montage_SetBlendingOutDelegate(BlendingOutDelegate, InMontage);
 }
 
 void URVWeaponAttackComponent::EndCombo()
 {
-    if (bIsJumpAttackActive)
-    {
-        UAnimInstance* AnimInst = GetAnimInstance();
-        if (IsValid(AnimInst)) { AnimInst->RootMotionMode = CachedRootMotionMode; }
-    }
+	if (bIsJumpAttackActive)
+	{
+		UAnimInstance* AnimInst = GetAnimInstance();
+		if (IsValid(AnimInst)) { AnimInst->RootMotionMode = CachedRootMotionMode; }
+	}
 
-    bIsLightAttackActive = false;
-    bComboWindowOpen     = false;
-    bHasComboInput       = false;
-    bIsJumpAttackActive  = false;
-    bIsJumpAttackLanding = false;
+	bIsLightAttackActive = false;
+	bComboWindowOpen     = false;
+	bHasComboInput       = false;
+	bIsJumpAttackActive  = false;
+	bIsJumpAttackLanding = false;
+	ActiveLightMontage   = nullptr;
 
-    OwnerBase->RemoveCombatState(ERVCombatState::Attacking);
+	OwnerBase->RemoveCombatState(ERVCombatState::Attacking);
 }
 
-void URVWeaponAttackComponent::OnLightAttackMontageBlendingOut(UAnimMontage*, bool)
+void URVWeaponAttackComponent::OnLightAttackMontageBlendingOut(UAnimMontage* Montage, bool)
 {
-    if (bIsLightAttackActive) { EndCombo(); }
+	if (bIsLightAttackActive && Montage == ActiveLightMontage) { EndCombo(); }
 }
 
 //--- Heavy Attack ------------------------------------------------------------

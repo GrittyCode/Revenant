@@ -1,13 +1,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AI/BTTask_SevarogAttackBase.h"
+#include "AI/BTTask_SevarogRotationAttackBase.h"
 #include "BTTask_SevarogRush.generated.h"
 
 class ARVSevarogCharacter;
 
 UCLASS()
-class REVENANT_API UBTTask_SevarogRush : public UBTTask_SevarogAttackBase
+class REVENANT_API UBTTask_SevarogRush : public UBTTask_SevarogRotationAttackBase
 {
 	GENERATED_BODY()
 

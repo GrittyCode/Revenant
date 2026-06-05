@@ -1,3 +1,4 @@
+// Source/Revenant/AI/RVBTService_SevarogState.cpp
 #include "AI/RVBTService_SevarogState.h"
 #include "AI/RVAIController.h"
 #include "AI/RVSevarogBlackBoardKeys.h"
@@ -35,7 +36,8 @@ void UBTService_RVSevarogState::OnSearchStart(FBehaviorTreeSearchData& SearchDat
     BB->SetValueAsFloat(RVSevarogBlackboardKeys::SubjugationCooldownDuration, Data->Subjugation.Cooldown);
 }
 
-void UBTService_RVSevarogState::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
+void UBTService_RVSevarogState::TickNode(
+    UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
 {
     Super::TickNode(OwnerComp, NodeMemory, DeltaSeconds);
 
@@ -57,11 +59,11 @@ void UBTService_RVSevarogState::TickNode(UBehaviorTreeComponent& OwnerComp, uint
 
     const URVSevarogDataAsset* Data = Boss->GetSevarogData();
 
+    BB->SetValueAsBool(RVSevarogBlackboardKeys::bIsGroggy,            Boss->IsGroggy());
+    BB->SetValueAsBool(RVSevarogBlackboardKeys::bIsAttacking,         Boss->IsAttacking());
     BB->SetValueAsBool(RVSevarogBlackboardKeys::bIsRushRadius,        Dist >= Data->RushTriggerRadius);
     BB->SetValueAsBool(RVSevarogBlackboardKeys::bIsAttackRadius,      Dist <= Data->MeleeEngagementRange);
     BB->SetValueAsBool(RVSevarogBlackboardKeys::bIsSoulSiphonRadius,  Dist <= Data->SoulSiphon.EngagementRange);
     BB->SetValueAsBool(RVSevarogBlackboardKeys::bIsSubjugationRadius, Dist <= Data->Subjugation.EngagementRange);
-    BB->SetValueAsBool(RVSevarogBlackboardKeys::bIsGroggy,            Boss->IsGroggy());
-
     BB->SetValueAsEnum(RVSevarogBlackboardKeys::CurrentPhase, static_cast<uint8>(Boss->GetCurrentPhase()));
 }

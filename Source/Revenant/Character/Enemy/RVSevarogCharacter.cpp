@@ -247,17 +247,18 @@ bool ARVSevarogCharacter::PlaySingleShotAction(UAnimMontage* InMontage)
     AddCombatState(ERVCombatState::Attacking);
     AnimInst->Montage_Play(InMontage);
 
-    FOnMontageBlendingOutStarted BlendOutDelegate;
-    BlendOutDelegate.BindUObject(this, &ARVSevarogCharacter::OnSingleShotActionBlendingOut);
-    AnimInst->Montage_SetBlendingOutDelegate(BlendOutDelegate, InMontage);
+    FOnMontageEnded EndDelegate;
+    EndDelegate.BindUObject(this, &ARVSevarogCharacter::OnSingleShotActionEnded);
+    AnimInst->Montage_SetEndDelegate(EndDelegate, InMontage);
     return true;
 }
 
 void ARVSevarogCharacter::ForceEndCurrentAction()
 {
-    bIsComboChaining = false;
     ActiveComboMontages.Empty();
     ActiveComboIndex = 0;
+    // Cleared before Montage_Stop so OnAttackMontageEnded returns early via the pointer check.
+    ActiveAttackMontage = nullptr;
 
     GetWorldTimerManager().ClearTimer(SubjugationDamageTimerHandle);
     PendingSubjugationLocations.Empty();
@@ -295,7 +296,6 @@ void ARVSevarogCharacter::StartComboChain(const TArray<TObjectPtr<UAnimMontage>>
 
     ActiveComboMontages = InMontages;
     ActiveComboIndex    = 0;
-    bIsComboChaining    = false;
     PlayComboMontageAt(0);
 }
 
@@ -304,46 +304,41 @@ void ARVSevarogCharacter::PlayComboMontageAt(int32 InIndex)
     RotateToFacePlayer(ResolvePlayerPawn());
 
     UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
-    UAnimMontage* Montage = ActiveComboMontages[InIndex];
+    UAnimMontage*  Montage  = ActiveComboMontages[InIndex];
 
     if (!IsValid(Montage)) { return; }
 
+    ActiveAttackMontage = Montage;
     AddCombatState(ERVCombatState::Attacking);
     AnimInst->Montage_Play(Montage);
 
-    FOnMontageBlendingOutStarted BlendOutDelegate;
-    BlendOutDelegate.BindUObject(this, &ARVSevarogCharacter::OnAttackMontageBlendingOut);
-    AnimInst->Montage_SetBlendingOutDelegate(BlendOutDelegate, Montage);
+    FOnMontageEnded EndDelegate;
+    EndDelegate.BindUObject(this, &ARVSevarogCharacter::OnAttackMontageEnded);
+    AnimInst->Montage_SetEndDelegate(EndDelegate, Montage);
 }
 
 void ARVSevarogCharacter::TryChainCombo()
 {
     if (ActiveComboIndex + 1 >= ActiveComboMontages.Num()) { return; }
 
-    bIsComboChaining = true;
     ++ActiveComboIndex;
     PlayComboMontageAt(ActiveComboIndex);
 }
 
-void ARVSevarogCharacter::OnAttackMontageBlendingOut(UAnimMontage*, bool bInterrupted)
+void ARVSevarogCharacter::OnAttackMontageEnded(UAnimMontage* InMontage, bool bInterrupted)
 {
-    if (bIsComboChaining)
-    {
-        bIsComboChaining = false;
-        return;
-    }
+    // A montage that was superseded by the next combo hit will not match ActiveAttackMontage.
+    if (InMontage != ActiveAttackMontage) { return; }
 
-    const bool bIsLastInChain = ActiveComboMontages.IsEmpty() ||
-        (ActiveComboIndex >= ActiveComboMontages.Num() - 1);
-
+    ActiveAttackMontage = nullptr;
     RemoveCombatState(ERVCombatState::Attacking);
     ActiveComboMontages.Empty();
     ActiveComboIndex = 0;
 
-    if (!bInterrupted && bIsLastInChain) { OnAttackFinished.Broadcast(); }
+    if (!bInterrupted) { OnAttackFinished.Broadcast(); }
 }
 
-void ARVSevarogCharacter::OnSingleShotActionBlendingOut(UAnimMontage*, bool bInterrupted)
+void ARVSevarogCharacter::OnSingleShotActionEnded(UAnimMontage*, bool bInterrupted)
 {
     RemoveCombatState(ERVCombatState::Attacking);
     if (!bInterrupted) { OnAttackFinished.Broadcast(); }

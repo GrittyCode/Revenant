@@ -88,9 +88,8 @@ private:
     UPROPERTY(VisibleAnywhere, Category = "RV|Debug")
     TObjectPtr<UNiagaraComponent> MeleeTrailNC;
 
-    ERVBossPhase CurrentPhase     = ERVBossPhase::Phase1;
-    bool         bIsRushing       = false;
-    bool         bIsComboChaining = false;
+    ERVBossPhase CurrentPhase = ERVBossPhase::Phase1;
+    bool         bIsRushing   = false;
 
     float NormalWalkSpeed      = 400.f;
     float CachedGroggyDuration = 4.f;
@@ -98,6 +97,10 @@ private:
     //--- Combo chain ---------------------------------------------------------
 
     TArray<TObjectPtr<UAnimMontage>> ActiveComboMontages;
+
+    UPROPERTY()
+    TObjectPtr<UAnimMontage> ActiveAttackMontage;
+
     int32 ActiveComboIndex = 0;
 
     void StartComboChain(const TArray<TObjectPtr<UAnimMontage>>& InMontages);
@@ -105,6 +108,13 @@ private:
     bool PlaySingleShotAction(UAnimMontage* InMontage);
 
     static int32 SelectWeightedPattern(const TArray<struct FRVBossAttackPattern>& InPatterns);
+
+    //--- Montage callbacks ---------------------------------------------------
+
+    // Fired when a combo montage fully ends (natural or interrupted).
+    void OnAttackMontageEnded(UAnimMontage* InMontage, bool bInterrupted);
+    void OnSingleShotActionEnded(UAnimMontage* InMontage, bool bInterrupted);
+    void OnDeathMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
 
     //--- Hit FX --------------------------------------------------------------
 
@@ -153,8 +163,6 @@ private:
     void RotateToFacePlayer(const APawn* InPlayer);
     void SetBossPhase(ERVBossPhase InNewPhase);
 
-    void OnDeathMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
-
     //--- Dissolve ------------------------------------------------------------
 
     void StartDissolve();
@@ -170,8 +178,6 @@ private:
     bool         bDeathMontageBlendedOut = false;
 
     void OnGroggySequenceCompleted();
-    void OnAttackMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
-    void OnSingleShotActionBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
     void CheckPhaseTransition(float InNewHealthRatio);
     void OnPoiseDepleted();
 };
