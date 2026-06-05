@@ -78,9 +78,9 @@ private:
     void TriggerKnockdown(const FVector& InHitDirection);
 
     void OnStaggerEnd();
-    void OnStaggerMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted);
-    void OnKnockdownMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted);
-    void OnGetUpMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted);
-    void OnGroggyStartMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted);
-    void OnGroggyEndMontageBlendingOut(UAnimMontage* Montage, bool bInterrupted);
+    void OnStaggerMontageBlendingOut    (UAnimMontage* InMontage, bool bInterrupted);
+    void OnKnockdownMontageBlendingOut  (UAnimMontage* InMontage, bool bInterrupted);
+    void OnGetUpMontageBlendingOut      (UAnimMontage* InMontage, bool bInterrupted);
+    void OnGroggyStartMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
+    void OnGroggyEndMontageEnded        (UAnimMontage* InMontage, bool bInterrupted);
 };

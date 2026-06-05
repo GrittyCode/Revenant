@@ -200,38 +200,39 @@ bool URVWeaponAttackComponent::ConsumeAttackStamina(UAnimMontage* InMontage)
 
 void URVWeaponAttackComponent::PlayLightAttackMontage(UAnimMontage* InMontage)
 {
-	UAnimInstance* AnimInst = GetAnimInstance();
-	if (!IsValid(AnimInst)) { return; }
+    UAnimInstance* AnimInst = GetAnimInstance();
+    if (!IsValid(AnimInst)) { return; }
 
-	ActiveLightMontage = InMontage;
-	AnimInst->Montage_Play(InMontage);
+    ActiveLightMontage = InMontage;
+    AnimInst->Montage_Play(InMontage);
 
-	FOnMontageBlendingOutStarted BlendingOutDelegate;
-	BlendingOutDelegate.BindUObject(this, &URVWeaponAttackComponent::OnLightAttackMontageBlendingOut);
-	AnimInst->Montage_SetBlendingOutDelegate(BlendingOutDelegate, InMontage);
+    FOnMontageEnded EndDelegate;
+    EndDelegate.BindUObject(this, &URVWeaponAttackComponent::OnLightAttackMontageEnded);
+    AnimInst->Montage_SetEndDelegate(EndDelegate, InMontage);
 }
 
 void URVWeaponAttackComponent::EndCombo()
 {
-	if (bIsJumpAttackActive)
-	{
-		UAnimInstance* AnimInst = GetAnimInstance();
-		if (IsValid(AnimInst)) { AnimInst->RootMotionMode = CachedRootMotionMode; }
-	}
+    if (bIsJumpAttackActive)
+    {
+        UAnimInstance* AnimInst = GetAnimInstance();
+        if (IsValid(AnimInst)) { AnimInst->RootMotionMode = CachedRootMotionMode; }
+    }
 
-	bIsLightAttackActive = false;
-	bComboWindowOpen     = false;
-	bHasComboInput       = false;
-	bIsJumpAttackActive  = false;
-	bIsJumpAttackLanding = false;
-	ActiveLightMontage   = nullptr;
+    bIsLightAttackActive = false;
+    bComboWindowOpen     = false;
+    bHasComboInput       = false;
+    bIsJumpAttackActive  = false;
+    bIsJumpAttackLanding = false;
+    ActiveLightMontage   = nullptr;
 
-	OwnerBase->RemoveCombatState(ERVCombatState::Attacking);
+    OwnerBase->RemoveCombatState(ERVCombatState::Attacking);
 }
 
-void URVWeaponAttackComponent::OnLightAttackMontageBlendingOut(UAnimMontage* Montage, bool)
+void URVWeaponAttackComponent::OnLightAttackMontageEnded(UAnimMontage* InMontage, bool bInterrupted)
 {
-	if (bIsLightAttackActive && Montage == ActiveLightMontage) { EndCombo(); }
+    // Montages superseded by TryChainNextCombo will not match ActiveLightMontage.
+    if (bIsLightAttackActive && InMontage == ActiveLightMontage) { EndCombo(); }
 }
 
 //--- Heavy Attack ------------------------------------------------------------
@@ -264,6 +265,7 @@ void URVWeaponAttackComponent::StartHeavyAttack()
     UAnimInstance* AnimInst = GetAnimInstance();
     if (!IsValid(AnimInst)) { return; }
 
+    // BlendingOut used intentionally — detects external interruption during charge phase.
     FOnMontageBlendingOutStarted ChargeBlendOut;
     ChargeBlendOut.BindUObject(this, &URVWeaponAttackComponent::OnChargeMontageBlendingOut);
     AnimInst->Montage_Play(ChargeMontage);
@@ -317,10 +319,10 @@ void URVWeaponAttackComponent::ExecuteHeavyAttack()
     bIsAutoRelease = false;
     HeavyPhase = EHeavyPhase::Releasing;
 
-    FOnMontageBlendingOutStarted ReleaseBlendOut;
-    ReleaseBlendOut.BindUObject(this, &URVWeaponAttackComponent::OnReleaseMontageBlendingOut);
+    FOnMontageEnded EndDelegate;
+    EndDelegate.BindUObject(this, &URVWeaponAttackComponent::OnReleaseMontageEnded);
     AnimInst->Montage_Play(ReleaseMontage);
-    AnimInst->Montage_SetBlendingOutDelegate(ReleaseBlendOut, ReleaseMontage);
+    AnimInst->Montage_SetEndDelegate(EndDelegate, ReleaseMontage);
 }
 
 void URVWeaponAttackComponent::EndHeavyAttack()
@@ -357,10 +359,12 @@ void URVWeaponAttackComponent::OnChargeAutoRelease()
 
 void URVWeaponAttackComponent::OnChargeMontageBlendingOut(UAnimMontage*, bool)
 {
+    // Fires when charge is externally interrupted before release.
+    // ExecuteHeavyAttack sets HeavyPhase to Releasing before this fires — guard prevents double-call.
     if (HeavyPhase == EHeavyPhase::Charging) { EndHeavyAttack(); }
 }
 
-void URVWeaponAttackComponent::OnReleaseMontageBlendingOut(UAnimMontage*, bool)
+void URVWeaponAttackComponent::OnReleaseMontageEnded(UAnimMontage*, bool)
 {
     EndHeavyAttack();
 }

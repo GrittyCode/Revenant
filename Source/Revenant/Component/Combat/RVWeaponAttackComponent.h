@@ -44,9 +44,9 @@ private:
 
     UPROPERTY()
     TObjectPtr<URVEquipmentComponent> EquipmentComponent;
-	
-	UPROPERTY()
-	TObjectPtr<UAnimMontage> ActiveLightMontage;
+
+    UPROPERTY()
+    TObjectPtr<UAnimMontage> ActiveLightMontage;
 
     //--- Light Attack State --------------------------------------------------
 
@@ -69,7 +69,8 @@ private:
     void PlayLightAttackMontage(UAnimMontage* InMontage);
     bool ConsumeAttackStamina(UAnimMontage* InMontage);
 
-    void OnLightAttackMontageBlendingOut(UAnimMontage*, bool);
+    // Superseded montages are filtered by ActiveLightMontage pointer check.
+    void OnLightAttackMontageEnded(UAnimMontage* InMontage, bool bInterrupted);
 
     //--- Heavy Attack State --------------------------------------------------
 
@@ -92,6 +93,6 @@ private:
     void EndHeavyAttack();
     void OnChargeAutoRelease();
 
-    void OnChargeMontageBlendingOut (UAnimMontage*, bool);
-    void OnReleaseMontageBlendingOut(UAnimMontage*, bool);
+    void OnChargeMontageBlendingOut(UAnimMontage* InMontage, bool bInterrupted);
+    void OnReleaseMontageEnded(UAnimMontage* InMontage, bool bInterrupted);
 };

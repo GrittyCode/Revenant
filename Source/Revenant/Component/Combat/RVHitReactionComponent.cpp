@@ -1,3 +1,4 @@
+// Source/Revenant/Component/Combat/RVHitReactionComponent.cpp
 #include "Component/Combat/RVHitReactionComponent.h"
 #include "Character/Base/RVCharacterBase.h"
 #include "Data/Asset/RVHitReactionAnimDataAsset.h"
@@ -147,9 +148,9 @@ void URVHitReactionComponent::EndGroggy()
 
     AnimInst->Montage_Play(EndMontage);
 
-    FOnMontageBlendingOutStarted BlendOutDelegate;
-    BlendOutDelegate.BindUObject(this, &URVHitReactionComponent::OnGroggyEndMontageBlendingOut);
-    AnimInst->Montage_SetBlendingOutDelegate(BlendOutDelegate, EndMontage);
+    FOnMontageEnded EndDelegate;
+    EndDelegate.BindUObject(this, &URVHitReactionComponent::OnGroggyEndMontageEnded);
+    AnimInst->Montage_SetEndDelegate(EndDelegate, EndMontage);
 }
 
 void URVHitReactionComponent::AbortGroggy()
@@ -243,7 +244,7 @@ void URVHitReactionComponent::OnGroggyStartMontageBlendingOut(UAnimMontage*, boo
         GroggyTimerHandle, this, &URVHitReactionComponent::EndGroggy, GroggyDuration, false);
 }
 
-void URVHitReactionComponent::OnGroggyEndMontageBlendingOut(UAnimMontage*, bool)
+void URVHitReactionComponent::OnGroggyEndMontageEnded(UAnimMontage*, bool)
 {
     OnGroggySequenceCompleted.Broadcast();
 }

@@ -21,7 +21,6 @@ void URVBossHPBarWidget::SetBoss(ARVSevarogCharacter* InBoss)
 
     InBoss->GetOnHealthChanged().AddUObject(this, &URVBossHPBarWidget::OnBossHealthChanged);
     InBoss->GetOnPoiseChanged().AddUObject(this, &URVBossHPBarWidget::OnBossPoiseChangedHandler);
-    InBoss->OnBossGroggyStarted.AddUObject(this, &URVBossHPBarWidget::OnGroggyStarted);
 }
 
 void URVBossHPBarWidget::NativeDestruct()
@@ -45,14 +44,4 @@ void URVBossHPBarWidget::OnBossPoiseChangedHandler(float NewPoiseRatio)
 {
     // Invert: full poise = bar empty, zero poise = bar full.
     PoiseBar->SetPercent(1.f - NewPoiseRatio);
-}
-
-void URVBossHPBarWidget::OnGroggyStarted()
-{
-    PoiseBar->SetPercent(1.f);
-}
-
-void URVBossHPBarWidget::OnGroggyEnded()
-{
-    PoiseBar->SetPercent(0.f);
 }

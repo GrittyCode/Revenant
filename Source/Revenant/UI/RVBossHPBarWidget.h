@@ -37,6 +37,4 @@ private:
 	
     void OnBossHealthChanged(float NewHealthRatio);
 	void OnBossPoiseChangedHandler(float NewPoiseRatio);
-    void OnGroggyStarted();
-    void OnGroggyEnded();
 };
