@@ -10,7 +10,6 @@
 #include "Data/Row/RVBossStatRow.h"
 #include "Engine/OverlapResult.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "GameFramework/PlayerController.h"
 #include "Interface/RVDamageable.h"
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -63,7 +62,6 @@ void ARVSevarogCharacter::BeginPlay()
     VitalComponent->OnHealthChanged.AddUObject(this, &ARVSevarogCharacter::CheckPhaseTransition);
     VitalComponent->OnPoiseDepleted.AddUObject(this, &ARVSevarogCharacter::OnPoiseDepleted);
 
-
     if (IsValid(SevarogData->MeleeTrailEffect))
     {
         MeleeTrailNC = UNiagaraFunctionLibrary::SpawnSystemAttached(
@@ -85,11 +83,14 @@ void ARVSevarogCharacter::BeginPlay()
 
 URVHitReactionAnimDataAsset* ARVSevarogCharacter::GetHitReactionAnimData() const
 {
-    return IsValid(SevarogData) ? SevarogData->HitReactionAnimData : nullptr;
+    return SevarogData->HitReactionAnimData;
 }
+
+//--- State queries -----------------------------------------------------------
 
 bool ARVSevarogCharacter::IsInHitReaction() const { return HasCombatState(ERVCombatState::HitReaction); }
 bool ARVSevarogCharacter::IsKnockedDown()   const { return HasCombatState(ERVCombatState::Knockdown); }
+bool ARVSevarogCharacter::IsAttacking()     const { return HasCombatState(ERVCombatState::Attacking); }
 
 float ARVSevarogCharacter::GetStaggerDirectionForAnim() const
 {
@@ -100,7 +101,8 @@ float ARVSevarogCharacter::GetStaggerDirectionForAnim() const
 
 void ARVSevarogCharacter::OnDeath()
 {
-    if (AAIController* AICtrl = Cast<AAIController>(GetController()))
+    ARVAIController* AICtrl = Cast<ARVAIController>(GetController());
+    if (IsValid(AICtrl))
     {
         if (UBrainComponent* Brain = AICtrl->GetBrainComponent())
         {
@@ -150,7 +152,7 @@ void ARVSevarogCharacter::OnDeathMontageBlendingOut(UAnimMontage*, bool)
 
 void ARVSevarogCharacter::StartDissolve()
 {
-    UWorld* World    = GetWorld();
+    UWorld* World = GetWorld();
 
     DissolveStartTime = World->GetTimeSeconds();
 
@@ -197,15 +199,8 @@ void ARVSevarogCharacter::TryDestroyActor()
 
 //--- BT task interface -------------------------------------------------------
 
-bool ARVSevarogCharacter::IsAttacking() const
-{
-    return HasCombatState(ERVCombatState::Attacking);
-}
-
 bool ARVSevarogCharacter::ExecutePhaseAttack()
 {
-    if (IsGroggy() || IsAttacking()) { return false; }
-
     const FRVBossPhaseAttacks* PhaseAttacks = nullptr;
     switch (CurrentPhase)
     {
@@ -222,7 +217,6 @@ bool ARVSevarogCharacter::ExecutePhaseAttack()
 
 bool ARVSevarogCharacter::ExecuteRushAttack()
 {
-    if (IsGroggy() || IsAttacking())              { return false; }
     if (!IsValid(SevarogData->RushAttackMontage)) { return false; }
 
     StartComboChain({ SevarogData->RushAttackMontage });
@@ -241,6 +235,24 @@ bool ARVSevarogCharacter::ExecuteSubjugation()
     return PlaySingleShotAction(SevarogData->Subjugation.Montage);
 }
 
+bool ARVSevarogCharacter::PlaySingleShotAction(UAnimMontage* InMontage)
+{
+    if (!IsValid(InMontage)) { return false; }
+
+    UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
+    if (!ensureMsgf(IsValid(AnimInst),
+        TEXT("[%s] PlaySingleShotAction: AnimInstance missing"),
+        *GetNameSafe(this))) { return false; }
+
+    AddCombatState(ERVCombatState::Attacking);
+    AnimInst->Montage_Play(InMontage);
+
+    FOnMontageBlendingOutStarted BlendOutDelegate;
+    BlendOutDelegate.BindUObject(this, &ARVSevarogCharacter::OnSingleShotActionBlendingOut);
+    AnimInst->Montage_SetBlendingOutDelegate(BlendOutDelegate, InMontage);
+    return true;
+}
+
 void ARVSevarogCharacter::ForceEndCurrentAction()
 {
     bIsComboChaining = false;
@@ -252,8 +264,8 @@ void ARVSevarogCharacter::ForceEndCurrentAction()
     PendingSwirlsSFX = nullptr;
 
     UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
-    if (IsValid(AnimInst)) { AnimInst->Montage_Stop(0.2f); }
-
+    AnimInst->Montage_Stop(0.2f);
+    
     RemoveCombatState(ERVCombatState::Attacking);
 }
 
@@ -292,9 +304,8 @@ void ARVSevarogCharacter::PlayComboMontageAt(int32 InIndex)
     RotateToFacePlayer(ResolvePlayerPawn());
 
     UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
-    if (!IsValid(AnimInst)) { return; }
-
     UAnimMontage* Montage = ActiveComboMontages[InIndex];
+    
     if (!IsValid(Montage)) { return; }
 
     AddCombatState(ERVCombatState::Attacking);
@@ -329,23 +340,6 @@ void ARVSevarogCharacter::OnAttackMontageBlendingOut(UAnimMontage*, bool bInterr
     if (!bInterrupted) { OnAttackFinished.Broadcast(); }
 }
 
-bool ARVSevarogCharacter::PlaySingleShotAction(UAnimMontage* InMontage)
-{
-    if (IsGroggy() || IsAttacking()) { return false; }
-    if (!IsValid(InMontage))         { return false; }
-
-    UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
-    if (!IsValid(AnimInst))          { return false; }
-
-    AddCombatState(ERVCombatState::Attacking);
-    AnimInst->Montage_Play(InMontage);
-
-    FOnMontageBlendingOutStarted BlendOutDelegate;
-    BlendOutDelegate.BindUObject(this, &ARVSevarogCharacter::OnSingleShotActionBlendingOut);
-    AnimInst->Montage_SetBlendingOutDelegate(BlendOutDelegate, InMontage);
-    return true;
-}
-
 void ARVSevarogCharacter::OnSingleShotActionBlendingOut(UAnimMontage*, bool bInterrupted)
 {
     RemoveCombatState(ERVCombatState::Attacking);
@@ -356,8 +350,6 @@ void ARVSevarogCharacter::OnSingleShotActionBlendingOut(UAnimMontage*, bool bInt
 
 void ARVSevarogCharacter::StartGroggy()
 {
-    if (IsGroggy()) { return; }
-
     if (IsAttacking()) { ForceEndCurrentAction(); }
 
     AddCombatState(ERVCombatState::Groggy);
@@ -377,6 +369,12 @@ void ARVSevarogCharacter::OnGroggySequenceCompleted()
     RemoveCombatState(ERVCombatState::Groggy);
     ResetPoise();
     OnBossGroggyEnded.Broadcast();
+}
+
+void ARVSevarogCharacter::OnPoiseDepleted()
+{
+    if (IsGroggy()) { return; }
+    StartGroggy();
 }
 
 //--- Rush --------------------------------------------------------------------
@@ -469,8 +467,6 @@ void ARVSevarogCharacter::ApplySubjugationDamage()
     PendingSwirlsSFX = nullptr;
 }
 
-//--- Subjugation helpers -----------------------------------------------------
-
 TArray<FVector> ARVSevarogCharacter::GenerateSwirlLocations(const FVector& InOrigin,
     float InSpreadRadius, float InMinSeparation, int32 InCount)
 {
@@ -521,7 +517,6 @@ void ARVSevarogCharacter::ApplyDamageToOverlapResults(const TArray<FOverlapResul
 
     for (AActor* HitActor : DamageTargets)
     {
-        if (!IsValid(HitActor)) { continue; }
         if (IRVDamageable* Target = Cast<IRVDamageable>(HitActor))
         {
             FRVHitInfo HitInfo;
@@ -638,18 +633,12 @@ void ARVSevarogCharacter::CheckPhaseTransition(float InNewHealthRatio)
     }
 }
 
-void ARVSevarogCharacter::OnPoiseDepleted()
-{
-    if (IsGroggy()) { return; }
-    StartGroggy();
-}
-
 //--- Internal helpers --------------------------------------------------------
 
 APawn* ARVSevarogCharacter::ResolvePlayerPawn() const
 {
     const ARVAIController* AICtrl = Cast<ARVAIController>(GetController());
-    return IsValid(AICtrl) ? AICtrl->GetPlayerPawn() : nullptr;
+    return AICtrl ? AICtrl->GetPlayerPawn() : nullptr;
 }
 
 void ARVSevarogCharacter::RotateToFacePlayer(const APawn* InPlayer)

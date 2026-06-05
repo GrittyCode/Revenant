@@ -118,8 +118,6 @@ private:
     UPROPERTY()
     TSet<TObjectPtr<AActor>> HitActors;
 
-    void PerformHit();
-
     //--- Rotation ------------------------------------------------------------
 
     FRotator OriginalRotationRate;

@@ -45,10 +45,9 @@ void ARVCharacterBase::BeginPlay()
         TEXT("[%s] GetWeaponTraceMesh() returned null"), *GetNameSafe(this));
 
     InitStats();
-	
-	
-	// -- Wiring -----------------------------------------------------------------------------
-	
+
+    //--- Wiring --------------------------------------------------------------
+
     VitalComponent->OnDeath.AddUObject(this, &ARVCharacterBase::OnDeath);
     CombatStateComponent->OnForceEnd.AddUObject(this, &ARVCharacterBase::CloseAttackHitWindow);
 }
@@ -80,17 +79,14 @@ void ARVCharacterBase::CloseAttackHitWindow() { HitActors.Empty(); }
 
 void ARVCharacterBase::ActivateHitCheck()
 {
-    PerformHit();
-}
-
-void ARVCharacterBase::PerformHit()
-{
     if (!IsValid(WeaponTraceMesh))                           { return; }
     if (!WeaponTraceMesh->DoesSocketExist(SocketWeaponRoot)) { return; }
     if (!WeaponTraceMesh->DoesSocketExist(SocketWeaponTip))  { return; }
 
     UAnimInstance* AnimInst = GetMesh()->GetAnimInstance();
-    if (!IsValid(AnimInst)) { return; }
+    if (!ensureMsgf(IsValid(AnimInst),
+        TEXT("[%s] ActivateHitCheck: AnimInstance missing — check ABP assignment"),
+        *GetNameSafe(this))) { return; }
 
     UAnimMontage* CurrentMontage = AnimInst->GetCurrentActiveMontage();
     const URVMontageStatData* StatData = CurrentMontage
@@ -170,8 +166,7 @@ void ARVCharacterBase::ForceEndAllActions()  { CombatStateComponent->ForceEndAll
 
 bool ARVCharacterBase::IsGrounded() const
 {
-    const UCharacterMovementComponent* MoveComp = GetCharacterMovement();
-    return IsValid(MoveComp) && !MoveComp->IsFalling();
+    return !GetCharacterMovement()->IsFalling();
 }
 
 //--- Poise operations --------------------------------------------------------
