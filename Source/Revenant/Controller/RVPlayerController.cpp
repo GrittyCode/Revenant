@@ -5,6 +5,9 @@
 #include "UI/RVHUDWidget.h"
 #include "UI/RVBossHPBarWidget.h"
 #include "UI/RVGameResultWidget.h"
+#include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
+#include "InputMappingContext.h"
 
 DEFINE_LOG_CATEGORY(LogRVPlayerController);
 
@@ -41,28 +44,72 @@ void ARVPlayerController::BeginPlay()
     }
 }
 
+void ARVPlayerController::SetupInputComponent()
+{
+    Super::SetupInputComponent();
+
+    UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(InputComponent);
+    if (!IsValid(EIC) || !IsValid(SkipCutsceneAction)) { return; }
+
+    EIC->BindAction(SkipCutsceneAction, ETriggerEvent::Started, this, &ARVPlayerController::OnSkipCutsceneInput);
+}
+
 //--- Input helpers -----------------------------------------------------------
 
-void ARVPlayerController::RestoreGameInput()
+UEnhancedInputLocalPlayerSubsystem* ARVPlayerController::GetInputSubsystem() const
 {
-    SetInputMode(FInputModeGameOnly());
-    bShowMouseCursor = false;
+    return GetLocalPlayer()
+        ? GetLocalPlayer()->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>()
+        : nullptr;
 }
 
 void ARVPlayerController::LockInputForCutscene()
 {
-    SetIgnoreMoveInput(true);
-    SetIgnoreLookInput(true);
-    SetInputMode(FInputModeUIOnly());
+    ARVCharacterPlayer* PlayerChar = Cast<ARVCharacterPlayer>(GetPawn());
+    if (!ensureMsgf(IsValid(PlayerChar),
+        TEXT("[ARVPlayerController::LockInputForCutscene] Pawn is not ARVCharacterPlayer"))) { return; }
+
+    UEnhancedInputLocalPlayerSubsystem* Subsystem = GetInputSubsystem();
+    if (!ensureMsgf(IsValid(Subsystem),
+        TEXT("[ARVPlayerController::LockInputForCutscene] EnhancedInputLocalPlayerSubsystem missing"))) { return; }
+    if (!ensureMsgf(IsValid(CutsceneMappingContext),
+        TEXT("[ARVPlayerController::LockInputForCutscene] CutsceneMappingContext not assigned — assign IMC_Cutscene in BP_RVPlayerController"))) { return; }
+
+    // Remove all player actions; cache for restoration.
+    UInputMappingContext* PlayerIMC = PlayerChar->GetDefaultMappingContext();
+    if (IsValid(PlayerIMC))
+    {
+        Subsystem->RemoveMappingContext(PlayerIMC);
+        CachedPlayerMappingContext = PlayerIMC;
+    }
+
+    // Add cutscene context — only IA_SkipCutscene is mapped here.
+    Subsystem->AddMappingContext(CutsceneMappingContext, 0);
 }
 
 void ARVPlayerController::UnlockInputAfterCutscene()
 {
+    UEnhancedInputLocalPlayerSubsystem* Subsystem = GetInputSubsystem();
+    if (!ensureMsgf(IsValid(Subsystem),
+        TEXT("[ARVPlayerController::UnlockInputAfterCutscene] EnhancedInputLocalPlayerSubsystem missing"))) { return; }
+
+    if (IsValid(CutsceneMappingContext))
+    {
+        Subsystem->RemoveMappingContext(CutsceneMappingContext);
+    }
+
+    if (CachedPlayerMappingContext.IsValid())
+    {
+        Subsystem->AddMappingContext(CachedPlayerMappingContext.Get(), 0);
+        CachedPlayerMappingContext.Reset();
+    }
+
     FlushPressedKeys();
-    ResetIgnoreMoveInput();
-    ResetIgnoreLookInput();
-    SetInputMode(FInputModeGameOnly());
-    bShowMouseCursor = false;
+}
+
+void ARVPlayerController::OnSkipCutsceneInput()
+{
+    OnCutsceneSkipRequested.Broadcast();
 }
 
 //--- HUD visibility ----------------------------------------------------------
@@ -71,6 +118,14 @@ void ARVPlayerController::SetHUDVisible(bool bVisible)
 {
     if (!IsValid(HUDWidget)) { return; }
     HUDWidget->SetVisibility(bVisible ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
+}
+
+//--- Game input restore ------------------------------------------------------
+
+void ARVPlayerController::RestoreGameInput()
+{
+    SetInputMode(FInputModeGameOnly());
+    bShowMouseCursor = false;
 }
 
 //--- Boss lifecycle ----------------------------------------------------------
@@ -132,6 +187,5 @@ void ARVPlayerController::OnPlayerDeath()
     {
         BossHPBarWidget->RemoveFromParent();
     }
-
     ShowGameResult(false);
 }

@@ -59,6 +59,10 @@ public:
     FRVOnWeaponChanged& GetOnWeaponChanged();
     URVEquipmentComponent* GetEquipmentComponent() const { return EquipmentComponent; }
 
+    //--- Input context (used by ARVPlayerController for IMC swap) ------------
+
+    UInputMappingContext* GetDefaultMappingContext() const { return DefaultMappingContext; }
+
 protected:
     virtual void BeginPlay()  override;
     virtual void OnDeath()    override;

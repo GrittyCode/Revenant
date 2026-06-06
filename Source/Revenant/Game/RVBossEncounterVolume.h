@@ -9,6 +9,7 @@ class ARVSevarogCharacter;
 class ALevelSequenceActor;
 class USoundBase;
 class UAudioComponent;
+
 DECLARE_MULTICAST_DELEGATE_OneParam(FRVOnBossSpawned, ARVSevarogCharacter* /*SpawnedBoss*/);
 
 UCLASS()
@@ -35,7 +36,7 @@ private:
 
 	UPROPERTY(EditInstanceOnly, Category = "RV|Boss|Audio")
 	TObjectPtr<USoundBase> CutsceneBGM;
-	
+
 	UPROPERTY()
 	TObjectPtr<UAudioComponent> CutsceneBGMAudioComponent;
 
@@ -47,25 +48,31 @@ private:
 
 	UPROPERTY(EditInstanceOnly, Category = "RV|Boss|Cutscene")
 	TObjectPtr<UAnimMontage> BossIntroMontage;
-	
 
 	//--- Runtime state -------------------------------------------------------
 
 	bool bTriggered = false;
-	
+
 	UPROPERTY()
 	TObjectPtr<ARVPlayerController> CachedPlayerController;
-	
+
 	TObjectPtr<ARVSevarogCharacter> SpawnedBoss;
-	
+
+	/** Handle to PlayerController::OnCutsceneSkipRequested subscription.
+	 *  Registered in StartCutscene(); removed in OnCutsceneFinished(). */
+	FDelegateHandle CutsceneSkipHandle;
+
 	//--- Internal flow -------------------------------------------------------
 
 	UFUNCTION()
 	void OnOverlapBegin(AActor* OverlappedActor, AActor* OtherActor);
 
 	void BeginBossEncounter();
-
 	void StartCutscene();
+
+	/** Called when the player presses IA_SkipCutscene.
+	 *  Stops the LevelSequence, which fires OnStop → OnCutsceneFinished(). */
+	void SkipCutscene();
 
 	void PauseBossAI();
 	void ResumeBossAI();

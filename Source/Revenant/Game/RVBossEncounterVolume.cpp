@@ -18,7 +18,6 @@ void ARVBossEncounterVolume::BeginPlay()
     Super::BeginPlay();
     OnActorBeginOverlap.AddDynamic(this, &ARVBossEncounterVolume::OnOverlapBegin);
 
-    // Cache once — PlayerController exists before level actors run BeginPlay.
     CachedPlayerController = Cast<ARVPlayerController>(GetWorld()->GetFirstPlayerController());
 
     if (IsValid(CachedPlayerController))
@@ -70,31 +69,30 @@ void ARVBossEncounterVolume::BeginBossEncounter()
 
 void ARVBossEncounterVolume::StartCutscene()
 {
+    // No sequence assigned or sequence player unavailable — skip directly to combat.
     if (!IsValid(CutsceneSequenceActor))
     {
-        if (IsValid(CachedPlayerController))
-        {
-            CachedPlayerController->SetHUDVisible(true);
-            CachedPlayerController->UnlockInputAfterCutscene();
-        }
-        if (IsValid(CombatBGM))
-        {
-            UGameplayStatics::SpawnSound2D(GetWorld(), CombatBGM);
-        }
-        ResumeBossAI();
-        OnBossSpawned.Broadcast(SpawnedBoss);
+        OnCutsceneFinished();
         return;
     }
 
     ULevelSequencePlayer* SeqPlayer = CutsceneSequenceActor->GetSequencePlayer();
     if (!IsValid(SeqPlayer))
     {
-        ResumeBossAI();
-        OnBossSpawned.Broadcast(SpawnedBoss);
+        OnCutsceneFinished();
         return;
     }
 
+    // Natural end: OnStop fires → OnCutsceneFinished().
     SeqPlayer->OnStop.AddDynamic(this, &ARVBossEncounterVolume::OnCutsceneFinished);
+
+    // Skip input: subscribe while cutscene is live; unsubscribed in OnCutsceneFinished().
+    if (IsValid(CachedPlayerController))
+    {
+        CutsceneSkipHandle = CachedPlayerController->OnCutsceneSkipRequested.AddUObject(
+            this, &ARVBossEncounterVolume::SkipCutscene);
+    }
+
     SeqPlayer->Play();
 
     if (IsValid(SpawnedBoss) && IsValid(BossIntroMontage))
@@ -110,8 +108,26 @@ void ARVBossEncounterVolume::StartCutscene()
     }
 }
 
+void ARVBossEncounterVolume::SkipCutscene()
+{
+    if (!IsValid(CutsceneSequenceActor)) { return; }
+
+    ULevelSequencePlayer* SeqPlayer = CutsceneSequenceActor->GetSequencePlayer();
+    if (!IsValid(SeqPlayer) || !SeqPlayer->IsPlaying()) { return; }
+	
+	SpawnedBoss->StopAnimMontage();
+	SeqPlayer->Stop();
+}
+
 void ARVBossEncounterVolume::OnCutsceneFinished()
 {
+    // Always unsubscribe first — prevents double-fire if skip and natural end race.
+    if (IsValid(CachedPlayerController) && CutsceneSkipHandle.IsValid())
+    {
+        CachedPlayerController->OnCutsceneSkipRequested.Remove(CutsceneSkipHandle);
+        CutsceneSkipHandle.Reset();
+    }
+
     if (IsValid(CutsceneBGMAudioComponent))
     {
         CutsceneBGMAudioComponent->Stop();
